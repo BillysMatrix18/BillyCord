@@ -24,14 +24,15 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "electron:dev": "npm run build && ELECTRON_DEV=true npx electron .",
-    "electron:build": "CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && node scripts/generate-icons.js && npx electron-builder --config electron-builder.config.js",
-    "electron:build:win": "CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && node scripts/generate-icons.js && npx electron-builder --win --config electron-builder.config.js",
+    "electron:build": "npm run build && node scripts/generate-icons.js && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --config electron-builder.config.js",
+    "electron:build:win": "npm run build && node scripts/generate-icons.js && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --win --config electron-builder.config.js",
     "electron:build:mac": "npm run build && node scripts/generate-icons.js && npx electron-builder --mac --config electron-builder.config.js",
     "electron:build:linux": "npm run build && node scripts/generate-icons.js && npx electron-builder --linux --config electron-builder.config.js",
     "generate-icons": "node scripts/generate-icons.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8"
   }
