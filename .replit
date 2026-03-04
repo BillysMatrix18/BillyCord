@@ -1,0 +1,17 @@
+run = "npm run setup && npm start"
+entrypoint = "server/src/index.ts"
+
+[nix]
+channel = "stable-24_05"
+
+[env]
+NODE_ENV = "production"
+PORT = "3001"
+
+[deployment]
+run = ["sh", "-c", "cd server && npm start"]
+build = ["sh", "-c", "npm run install:all && npm run build"]
+
+[[ports]]
+localPort = 3001
+externalPort = 80

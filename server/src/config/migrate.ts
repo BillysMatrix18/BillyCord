@@ -198,16 +198,23 @@ CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id);
 CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code);
 `;
 
-async function runMigrations() {
-  try {
-    console.log('Running database migrations...');
-    await query(migrations);
-    console.log('Migrations completed successfully');
-    process.exit(0);
-  } catch (error) {
-    console.error('Migration failed:', error);
-    process.exit(1);
-  }
+// Exported for auto-migration on server startup
+export async function runMigrations() {
+  console.log('Running database migrations...');
+  await query(migrations);
+  console.log('Migrations completed successfully');
 }
 
-runMigrations();
+// Allow running as standalone script: `tsx src/config/migrate.ts`
+const isDirectRun = require.main === module ||
+  process.argv[1]?.endsWith('migrate.ts') ||
+  process.argv[1]?.endsWith('migrate.js');
+
+if (isDirectRun) {
+  runMigrations()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error('Migration failed:', error);
+      process.exit(1);
+    });
+}

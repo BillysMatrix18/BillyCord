@@ -3,11 +3,19 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+if (!process.env.DATABASE_URL) {
+  console.warn('WARNING: DATABASE_URL is not set. Using default local connection.');
+}
+
+const isProduction = process.env.NODE_ENV === 'production';
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/discord_clone',
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 5000,
+  // Replit and many cloud PostgreSQL providers require SSL
+  ssl: isProduction ? { rejectUnauthorized: false } : undefined,
 });
 
 pool.on('error', (err) => {

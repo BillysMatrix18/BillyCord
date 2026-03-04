@@ -10,6 +10,8 @@
     "build": "npm run build:server && npm run build:client",
     "build:server": "cd server && npm run build",
     "build:client": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "setup": "npm run install:all && npm run build",
     "test": "npm run test:server && npm run test:client",
     "test:server": "cd server && npm test",
     "test:client": "cd client && npm test",
