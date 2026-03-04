@@ -58,12 +58,20 @@ app.get('/api/health', (_req, res) => {
 });
 
 // Serve client build in production
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const electronResources = (process as any).resourcesPath as string | undefined;
 const candidatePaths = [
-  path.join(__dirname, '../../client/dist'),
-  process.resourcesPath ? path.join(process.resourcesPath, 'client/dist') : '',
+  path.join(__dirname, '../../client/dist'),        // from server/src or server/dist
+  path.join(__dirname, '../../../client/dist'),      // deeper nesting (e.g. server/dist/src)
+  path.join(process.cwd(), 'client/dist'),           // from project root cwd
+  electronResources ? path.join(electronResources, 'client', 'dist') : '',
+  electronResources ? path.join(electronResources, 'client-dist') : '',
 ].filter(Boolean);
-const clientBuildPath = candidatePaths.find(p => fs.existsSync(p)) || candidatePaths[0];
-if (fs.existsSync(clientBuildPath)) {
+const clientBuildPath = candidatePaths.find(p => {
+  try { return fs.existsSync(path.join(p, 'index.html')); } catch { return false; }
+});
+
+if (clientBuildPath) {
   console.log('Serving client build from:', clientBuildPath);
   app.use(express.static(clientBuildPath));
 
@@ -72,9 +80,22 @@ if (fs.existsSync(clientBuildPath)) {
     res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 } else {
-  console.log('No client build found at', clientBuildPath, '- API-only mode');
-  app.use((_req, res) => {
-    res.status(404).json({ error: 'Route not found' });
+  console.log('No client build found, searched:', candidatePaths);
+  console.log('Run "npm run build:client" to build the frontend.');
+  // Fallback: non-API routes get a helpful HTML page instead of JSON error
+  app.get('*', (_req, res) => {
+    if (_req.path.startsWith('/api/')) {
+      res.status(404).json({ error: 'Route not found' });
+      return;
+    }
+    res.status(503).send(`<!DOCTYPE html><html><head><title>BillyCord</title>
+<style>body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#fff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+.box{text-align:center;padding:40px}.logo{font-size:48px;font-weight:700;color:#3B82F6;margin-bottom:16px}
+p{color:#8892b0;font-size:16px;line-height:1.6}</style></head>
+<body><div class="box"><div class="logo">BillyCord</div>
+<p>The server is running but the client has not been built yet.<br>
+Run <code style="background:#0d1117;padding:4px 8px;border-radius:4px">npm run build:client</code> on the server machine.</p>
+</div></body></html>`);
   });
 }
 
