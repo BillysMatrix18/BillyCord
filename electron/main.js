@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, Tray, Menu, nativeImage } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { fork } = require('child_process');
 const http = require('http');
@@ -10,6 +11,7 @@ let splashWindow = null;
 let serverProcess = null;
 let tray = null;
 let isQuitting = false;
+let updateAvailable = false;
 
 const SERVER_PORT = 3001;
 const SERVER_URL = `http://localhost:${SERVER_PORT}`;
@@ -219,6 +221,20 @@ function createTray() {
     },
     { type: 'separator' },
     {
+      label: 'Check for Updates',
+      click: () => {
+        autoUpdater.checkForUpdates().catch((err) => {
+          console.error('Manual update check failed:', err);
+          dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Updates',
+            message: 'Could not check for updates. Please try again later.',
+          });
+        });
+      },
+    },
+    { type: 'separator' },
+    {
       label: 'Quit',
       click: () => {
         isQuitting = true;
@@ -236,6 +252,72 @@ function createTray() {
       mainWindow.focus();
     }
   });
+}
+
+// ----- Auto Updater -----
+function setupAutoUpdater() {
+  // Don't check for updates in dev mode
+  if (isDev) {
+    console.log('Skipping auto-update in dev mode');
+    return;
+  }
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for updates...');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info.version);
+    updateAvailable = true;
+    if (mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Available',
+        message: `A new version (v${info.version}) is available. It will be downloaded in the background.`,
+        buttons: ['OK'],
+      });
+    }
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('App is up to date');
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    console.log(`Download progress: ${Math.round(progress.percent)}%`);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('Update downloaded:', info.version);
+    if (mainWindow) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Update Ready',
+        message: `Version ${info.version} has been downloaded. Restart now to apply the update?`,
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+      }).then((result) => {
+        if (result.response === 0) {
+          isQuitting = true;
+          autoUpdater.quitAndInstall(false, true);
+        }
+      });
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err);
+  });
+
+  // Check for updates after a short delay to not block startup
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('Update check failed:', err);
+    });
+  }, 5000);
 }
 
 // ----- Server Management -----
@@ -408,6 +490,9 @@ app.on('ready', async () => {
     // Create the main window and tray
     createMainWindow();
     createTray();
+
+    // Check for updates
+    setupAutoUpdater();
   } catch (error) {
     console.error('Startup error:', error);
 

@@ -95,8 +95,13 @@ module.exports = {
     maintainer: 'BillyCord',
   },
 
-  // Publish (disabled - manual distribution)
-  publish: null,
+  // Publish to GitHub Releases for auto-updates
+  publish: {
+    provider: 'github',
+    owner: 'BillysMatrix18',
+    repo: 'discord-clone-test',
+    releaseType: 'release',
+  },
 
   // asar packaging — disable so server can fork properly
   asar: false,
