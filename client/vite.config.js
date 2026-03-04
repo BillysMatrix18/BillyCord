@@ -1,0 +1,30 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+var serverTarget = process.env.API_URL || 'http://localhost:3001';
+export default defineConfig({
+    plugins: [react()],
+    resolve: {
+        alias: {
+            '@': path.resolve(__dirname, './src'),
+        },
+    },
+    server: {
+        port: 5173,
+        host: '0.0.0.0',
+        proxy: {
+            '/api': {
+                target: serverTarget,
+                changeOrigin: true,
+            },
+            '/socket.io': {
+                target: serverTarget,
+                ws: true,
+            },
+        },
+    },
+    // Build output goes to dist/ which the server will serve
+    build: {
+        outDir: 'dist',
+    },
+});
