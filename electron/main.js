@@ -11,9 +11,36 @@ let isQuitting = false;
 let updateAvailable = false;
 
 // ----- Remote Server Configuration -----
-// Change this URL to your Replit deployment URL
-const SERVER_URL = process.env.BILLYCORD_SERVER_URL || 'https://billypapastavro-discord-clone-test.replit.dev';
+// The server URL is resolved in this order:
+// 1. BILLYCORD_SERVER_URL environment variable
+// 2. Saved URL in userData/server-url.txt (set via "Change Server URL" in tray)
+// 3. Default fallback
+const DEFAULT_SERVER_URL = 'https://billypapastavro-discord-clone-test.replit.app';
 const isDev = process.env.ELECTRON_DEV === 'true';
+
+function getServerUrlFile() {
+  return path.join(app.getPath('userData'), 'server-url.txt');
+}
+
+function loadServerUrl() {
+  // Environment variable takes top priority
+  if (process.env.BILLYCORD_SERVER_URL) {
+    return process.env.BILLYCORD_SERVER_URL;
+  }
+  // Check for saved URL
+  const urlFile = getServerUrlFile();
+  if (fs.existsSync(urlFile)) {
+    const saved = fs.readFileSync(urlFile, 'utf-8').trim();
+    if (saved) return saved;
+  }
+  return DEFAULT_SERVER_URL;
+}
+
+function saveServerUrl(url) {
+  fs.writeFileSync(getServerUrlFile(), url, 'utf-8');
+}
+
+let SERVER_URL = DEFAULT_SERVER_URL;
 
 // ----- Splash Screen -----
 function createSplashWindow() {
@@ -158,12 +185,14 @@ function createMainWindow() {
       type: 'error',
       title: 'BillyCord - Connection Error',
       message: `Could not connect to the BillyCord server.\n\nServer URL: ${SERVER_URL}\nError: ${errorDescription}\n\nMake sure the server is running and you have an internet connection.`,
-      buttons: ['Retry', 'Quit'],
+      buttons: ['Retry', 'Change Server URL', 'Quit'],
       defaultId: 0,
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.response === 0) {
         createSplashWindow();
         mainWindow.loadURL(SERVER_URL);
+      } else if (result.response === 1) {
+        await promptForServerUrl();
       } else {
         isQuitting = true;
         app.quit();
@@ -217,6 +246,15 @@ function createTray() {
     },
     { type: 'separator' },
     {
+      label: 'Change Server URL',
+      click: async () => {
+        if (mainWindow) {
+          mainWindow.show();
+          await promptForServerUrl();
+        }
+      },
+    },
+    {
       label: 'Check for Updates',
       click: () => {
         autoUpdater.checkForUpdates().catch((err) => {
@@ -247,6 +285,79 @@ function createTray() {
       mainWindow.show();
       mainWindow.focus();
     }
+  });
+}
+
+// ----- Server URL Prompt -----
+async function promptForServerUrl() {
+  const { BrowserWindow: BW } = require('electron');
+  const inputWin = new BW({
+    width: 500,
+    height: 220,
+    frame: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    parent: mainWindow,
+    modal: true,
+    backgroundColor: '#1a1a2e',
+    title: 'BillyCord - Server URL',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: false,
+    },
+  });
+
+  const html = `<!DOCTYPE html>
+<html><head><style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: #fff; padding: 24px; }
+  h2 { font-size: 16px; margin-bottom: 8px; }
+  p { font-size: 13px; color: #8892b0; margin-bottom: 16px; }
+  input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #3B82F6; background: #0d1117; color: #fff; font-size: 14px; outline: none; }
+  .buttons { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+  button { padding: 8px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; }
+  .save { background: #3B82F6; color: #fff; }
+  .cancel { background: #333; color: #aaa; }
+</style></head><body>
+  <h2>Enter your BillyCord server URL</h2>
+  <p>This is your Replit deployment URL (e.g. https://your-app.replit.app)</p>
+  <input id="url" value="${SERVER_URL}" autofocus />
+  <div class="buttons">
+    <button class="cancel" onclick="window.close()">Cancel</button>
+    <button class="save" onclick="save()">Connect</button>
+  </div>
+  <script>
+    const {ipcRenderer} = require('electron');
+    function save() {
+      const url = document.getElementById('url').value.trim();
+      if (url) {
+        document.title = 'URL:' + url;
+        window.close();
+      }
+    }
+    document.getElementById('url').addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+  </script>
+</body></html>`;
+
+  inputWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  inputWin.setMenuBarVisibility(false);
+
+  return new Promise((resolve) => {
+    inputWin.on('page-title-updated', (_event, title) => {
+      if (title.startsWith('URL:')) {
+        const newUrl = title.slice(4);
+        SERVER_URL = newUrl;
+        saveServerUrl(newUrl);
+        inputWin.close();
+        createSplashWindow();
+        mainWindow.loadURL(SERVER_URL);
+        resolve(newUrl);
+      }
+    });
+    inputWin.on('closed', () => {
+      resolve(null);
+    });
   });
 }
 
@@ -331,6 +442,9 @@ if (!gotLock) {
 }
 
 app.on('ready', () => {
+  // Load the configured server URL
+  SERVER_URL = loadServerUrl();
+
   // Show splash screen
   createSplashWindow();
 
