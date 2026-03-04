@@ -14,7 +14,7 @@ const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
-  // Replit and many cloud PostgreSQL providers require SSL
+  // Production environments may require SSL
   ssl: isProduction ? { rejectUnauthorized: false } : undefined,
 });
 

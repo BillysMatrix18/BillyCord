@@ -16,40 +16,21 @@ import { generalLimiter } from './middleware/rateLimit';
 import { initializeSocket } from './services/socket';
 import { runMigrations } from './config/migrate';
 import { initRedis } from './config/redis';
+import { startDiscoveryBeacon, getLanIp } from './services/discovery';
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
 
-// CORS: In Replit, the server serves both API and client from the same origin.
-// Allow the Replit preview URL and any custom CLIENT_URL.
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : null,
-  process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null,
-].filter(Boolean) as string[];
-
 // Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  contentSecurityPolicy: false, // Replit needs flexible CSP
+  contentSecurityPolicy: false,
 }));
+// Allow all origins — friends connect from Electron .exe on the local network
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, same-origin)
-    if (!origin) return callback(null, true);
-    // Allow any Replit preview domain
-    if (origin.endsWith('.repl.co') || origin.endsWith('.replit.dev')) {
-      return callback(null, true);
-    }
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    // In development, allow localhost
-    if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
-      return callback(null, true);
-    }
-    callback(null, true); // permissive for demo; tighten in real production
-  },
+  origin: true,
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -57,7 +38,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter);
 
 // Ensure uploads directory exists
-// In Electron desktop mode, UPLOAD_DIR points to user's AppData
 const uploadsDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -77,11 +57,10 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve client build in production / Replit / Electron
-// Check multiple possible locations for the client build
+// Serve client build in production
 const candidatePaths = [
-  path.join(__dirname, '../../client/dist'),                          // Standard dev/production
-  process.resourcesPath ? path.join(process.resourcesPath, 'client/dist') : '', // Electron packaged
+  path.join(__dirname, '../../client/dist'),
+  process.resourcesPath ? path.join(process.resourcesPath, 'client/dist') : '',
 ].filter(Boolean);
 const clientBuildPath = candidatePaths.find(p => fs.existsSync(p)) || candidatePaths[0];
 if (fs.existsSync(clientBuildPath)) {
@@ -94,7 +73,6 @@ if (fs.existsSync(clientBuildPath)) {
   });
 } else {
   console.log('No client build found at', clientBuildPath, '- API-only mode');
-  // 404 handler for non-API routes
   app.use((_req, res) => {
     res.status(404).json({ error: 'Route not found' });
   });
@@ -112,24 +90,24 @@ app.set('io', io);
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 
-// Startup: auto-migrate database, optionally connect Redis, then listen
+// Startup
 async function start() {
   try {
-    // Auto-run database migrations on startup
     console.log('Initializing database...');
     await runMigrations();
 
-    // Try to connect Redis (optional)
     await initRedis();
 
     httpServer.listen(PORT, '0.0.0.0', () => {
+      const lanIp = getLanIp();
       console.log(`Server running on port ${PORT}`);
+      console.log(`LAN address: http://${lanIp}:${PORT}`);
       console.log(`WebSocket server initialized`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      if (process.env.REPL_SLUG) {
-        console.log(`Replit URL: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
-      }
     });
+
+    // Start UDP discovery beacon so BillyCord.exe clients can find this server
+    startDiscoveryBeacon(PORT);
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

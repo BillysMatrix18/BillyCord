@@ -13,12 +13,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // Allow Replit to connect
     host: '0.0.0.0',
-    hmr: {
-      // Replit uses a proxy; need clientPort for HMR to work
-      clientPort: 443,
-    },
     proxy: {
       '/api': {
         target: serverTarget,

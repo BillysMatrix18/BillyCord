@@ -2,8 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Redis is optional - Replit doesn't include it by default.
-// When REDIS_URL is not set, we use an in-memory fallback.
+// Redis is optional. When REDIS_URL is not set, we use an in-memory fallback.
 let redis: import('ioredis').default | null = null;
 
 export async function initRedis() {

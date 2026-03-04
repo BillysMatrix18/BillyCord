@@ -14,18 +14,7 @@ const voiceChannelUsers = new Map<string, Set<{ socketId: string; userId: string
 export function initializeSocket(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: {
-      origin: (origin, callback) => {
-        // Allow same-origin, Replit domains, and configured CLIENT_URL
-        if (!origin ||
-            origin.endsWith('.repl.co') ||
-            origin.endsWith('.replit.dev') ||
-            origin.includes('localhost') ||
-            origin === process.env.CLIENT_URL) {
-          callback(null, true);
-        } else {
-          callback(null, true); // permissive for demo
-        }
-      },
+      origin: true,
       methods: ['GET', 'POST'],
       credentials: true,
     },
