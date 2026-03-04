@@ -5,7 +5,7 @@ import { fetchMessages, sendMessage, clearMessages } from '../../store/messageSl
 import { toggleMemberList, togglePinnedMessages } from '../../store/uiSlice';
 import { getSocket } from '../../services/socket';
 import MessageItem from './MessageItem';
-import { formatDistanceToNow } from 'date-fns';
+import { IconHash, IconPin, IconUsers, IconPlus, IconSend } from '../common/Icons';
 
 export default function ChatArea() {
   const { channelId } = useParams();
@@ -22,23 +22,13 @@ export default function ChatArea() {
     if (channelId) {
       dispatch(clearMessages());
       dispatch(fetchMessages({ channelId }));
-
-      // Join channel room for real-time updates
       const socket = getSocket();
-      if (socket) {
-        socket.emit('channel:join', channelId);
-      }
-
-      return () => {
-        if (socket) {
-          socket.emit('channel:leave', channelId);
-        }
-      };
+      if (socket) socket.emit('channel:join', channelId);
+      return () => { if (socket) socket.emit('channel:leave', channelId); };
     }
   }, [channelId, dispatch]);
 
   useEffect(() => {
-    // Auto-scroll to bottom on new messages
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -52,16 +42,11 @@ export default function ChatArea() {
   const handleTyping = () => {
     const socket = getSocket();
     if (!socket || !channelId) return;
-
     if (!isTyping) {
       setIsTyping(true);
       socket.emit('typing:start', { channelId });
     }
-
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
       socket.emit('typing:stop', { channelId });
@@ -70,10 +55,8 @@ export default function ChatArea() {
 
   const handleSend = () => {
     if (!messageText.trim() || !channelId) return;
-
     dispatch(sendMessage({ channelId, content: messageText })).then((result) => {
       if (sendMessage.fulfilled.match(result)) {
-        // Broadcast to channel
         const socket = getSocket();
         if (socket) {
           socket.emit('message:send', { channelId, message: result.payload });
@@ -86,32 +69,23 @@ export default function ChatArea() {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  // Group consecutive messages by the same user
   const shouldShowHeader = (index: number) => {
     if (index === 0) return true;
     const prev = messages[index - 1];
     const curr = messages[index];
     if (prev.sender_id !== curr.sender_id) return true;
-    const timeDiff = new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime();
-    return timeDiff > 5 * 60 * 1000; // 5 minutes
+    return new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime() > 5 * 60 * 1000;
   };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    } else if (diffDays === 1) {
-      return `Yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
+    if (diffDays === 0) return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    if (diffDays === 1) return `Yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   };
 
@@ -119,7 +93,7 @@ export default function ChatArea() {
     <div className="chat-area">
       <div className="chat-header">
         <div className="chat-header-left">
-          <span className="hash">#</span>
+          <span className="hash"><IconHash size={22} /></span>
           <span className="channel-name">{currentChannel?.name || 'channel'}</span>
           {currentChannel?.topic && (
             <>
@@ -130,32 +104,23 @@ export default function ChatArea() {
         </div>
         <div className="chat-header-right">
           <button onClick={() => dispatch(togglePinnedMessages())} title="Pinned Messages">
-            &#x1F4CC;
+            <IconPin size={20} />
           </button>
           <button onClick={() => dispatch(toggleMemberList())} title="Member List">
-            &#x1F465;
+            <IconUsers size={20} />
           </button>
         </div>
       </div>
 
-      <div
-        className="messages-container"
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-      >
+      <div className="messages-container" ref={messagesContainerRef} onScroll={handleScroll}>
         {loading && (
           <div style={{ textAlign: 'center', padding: 16, color: 'var(--text-muted)' }}>
-            Loading messages...
+            <div className="loading-spinner" style={{ margin: '0 auto' }} />
           </div>
         )}
         <div className="messages-list">
           {messages.map((msg, index) => (
-            <MessageItem
-              key={msg.id}
-              message={msg}
-              showHeader={shouldShowHeader(index)}
-              formatTime={formatTime}
-            />
+            <MessageItem key={msg.id} message={msg} showHeader={shouldShowHeader(index)} formatTime={formatTime} />
           ))}
         </div>
         <div ref={messagesEndRef} />
@@ -170,7 +135,7 @@ export default function ChatArea() {
 
       <div className="message-input-container">
         <div className="message-input-wrapper">
-          <button title="Attach file">+</button>
+          <button title="Attach file"><IconPlus size={20} /></button>
           <textarea
             className="message-input"
             placeholder={`Message #${currentChannel?.name || 'channel'}`}
@@ -179,8 +144,8 @@ export default function ChatArea() {
             onKeyDown={handleKeyDown}
             rows={1}
           />
-          <button onClick={handleSend} title="Send" style={{ opacity: messageText.trim() ? 1 : 0.5 }}>
-            &#x27A4;
+          <button onClick={handleSend} title="Send" style={{ opacity: messageText.trim() ? 1 : 0.3 }}>
+            <IconSend size={20} />
           </button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { messageApi } from '../../services/api';
 import { removeMessage, updateMessage } from '../../store/messageSlice';
 import { getSocket } from '../../services/socket';
 import { Message } from '../../types';
+import { IconSmile, IconEdit, IconPin, IconTrash } from '../common/Icons';
 
 interface MessageItemProps {
   message: Message;
@@ -25,9 +26,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
       await messageApi.delete(message.id);
       dispatch(removeMessage(message.id));
       const socket = getSocket();
-      if (socket) {
-        socket.emit('message:delete', { channelId: message.channel_id, messageId: message.id });
-      }
+      if (socket) socket.emit('message:delete', { channelId: message.channel_id, messageId: message.id });
     } catch (error) {
       console.error('Failed to delete message:', error);
     }
@@ -40,9 +39,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
       dispatch(updateMessage(response.data.message));
       setIsEditing(false);
       const socket = getSocket();
-      if (socket) {
-        socket.emit('message:edit', { channelId: message.channel_id, message: response.data.message });
-      }
+      if (socket) socket.emit('message:edit', { channelId: message.channel_id, message: response.data.message });
     } catch (error) {
       console.error('Failed to edit message:', error);
     }
@@ -52,13 +49,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
     try {
       await messageApi.addReaction(message.id, emoji);
       const socket = getSocket();
-      if (socket) {
-        socket.emit('reaction:add', {
-          channelId: message.channel_id,
-          messageId: message.id,
-          emoji,
-        });
-      }
+      if (socket) socket.emit('reaction:add', { channelId: message.channel_id, messageId: message.id, emoji });
       setShowReactions(false);
     } catch (error) {
       console.error('Failed to add reaction:', error);
@@ -69,13 +60,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
     try {
       await messageApi.removeReaction(message.id, emoji);
       const socket = getSocket();
-      if (socket) {
-        socket.emit('reaction:remove', {
-          channelId: message.channel_id,
-          messageId: message.id,
-          emoji,
-        });
-      }
+      if (socket) socket.emit('reaction:remove', { channelId: message.channel_id, messageId: message.id, emoji });
     } catch (error) {
       console.error('Failed to remove reaction:', error);
     }
@@ -89,11 +74,8 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
     }
   };
 
-  // Group reactions by emoji
   const groupedReactions = message.reactions?.reduce((acc, r) => {
-    if (!acc[r.emoji]) {
-      acc[r.emoji] = { emoji: r.emoji, users: [], count: 0 };
-    }
+    if (!acc[r.emoji]) acc[r.emoji] = { emoji: r.emoji, users: [], count: 0 };
     acc[r.emoji].users.push(r.username);
     acc[r.emoji].count++;
     return acc;
@@ -101,7 +83,6 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
 
   const isAuthor = user?.id === message.sender_id;
 
-  // Render message content with basic markdown
   const renderContent = (content: string) => {
     return content
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -159,7 +140,6 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
           />
         )}
 
-        {/* Reactions */}
         {Object.keys(groupedReactions).length > 0 && (
           <div className="message-reactions">
             {Object.values(groupedReactions).map((reaction) => (
@@ -167,14 +147,8 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
                 key={reaction.emoji}
                 className="reaction-badge"
                 onClick={() => {
-                  const hasReacted = message.reactions.some(
-                    r => r.emoji === reaction.emoji && r.user_id === user?.id
-                  );
-                  if (hasReacted) {
-                    handleRemoveReaction(reaction.emoji);
-                  } else {
-                    handleReaction(reaction.emoji);
-                  }
+                  const hasReacted = message.reactions.some(r => r.emoji === reaction.emoji && r.user_id === user?.id);
+                  hasReacted ? handleRemoveReaction(reaction.emoji) : handleReaction(reaction.emoji);
                 }}
                 title={reaction.users.join(', ')}
               >
@@ -186,22 +160,22 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
         )}
       </div>
 
-      {/* Message action buttons (hover) */}
+      {/* Message action buttons */}
       <div className="message-actions">
         <button onClick={() => setShowReactions(!showReactions)} title="Add Reaction">
-          &#x1F600;
+          <IconSmile size={16} />
         </button>
         {isAuthor && (
           <button onClick={() => { setIsEditing(true); setEditContent(message.content); }} title="Edit">
-            &#x270F;
+            <IconEdit size={16} />
           </button>
         )}
         <button onClick={handlePin} title="Pin Message">
-          &#x1F4CC;
+          <IconPin size={16} />
         </button>
         {isAuthor && (
           <button onClick={handleDelete} title="Delete" style={{ color: 'var(--red)' }}>
-            &#x1F5D1;
+            <IconTrash size={16} />
           </button>
         )}
       </div>
@@ -210,16 +184,12 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
       {showReactions && (
         <div style={{
           position: 'absolute', top: -40, right: 60,
-          background: 'var(--bg-secondary)', borderRadius: 8, padding: '4px 8px',
-          display: 'flex', gap: 4, boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          zIndex: 10,
+          background: 'var(--bg-floating)', borderRadius: 'var(--radius-md)', padding: '4px 8px',
+          display: 'flex', gap: 4, boxShadow: 'var(--shadow-lg)', zIndex: 10,
         }}>
           {QUICK_REACTIONS.map(emoji => (
-            <button
-              key={emoji}
-              onClick={() => handleReaction(emoji)}
-              style={{ fontSize: 20, padding: '2px 4px', cursor: 'pointer' }}
-            >
+            <button key={emoji} onClick={() => handleReaction(emoji)}
+              style={{ fontSize: 20, padding: '4px 6px', cursor: 'pointer', borderRadius: 'var(--radius-sm)' }}>
               {emoji}
             </button>
           ))}

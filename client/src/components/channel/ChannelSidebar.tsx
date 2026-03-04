@@ -1,11 +1,23 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchServer } from '../../store/serverSlice';
 import { setChannels, setCategories, setCurrentChannel } from '../../store/channelSlice';
 import { toggleSettings } from '../../store/uiSlice';
-import { logout } from '../../store/authSlice';
+import { setUserStatus } from '../../store/authSlice';
+import { authApi } from '../../services/api';
 import { useVoice } from '../../hooks/useVoice';
+import {
+  IconHash, IconVolume, IconChevronDown, IconSettings, IconMic, IconMicOff,
+  IconHeadphones, IconHeadphonesOff, IconPhoneOff,
+} from '../common/Icons';
+
+const STATUS_OPTIONS = [
+  { value: 'online', label: 'Online', color: 'var(--green)', desc: 'Ready to chat' },
+  { value: 'idle', label: 'Idle', color: 'var(--yellow)', desc: 'You may be away' },
+  { value: 'dnd', label: 'Do Not Disturb', color: 'var(--red)', desc: 'Block notifications' },
+  { value: 'offline', label: 'Invisible', color: 'var(--text-muted)', desc: 'Appear offline' },
+] as const;
 
 export default function ChannelSidebar() {
   const { serverId, channelId } = useParams();
@@ -15,6 +27,8 @@ export default function ChannelSidebar() {
   const { channels, categories } = useAppSelector((state) => state.channels);
   const { user } = useAppSelector((state) => state.auth);
   const { currentVoiceChannel, voiceUsers, isMuted, isDeafened, joinVoiceChannel, leaveVoiceChannel, toggleMute, toggleDeafen } = useVoice();
+  const [showStatus, setShowStatus] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (serverId) {
@@ -30,9 +44,7 @@ export default function ChannelSidebar() {
   useEffect(() => {
     if (channelId) {
       const channel = channels.find(c => c.id === channelId);
-      if (channel) {
-        dispatch(setCurrentChannel(channel));
-      }
+      if (channel) dispatch(setCurrentChannel(channel));
     }
   }, [channelId, channels, dispatch]);
 
@@ -41,68 +53,79 @@ export default function ChannelSidebar() {
 
   const handleChannelClick = (channel: { id: string; type: string }) => {
     if (channel.type === 'voice') {
-      if (currentVoiceChannel === channel.id) {
-        leaveVoiceChannel();
-      } else {
-        joinVoiceChannel(channel.id);
-      }
+      currentVoiceChannel === channel.id ? leaveVoiceChannel() : joinVoiceChannel(channel.id);
     } else {
       navigate(`/channels/${serverId}/${channel.id}`);
     }
   };
 
-  // Group channels by category
+  const toggleCategory = (catId: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev);
+      next.has(catId) ? next.delete(catId) : next.add(catId);
+      return next;
+    });
+  };
+
   const categorized = categories.map(cat => ({
     ...cat,
     channels: textChannels.filter(c => c.category_id === cat.id),
   }));
   const uncategorizedText = textChannels.filter(c => !c.category_id);
 
+  const handleStatusChange = async (status: string) => {
+    dispatch(setUserStatus(status));
+    setShowStatus(false);
+    try { await authApi.updateProfile({ status }); } catch { /* ignore */ }
+  };
+
   return (
     <div className="channel-sidebar">
       <div className="server-header">
         <span>{currentServer?.name || 'Loading...'}</span>
-        <span style={{ fontSize: 12 }}>&#x25BC;</span>
+        <IconChevronDown size={16} />
       </div>
 
       <div className="channel-list">
-        {/* Uncategorized text channels */}
         {uncategorizedText.map(ch => (
           <div
             key={ch.id}
             className={`channel-item ${channelId === ch.id ? 'active' : ''}`}
             onClick={() => handleChannelClick(ch)}
           >
-            <span className="channel-icon">#</span>
+            <span className="channel-icon"><IconHash size={18} /></span>
             <span className="channel-name">{ch.name}</span>
           </div>
         ))}
 
-        {/* Categorized channels */}
         {categorized.map(cat => (
           <div key={cat.id}>
-            <div className="channel-category">
-              <span style={{ fontSize: 10 }}>&#x25BC;</span>
+            <div className="channel-category" onClick={() => toggleCategory(cat.id)}>
+              <span style={{
+                display: 'flex', transition: 'transform 0.2s',
+                transform: collapsedCategories.has(cat.id) ? 'rotate(-90deg)' : 'rotate(0deg)',
+              }}>
+                <IconChevronDown size={12} />
+              </span>
               <span className="channel-category-name">{cat.name}</span>
             </div>
-            {cat.channels.map(ch => (
+            {!collapsedCategories.has(cat.id) && cat.channels.map(ch => (
               <div
                 key={ch.id}
                 className={`channel-item ${channelId === ch.id ? 'active' : ''}`}
                 onClick={() => handleChannelClick(ch)}
               >
-                <span className="channel-icon">#</span>
+                <span className="channel-icon"><IconHash size={18} /></span>
                 <span className="channel-name">{ch.name}</span>
               </div>
             ))}
           </div>
         ))}
 
-        {/* Voice channels */}
         {voiceChannels.length > 0 && (
           <div>
             <div className="channel-category">
-              <span style={{ fontSize: 10 }}>&#x25BC;</span>
+              <IconChevronDown size={12} />
               <span className="channel-category-name">Voice Channels</span>
             </div>
             {voiceChannels.map(ch => (
@@ -111,7 +134,7 @@ export default function ChannelSidebar() {
                 className={`channel-item ${currentVoiceChannel === ch.id ? 'active' : ''}`}
                 onClick={() => handleChannelClick(ch)}
               >
-                <span className="channel-icon" style={{ fontSize: 18 }}>&#x1F50A;</span>
+                <span className="channel-icon"><IconVolume size={18} /></span>
                 <span className="channel-name">{ch.name}</span>
               </div>
             ))}
@@ -130,13 +153,13 @@ export default function ChannelSidebar() {
               </div>
             </div>
             <button onClick={leaveVoiceChannel} style={{ color: 'var(--red)', fontSize: 18 }} title="Disconnect">
-              &#x260E;
+              <IconPhoneOff size={18} />
             </button>
           </div>
           <div className="voice-users">
             {voiceUsers.map(u => (
               <div key={u.socketId} className="voice-user">
-                <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--brand-color)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff' }}>
+                <span style={{ width: 20, height: 20, borderRadius: 'var(--radius-full)', background: 'var(--brand-color)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff' }}>
                   {u.username[0]}
                 </span>
                 {u.username}
@@ -145,36 +168,48 @@ export default function ChannelSidebar() {
           </div>
           <div className="voice-controls">
             <button className={isMuted ? 'active' : ''} onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
-              {isMuted ? '&#x1F507;' : '&#x1F3A4;'}
+              {isMuted ? <IconMicOff size={16} /> : <IconMic size={16} />}
             </button>
             <button className={isDeafened ? 'active' : ''} onClick={toggleDeafen} title={isDeafened ? 'Undeafen' : 'Deafen'}>
-              {isDeafened ? '&#x1F508;' : '&#x1F3A7;'}
+              {isDeafened ? <IconHeadphonesOff size={16} /> : <IconHeadphones size={16} />}
             </button>
           </div>
         </div>
       )}
 
       {/* User panel */}
-      <div className="user-panel">
-        <div className="user-avatar">
+      <div className="user-panel" style={{ position: 'relative' }}>
+        <div className="user-avatar" style={{ cursor: 'pointer' }} onClick={() => setShowStatus(!showStatus)}>
           {user?.avatar_url ? (
             <img src={user.avatar_url} alt={user.username} />
           ) : (
             user?.username?.[0]?.toUpperCase() || '?'
           )}
+          {user?.status && <div className={`member-status-dot ${user.status}`} style={{ borderColor: 'var(--bg-quaternary)' }} />}
         </div>
-        <div className="user-info">
+        <div className="user-info" style={{ cursor: 'pointer' }} onClick={() => setShowStatus(!showStatus)}>
           <div className="username">{user?.username}</div>
-          <div className="status-text">#{user?.id?.substring(0, 4)}</div>
+          <div className="status-text" style={{ textTransform: 'capitalize' }}>{user?.custom_status || user?.status}</div>
         </div>
         <div className="user-panel-buttons">
-          <button onClick={() => dispatch(toggleSettings())} title="Settings">
-            &#x2699;
-          </button>
-          <button onClick={() => dispatch(logout())} title="Logout">
-            &#x2190;
+          <button onClick={() => dispatch(toggleSettings())} title="User Settings">
+            <IconSettings size={18} />
           </button>
         </div>
+
+        {showStatus && (
+          <div className="status-selector-popup" onClick={(e) => e.stopPropagation()}>
+            {STATUS_OPTIONS.map(opt => (
+              <div key={opt.value} className="status-option" onClick={() => handleStatusChange(opt.value)}>
+                <div className="status-dot" style={{ background: opt.color }} />
+                <div>
+                  <div className="status-label">{opt.label}</div>
+                  <div className="status-desc">{opt.desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

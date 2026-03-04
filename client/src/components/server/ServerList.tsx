@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { toggleCreateServer, toggleJoinServer } from '../../store/uiSlice';
+import { toggleCreateServer, toggleJoinServer, toggleSettings } from '../../store/uiSlice';
+import { IconHome, IconPlus, IconCompass, IconSettings } from '../common/Icons';
 
 export default function ServerList() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function ServerList() {
         onClick={() => navigate('/channels/@me')}
         title="Direct Messages"
       >
-        DC
+        <IconHome size={24} />
       </div>
 
       <div className="server-separator" />
@@ -41,18 +42,25 @@ export default function ServerList() {
       <div
         className="server-icon add-server"
         onClick={() => dispatch(toggleCreateServer())}
-        title="Add a Server"
+        title="Create a Server"
       >
-        +
+        <IconPlus size={22} />
       </div>
 
       <div
-        className="server-icon"
+        className="server-icon join-server"
         onClick={() => dispatch(toggleJoinServer())}
         title="Join a Server"
-        style={{ color: 'var(--green)', fontSize: 20 }}
       >
-        &#x2192;
+        <IconCompass size={22} />
+      </div>
+
+      {/* Bottom navigation */}
+      <div className="server-list-nav">
+        <div className="server-separator" />
+        <div className="nav-icon" onClick={() => dispatch(toggleSettings())} title="User Settings">
+          <IconSettings size={20} />
+        </div>
       </div>
     </div>
   );

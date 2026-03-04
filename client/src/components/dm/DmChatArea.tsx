@@ -4,12 +4,12 @@ import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchDmMessages, clearDmMessages } from '../../store/dmSlice';
 import { dmApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
-import { DirectMessage } from '../../types';
+import { IconPlus, IconSend } from '../common/Icons';
 
 export default function DmChatArea() {
   const { conversationId } = useParams();
   const dispatch = useAppDispatch();
-  const { messages, currentConversation, conversations } = useAppSelector((state) => state.dm);
+  const { messages, conversations } = useAppSelector((state) => state.dm);
   const { user } = useAppSelector((state) => state.auth);
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -51,10 +51,7 @@ export default function DmChatArea() {
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
   const formatTime = (dateStr: string) => {
@@ -78,7 +75,7 @@ export default function DmChatArea() {
     <div className="chat-area">
       <div className="chat-header">
         <div className="chat-header-left">
-          <span style={{ fontSize: 20 }}>@</span>
+          <span style={{ fontSize: 20, color: 'var(--channel-icon)' }}>@</span>
           <span className="channel-name">{displayName}</span>
         </div>
       </div>
@@ -89,11 +86,7 @@ export default function DmChatArea() {
             <div key={msg.id} className={`message ${shouldShowHeader(index) ? 'message-group-start' : ''}`}>
               {shouldShowHeader(index) ? (
                 <div className="message-avatar">
-                  {msg.sender_avatar ? (
-                    <img src={msg.sender_avatar} alt="" />
-                  ) : (
-                    msg.sender_name?.[0]?.toUpperCase() || '?'
-                  )}
+                  {msg.sender_avatar ? <img src={msg.sender_avatar} alt="" /> : msg.sender_name?.[0]?.toUpperCase() || '?'}
                 </div>
               ) : (
                 <div style={{ width: 40, flexShrink: 0 }} />
@@ -115,7 +108,7 @@ export default function DmChatArea() {
 
       <div className="message-input-container">
         <div className="message-input-wrapper">
-          <button>+</button>
+          <button title="Attach file"><IconPlus size={20} /></button>
           <textarea
             className="message-input"
             placeholder={`Message @${displayName}`}
@@ -124,8 +117,8 @@ export default function DmChatArea() {
             onKeyDown={handleKeyDown}
             rows={1}
           />
-          <button onClick={handleSend} style={{ opacity: messageText.trim() ? 1 : 0.5 }}>
-            &#x27A4;
+          <button onClick={handleSend} title="Send" style={{ opacity: messageText.trim() ? 1 : 0.3 }}>
+            <IconSend size={20} />
           </button>
         </div>
       </div>
