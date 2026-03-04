@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchFriends, fetchPendingRequests, sendFriendRequest } from '../../store/friendSlice';
-import { friendApi } from '../../services/api';
+import { fetchConversations } from '../../store/dmSlice';
+import { friendApi, dmApi } from '../../services/api';
 import { IconCheck, IconX, IconMessage } from '../common/Icons';
 
 type Tab = 'online' | 'all' | 'pending' | 'add';
 
 export default function FriendsPage() {
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { friends, pendingIncoming, pendingOutgoing } = useAppSelector((state) => state.friends);
   const [activeTab, setActiveTab] = useState<Tab>('online');
@@ -35,9 +38,18 @@ export default function FriendsPage() {
 
   const handleRespond = async (requestId: string, action: 'accept' | 'decline') => {
     try {
-      await friendApi.respond(requestId, action);
+      const response = await friendApi.respond(requestId, action);
       dispatch(fetchFriends());
       dispatch(fetchPendingRequests());
+      // On accept, refresh DM list so the new conversation appears immediately
+      if (action === 'accept') {
+        dispatch(fetchConversations());
+        // Navigate to the new DM conversation if server returned an ID
+        const conversationId = response.data?.conversationId;
+        if (conversationId) {
+          navigate(`/channels/@me/${conversationId}`);
+        }
+      }
     } catch (error) {
       console.error('Failed to respond:', error);
     }
@@ -49,6 +61,28 @@ export default function FriendsPage() {
       dispatch(fetchFriends());
     } catch (error) {
       console.error('Failed to remove friend:', error);
+    }
+  };
+
+  const handleMessageFriend = async (friendId: string) => {
+    try {
+      // Create or get existing DM conversation
+      const response = await dmApi.createConversation([friendId]);
+      const conversationId = response.data.conversation?.id || response.data.id;
+      if (conversationId) {
+        dispatch(fetchConversations());
+        navigate(`/channels/@me/${conversationId}`);
+      }
+    } catch {
+      // Fallback: try to find existing conversation in the store
+      const convResult = await dispatch(fetchConversations());
+      if (fetchConversations.fulfilled.match(convResult)) {
+        const existing = convResult.payload.find(
+          (c: { is_group: boolean; participants?: { id: string }[] }) =>
+            !c.is_group && c.participants?.some((p: { id: string }) => p.id === friendId)
+        );
+        if (existing) navigate(`/channels/@me/${existing.id}`);
+      }
     }
   };
 
@@ -155,7 +189,7 @@ export default function FriendsPage() {
                 <div className="friend-status-text" style={{ textTransform: 'capitalize' }}>{friend.friend_status}</div>
               </div>
               <div className="friend-actions">
-                <button title="Message"><IconMessage size={18} /></button>
+                <button title="Message" onClick={() => handleMessageFriend(friend.friend_id)}><IconMessage size={18} /></button>
                 <button onClick={() => handleRemoveFriend(friend.friend_id)} title="Remove Friend" style={{ color: 'var(--red)' }}>
                   <IconX size={18} />
                 </button>

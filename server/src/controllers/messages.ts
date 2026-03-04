@@ -208,12 +208,19 @@ export async function pinMessage(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const channelId = msg.rows[0].channel_id;
     await query('UPDATE messages SET pinned = 1 WHERE id = $1', [messageId]);
     await query(
       `INSERT INTO pinned_messages (channel_id, message_id, pinned_by)
        VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-      [msg.rows[0].channel_id, messageId, userId]
+      [channelId, messageId, userId]
     );
+
+    // Broadcast pin event to all users in the channel
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`channel:${channelId}`).emit('message:pinned', { messageId, channelId, pinned: true });
+    }
 
     res.json({ message: 'Message pinned' });
   } catch (error) {
@@ -232,8 +239,15 @@ export async function unpinMessage(req: Request, res: Response): Promise<void> {
       return;
     }
 
+    const channelId = msg.rows[0].channel_id;
     await query('UPDATE messages SET pinned = 0 WHERE id = $1', [messageId]);
     await query('DELETE FROM pinned_messages WHERE message_id = $1', [messageId]);
+
+    // Broadcast unpin event to all users in the channel
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`channel:${channelId}`).emit('message:pinned', { messageId, channelId, pinned: false });
+    }
 
     res.json({ message: 'Message unpinned' });
   } catch (error) {

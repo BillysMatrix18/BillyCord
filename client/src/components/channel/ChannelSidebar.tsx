@@ -28,7 +28,12 @@ export default function ChannelSidebar() {
   const { user } = useAppSelector((state) => state.auth);
   const { currentVoiceChannel, voiceUsers, isMuted, isDeafened, joinVoiceChannel, leaveVoiceChannel, toggleMute, toggleDeafen } = useVoice();
   const [showStatus, setShowStatus] = useState(false);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('collapsedCategories');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch { return new Set(); }
+  });
 
   useEffect(() => {
     if (serverId) {
@@ -63,6 +68,7 @@ export default function ChannelSidebar() {
     setCollapsedCategories(prev => {
       const next = new Set(prev);
       next.has(catId) ? next.delete(catId) : next.add(catId);
+      localStorage.setItem('collapsedCategories', JSON.stringify([...next]));
       return next;
     });
   };

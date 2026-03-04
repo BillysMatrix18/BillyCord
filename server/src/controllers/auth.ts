@@ -66,12 +66,12 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     const { email: loginIdentifier, password } = parsed.data;
 
-    // Allow login with either email or username
+    // Allow login with either email or username (case-insensitive)
     const isEmail = loginIdentifier.includes('@');
     const result = await query(
       isEmail
-        ? 'SELECT * FROM users WHERE email = $1'
-        : 'SELECT * FROM users WHERE username = $1',
+        ? 'SELECT * FROM users WHERE LOWER(email) = LOWER($1)'
+        : 'SELECT * FROM users WHERE LOWER(username) = LOWER($1)',
       [loginIdentifier]
     );
 

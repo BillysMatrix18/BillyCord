@@ -5,7 +5,8 @@ import crypto from 'crypto';
 const sqlite3 = require('sqlite3').verbose();
 
 // Database file path — defaults to project root billycord.db
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', '..', '..', 'billycord.db');
+// Use process.cwd() so the DB location is stable regardless of how the server is launched
+const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'billycord.db');
 
 const db = new sqlite3.Database(DB_PATH, (err: Error | null) => {
   if (err) {

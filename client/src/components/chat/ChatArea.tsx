@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { fetchMessages, sendMessage, clearMessages } from '../../store/messageSlice';
+import { fetchMessages, sendMessage, clearMessages, setMessagePinned } from '../../store/messageSlice';
 import { toggleMemberList, togglePinnedMessages } from '../../store/uiSlice';
 import { getSocket } from '../../services/socket';
 import { messageApi } from '../../services/api';
@@ -43,6 +43,8 @@ export default function ChatArea() {
     try {
       await messageApi.unpin(messageId);
       setPinnedMessages(prev => prev.filter(m => m.id !== messageId));
+      // Also update the message in the main message list
+      dispatch(setMessagePinned({ messageId, pinned: false }));
     } catch (err) {
       console.error('Failed to unpin message:', err);
     }

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import { useAppDispatch, useAppSelector } from './useAppDispatch';
-import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage } from '../store/messageSlice';
+import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage, setMessagePinned } from '../store/messageSlice';
 import { updateMemberStatus } from '../store/serverSlice';
 import { addDmMessage } from '../store/dmSlice';
 import { setAnnouncement } from '../store/uiSlice';
@@ -51,6 +51,10 @@ export function useSocket() {
 
     socket.on('user:status', ({ userId, status }) => {
       dispatch(updateMemberStatus({ userId, status }));
+    });
+
+    socket.on('message:pinned', ({ messageId, pinned }: { messageId: string; channelId: string; pinned: boolean }) => {
+      dispatch(setMessagePinned({ messageId, pinned }));
     });
 
     socket.on('dm:new', ({ message }) => {

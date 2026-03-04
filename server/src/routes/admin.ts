@@ -112,10 +112,12 @@ router.post('/announce', (req: Request, res: Response) => {
       return;
     }
     const io = req.app.get('io');
-    if (io) {
-      io.emit('admin:announcement', { message, timestamp: new Date().toISOString() });
+    if (!io) {
+      res.status(500).json({ error: 'Socket server not initialized' });
+      return;
     }
-    res.json({ success: true, message: 'Announcement sent' });
+    io.emit('admin:announcement', { message, timestamp: new Date().toISOString() });
+    res.json({ success: true, message: 'Announcement sent to all connected users' });
   } catch (err) {
     console.error('Admin announce error:', err);
     res.status(500).json({ error: 'Failed to send announcement' });

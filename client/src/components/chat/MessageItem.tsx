@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { messageApi } from '../../services/api';
-import { removeMessage, updateMessage } from '../../store/messageSlice';
+import { removeMessage, updateMessage, setMessagePinned } from '../../store/messageSlice';
 import { getSocket } from '../../services/socket';
 import { Message } from '../../types';
 import { IconSmile, IconEdit, IconPin, IconTrash } from '../common/Icons';
@@ -70,11 +70,12 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
     try {
       if (message.pinned) {
         await messageApi.unpin(message.id);
-        dispatch(updateMessage({ ...message, pinned: false }));
       } else {
         await messageApi.pin(message.id);
-        dispatch(updateMessage({ ...message, pinned: true }));
       }
+      // The server broadcasts message:pinned via socket, which updates the store
+      // Also update locally for immediate feedback
+      dispatch(setMessagePinned({ messageId: message.id, pinned: !message.pinned }));
     } catch (error) {
       console.error('Failed to pin/unpin message:', error);
     }

@@ -81,6 +81,12 @@ const messageSlice = createSlice({
         );
       }
     },
+    setMessagePinned(state, action: PayloadAction<{ messageId: string; pinned: boolean }>) {
+      const msg = state.messages.find(m => m.id === action.payload.messageId);
+      if (msg) {
+        msg.pinned = action.payload.pinned;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -111,5 +117,6 @@ const messageSlice = createSlice({
 export const {
   clearMessages, addMessage, updateMessage, removeMessage,
   addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage,
+  setMessagePinned,
 } = messageSlice.actions;
 export default messageSlice.reducer;
