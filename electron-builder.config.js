@@ -27,12 +27,6 @@ module.exports = {
       },
     ],
     icon: 'build/icon.png',
-    // Disable code signing — not needed for direct distribution
-    signingHashAlgorithms: null,
-    sign: null,
-    certificateFile: null,
-    certificatePassword: null,
-    forceCodeSigning: false,
   },
 
   // NSIS installer configuration
@@ -42,12 +36,8 @@ module.exports = {
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName: 'BillyCord',
-    installerIcon: 'build/icon.ico',
-    uninstallerIcon: 'build/icon.ico',
-    installerHeaderIcon: 'build/icon.ico',
     deleteAppDataOnUninstall: false,
     runAfterFinish: true,
-    installerSidebar: null,
   },
 
   // macOS configuration
