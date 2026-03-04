@@ -13,39 +13,9 @@ module.exports = {
   },
 
   files: [
-    // Electron main + preload
+    // Electron main + preload (thin client — no server/client bundled)
     'electron/**/*',
-    // Compiled server
-    'server/dist/**/*',
-    'server/package.json',
-    'server/node_modules/**/*',
-    // Built client (served by the server)
-    'client/dist/**/*',
-    // Root package
     'package.json',
-  ],
-
-  extraResources: [
-    // Include server + client as extra resources so they're accessible at runtime
-    {
-      from: 'server/dist',
-      to: 'server/dist',
-      filter: ['**/*'],
-    },
-    {
-      from: 'server/node_modules',
-      to: 'server/node_modules',
-      filter: ['**/*'],
-    },
-    {
-      from: 'server/package.json',
-      to: 'server/package.json',
-    },
-    {
-      from: 'client/dist',
-      to: 'client/dist',
-      filter: ['**/*'],
-    },
   ],
 
   // Windows configuration
@@ -103,6 +73,6 @@ module.exports = {
     releaseType: 'release',
   },
 
-  // asar packaging — disable so server can fork properly
-  asar: false,
+  // asar packaging — enabled since no server forking needed
+  asar: true,
 };

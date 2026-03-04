@@ -1,46 +1,19 @@
 const { app, BrowserWindow, dialog, Tray, Menu, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const { fork } = require('child_process');
-const http = require('http');
 const fs = require('fs');
 
 // Keep references to avoid garbage collection
 let mainWindow = null;
 let splashWindow = null;
-let serverProcess = null;
 let tray = null;
 let isQuitting = false;
 let updateAvailable = false;
 
-const SERVER_PORT = 3001;
-const SERVER_URL = `http://localhost:${SERVER_PORT}`;
+// ----- Remote Server Configuration -----
+// Change this URL to your Replit deployment URL
+const SERVER_URL = process.env.BILLYCORD_SERVER_URL || 'https://yourreplit.replit.dev';
 const isDev = process.env.ELECTRON_DEV === 'true';
-
-// ----- Paths -----
-// In packaged mode, app resources are in process.resourcesPath
-// In dev mode, everything is relative to the project root
-function getProjectRoot() {
-  if (isDev) {
-    return path.join(__dirname, '..');
-  }
-  return process.resourcesPath;
-}
-
-function getServerEntry() {
-  const root = getProjectRoot();
-  // Packaged: server/dist/index.js (compiled JS)
-  const compiled = path.join(root, 'server', 'dist', 'index.js');
-  if (fs.existsSync(compiled)) return compiled;
-
-  // Dev fallback: use tsx to run TypeScript directly
-  // We'll handle this in startServer() instead
-  return null;
-}
-
-function getUserDataPath() {
-  return path.join(app.getPath('userData'), 'billycord-data');
-}
 
 // ----- Splash Screen -----
 function createSplashWindow() {
@@ -135,7 +108,7 @@ function createSplashWindow() {
     <body>
       <div class="logo">BC</div>
       <h1>BillyCord</h1>
-      <div class="status">Starting<span class="dots"></span></div>
+      <div class="status">Connecting<span class="dots"></span></div>
       <div class="progress-bar"><div class="progress-fill"></div></div>
     </body>
     </html>
@@ -165,13 +138,37 @@ function createMainWindow() {
 
   mainWindow.loadURL(SERVER_URL);
 
-  mainWindow.once('ready-to-show', () => {
+  mainWindow.webContents.on('did-finish-load', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {
       splashWindow.close();
       splashWindow = null;
     }
     mainWindow.show();
     mainWindow.focus();
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+      splashWindow = null;
+    }
+
+    dialog.showMessageBox({
+      type: 'error',
+      title: 'BillyCord - Connection Error',
+      message: `Could not connect to the BillyCord server.\n\nServer URL: ${SERVER_URL}\nError: ${errorDescription}\n\nMake sure the server is running and you have an internet connection.`,
+      buttons: ['Retry', 'Quit'],
+      defaultId: 0,
+    }).then((result) => {
+      if (result.response === 0) {
+        createSplashWindow();
+        mainWindow.loadURL(SERVER_URL);
+      } else {
+        isQuitting = true;
+        app.quit();
+      }
+    });
   });
 
   // Minimize to tray instead of closing
@@ -198,7 +195,6 @@ function getAppIcon() {
   if (fs.existsSync(iconPath)) {
     return nativeImage.createFromPath(iconPath);
   }
-  // Create a simple 64x64 icon programmatically if no file exists
   return nativeImage.createEmpty();
 }
 
@@ -256,7 +252,6 @@ function createTray() {
 
 // ----- Auto Updater -----
 function setupAutoUpdater() {
-  // Don't check for updates in dev mode
   if (isDev) {
     console.log('Skipping auto-update in dev mode');
     return;
@@ -320,138 +315,6 @@ function setupAutoUpdater() {
   }, 5000);
 }
 
-// ----- Server Management -----
-function startServer() {
-  return new Promise((resolve, reject) => {
-    const serverEntry = getServerEntry();
-
-    // Set up environment for the server process
-    const serverEnv = {
-      ...process.env,
-      NODE_ENV: 'production',
-      PORT: String(SERVER_PORT),
-      // In desktop mode, the app data goes to user's AppData
-      UPLOAD_DIR: path.join(getUserDataPath(), 'uploads'),
-    };
-
-    // If DATABASE_URL isn't set, it'll use the default from database.ts
-    // Users need PostgreSQL running locally or must set DATABASE_URL
-
-    if (serverEntry) {
-      // Packaged mode: run compiled JS
-      console.log('Starting server from:', serverEntry);
-      serverProcess = fork(serverEntry, [], {
-        env: serverEnv,
-        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-        cwd: path.dirname(path.dirname(serverEntry)),
-      });
-    } else if (isDev) {
-      // Dev mode: use tsx to run TypeScript directly
-      const tsEntry = path.join(getProjectRoot(), 'server', 'src', 'index.ts');
-      const tsxBin = path.join(getProjectRoot(), 'server', 'node_modules', '.bin', 'tsx');
-      const { spawn } = require('child_process');
-      console.log('Starting server in dev mode with tsx:', tsEntry);
-      serverProcess = spawn(tsxBin, [tsEntry], {
-        env: serverEnv,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        cwd: path.join(getProjectRoot(), 'server'),
-      });
-    } else {
-      reject(new Error('Cannot find server entry point. Run "npm run build" first.'));
-      return;
-    }
-
-    let started = false;
-
-    // Capture server output
-    if (serverProcess.stdout) {
-      serverProcess.stdout.on('data', (data) => {
-        const output = data.toString();
-        console.log('[Server]', output.trim());
-        if (output.includes('Server running on port') && !started) {
-          started = true;
-          resolve();
-        }
-      });
-    }
-
-    if (serverProcess.stderr) {
-      serverProcess.stderr.on('data', (data) => {
-        console.error('[Server Error]', data.toString().trim());
-      });
-    }
-
-    serverProcess.on('error', (err) => {
-      console.error('Failed to start server process:', err);
-      if (!started) reject(err);
-    });
-
-    serverProcess.on('exit', (code) => {
-      console.log('Server process exited with code:', code);
-      if (!started) {
-        reject(new Error(`Server exited with code ${code} before becoming ready`));
-      }
-    });
-
-    // Timeout: if server doesn't start in 30 seconds, give up
-    setTimeout(() => {
-      if (!started) {
-        reject(new Error('Server startup timed out (30s). Make sure PostgreSQL is running.'));
-      }
-    }, 30000);
-  });
-}
-
-function waitForServer(maxAttempts = 60, interval = 500) {
-  return new Promise((resolve, reject) => {
-    let attempts = 0;
-
-    function check() {
-      attempts++;
-      const req = http.get(`${SERVER_URL}/api/health`, (res) => {
-        if (res.statusCode === 200) {
-          resolve();
-        } else if (attempts < maxAttempts) {
-          setTimeout(check, interval);
-        } else {
-          reject(new Error('Server health check failed'));
-        }
-      });
-
-      req.on('error', () => {
-        if (attempts < maxAttempts) {
-          setTimeout(check, interval);
-        } else {
-          reject(new Error('Cannot connect to server'));
-        }
-      });
-
-      req.setTimeout(2000, () => {
-        req.destroy();
-        if (attempts < maxAttempts) {
-          setTimeout(check, interval);
-        }
-      });
-    }
-
-    check();
-  });
-}
-
-function stopServer() {
-  if (serverProcess) {
-    console.log('Stopping server...');
-    serverProcess.kill('SIGTERM');
-    // Force kill after 5 seconds
-    setTimeout(() => {
-      if (serverProcess && !serverProcess.killed) {
-        serverProcess.kill('SIGKILL');
-      }
-    }, 5000);
-    serverProcess = null;
-  }
-}
-
 // ----- Application Lifecycle -----
 // Prevent multiple instances
 const gotLock = app.requestSingleInstanceLock();
@@ -467,57 +330,28 @@ if (!gotLock) {
   });
 }
 
-app.on('ready', async () => {
-  // Create data directory
-  const dataPath = getUserDataPath();
-  if (!fs.existsSync(dataPath)) {
-    fs.mkdirSync(dataPath, { recursive: true });
-  }
-
+app.on('ready', () => {
   // Show splash screen
   createSplashWindow();
 
-  try {
-    // Start the backend server
-    console.log('Starting backend server...');
-    await startServer();
-    console.log('Server started, waiting for health check...');
+  // Create the main window (connects to remote server)
+  createMainWindow();
+  createTray();
 
-    // Wait for the server to be fully ready
-    await waitForServer();
-    console.log('Server is ready!');
+  // Check for updates
+  setupAutoUpdater();
 
-    // Create the main window and tray
-    createMainWindow();
-    createTray();
-
-    // Check for updates
-    setupAutoUpdater();
-  } catch (error) {
-    console.error('Startup error:', error);
-
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.close();
-    }
-
-    dialog.showErrorBox(
-      'BillyCord - Startup Error',
-      `Failed to start the application.\n\n${error.message}\n\nMake sure PostgreSQL is running and DATABASE_URL is configured.\n\nYou can set DATABASE_URL in:\n${path.join(getProjectRoot(), 'server', '.env')}`
-    );
-
-    app.quit();
-  }
+  console.log('BillyCord desktop client started');
+  console.log('Connecting to server:', SERVER_URL);
 });
 
 app.on('window-all-closed', () => {
-  // On macOS, keep running in tray
   if (process.platform !== 'darwin') {
     // Don't quit - keep running in tray
   }
 });
 
 app.on('activate', () => {
-  // macOS: re-create window when dock icon clicked
   if (mainWindow === null) {
     createMainWindow();
   } else {
@@ -527,11 +361,6 @@ app.on('activate', () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
-  stopServer();
-});
-
-app.on('will-quit', () => {
-  stopServer();
 });
 
 // Handle uncaught errors
