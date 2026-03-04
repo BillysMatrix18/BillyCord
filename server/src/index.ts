@@ -56,7 +56,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter);
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../uploads');
+// In Electron desktop mode, UPLOAD_DIR points to user's AppData
+const uploadsDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -74,9 +75,13 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Serve client build in production / Replit
-// The built client files are at ../client/dist (relative to server/dist or server/src)
-const clientBuildPath = path.join(__dirname, '../../client/dist');
+// Serve client build in production / Replit / Electron
+// Check multiple possible locations for the client build
+const candidatePaths = [
+  path.join(__dirname, '../../client/dist'),                          // Standard dev/production
+  process.resourcesPath ? path.join(process.resourcesPath, 'client/dist') : '', // Electron packaged
+].filter(Boolean);
+const clientBuildPath = candidatePaths.find(p => fs.existsSync(p)) || candidatePaths[0];
 if (fs.existsSync(clientBuildPath)) {
   console.log('Serving client build from:', clientBuildPath);
   app.use(express.static(clientBuildPath));

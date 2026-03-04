@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" style="stop-color:#5865F2"/>
+      <stop offset="100%" style="stop-color:#4752C4"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+  <g transform="translate(128,128)">
+    <!-- Discord-style chat bubble icon -->
+    <path d="M-52,-30 C-52,-44 -42,-50 -28,-50 L28,-50 C42,-50 52,-44 52,-30 L52,10 C52,24 42,30 28,30 L10,30 L-10,52 L-10,30 L-28,30 C-42,30 -52,24 -52,10 Z"
+          fill="white" opacity="0.95"/>
+    <!-- Two dots representing chat -->
+    <circle cx="-20" cy="-10" r="8" fill="#5865F2"/>
+    <circle cx="8" cy="-10" r="8" fill="#5865F2"/>
+    <circle cx="36" cy="-10" r="5" fill="#5865F2" opacity="0.5"/>
+  </g>
+</svg>

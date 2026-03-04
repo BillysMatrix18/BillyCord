@@ -1,6 +1,5 @@
 node_modules/
 dist/
-build/
 .env
 .env.local
 *.log
@@ -9,3 +8,10 @@ coverage/
 .nyc_output/
 uploads/
 *.tsbuildinfo
+
+# Electron build output
+dist-electron/
+
+# Keep build/ icon files but ignore generated binaries
+build/icon.png
+build/icon.ico
