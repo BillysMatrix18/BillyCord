@@ -1,17 +1,23 @@
-import Database from 'better-sqlite3';
 import path from 'path';
 import crypto from 'crypto';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const sqlite3 = require('sqlite3').verbose();
 
 // Database file path — defaults to project root billycord.db
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', '..', '..', 'billycord.db');
 
-const db = new Database(DB_PATH);
+const db = new sqlite3.Database(DB_PATH, (err: Error | null) => {
+  if (err) {
+    console.error('Failed to open database:', err.message);
+    process.exit(1);
+  }
+  console.log('SQLite database opened:', DB_PATH);
+});
 
 // Enable WAL mode for better concurrency and foreign key enforcement
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-console.log('SQLite database opened:', DB_PATH);
+db.run('PRAGMA journal_mode = WAL');
+db.run('PRAGMA foreign_keys = ON');
 
 /**
  * Convert PostgreSQL-style SQL to SQLite-compatible SQL.
@@ -52,6 +58,36 @@ function processRow(row: Record<string, unknown>): Record<string, unknown> {
   return row;
 }
 
+/** Promisified db.all — returns rows (for SELECT / RETURNING) */
+function dbAll(sql: string, params: unknown[]): Promise<Record<string, unknown>[]> {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err: Error | null, rows: Record<string, unknown>[]) => {
+      if (err) reject(err);
+      else resolve(rows || []);
+    });
+  });
+}
+
+/** Promisified db.run — for INSERT/UPDATE/DELETE without RETURNING */
+function dbRun(sql: string, params: unknown[]): Promise<{ changes: number; lastID: number }> {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (this: { changes: number; lastID: number }, err: Error | null) {
+      if (err) reject(err);
+      else resolve({ changes: this.changes, lastID: this.lastID });
+    });
+  });
+}
+
+/** Promisified db.exec — for multi-statement SQL (migrations) */
+function dbExec(sql: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.exec(sql, (err: Error | null) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
 /**
  * Execute a SQL query with PostgreSQL-style $N parameters.
  * Returns { rows, rowCount } matching the pg interface.
@@ -62,30 +98,28 @@ export async function query(text: string, params?: unknown[]) {
 
   // Transaction control statements
   if (trimmed === 'BEGIN' || trimmed === 'COMMIT' || trimmed === 'ROLLBACK') {
-    db.exec(sql);
-    return { rows: [], rowCount: 0 };
+    await dbExec(sql);
+    return { rows: [] as Record<string, unknown>[], rowCount: 0 };
   }
 
   const isSelect = trimmed.startsWith('SELECT') || trimmed.startsWith('WITH');
   const hasReturning = /\bRETURNING\b/i.test(sql);
 
   if (isSelect || hasReturning) {
-    const stmt = db.prepare(sql);
-    const rows = stmt.all(...sqliteParams) as Record<string, unknown>[];
+    const rows = await dbAll(sql, sqliteParams);
     rows.forEach(processRow);
     return { rows, rowCount: rows.length };
   } else {
-    const stmt = db.prepare(sql);
-    const result = stmt.run(...sqliteParams);
-    return { rows: [], rowCount: result.changes };
+    const result = await dbRun(sql, sqliteParams);
+    return { rows: [] as Record<string, unknown>[], rowCount: result.changes };
   }
 }
 
 /**
  * Execute raw SQL (multi-statement). Used for migrations.
  */
-export function exec(sql: string) {
-  db.exec(sql);
+export async function exec(sql: string) {
+  await dbExec(sql);
 }
 
 /**

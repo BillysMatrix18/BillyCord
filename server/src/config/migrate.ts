@@ -201,7 +201,7 @@ CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code);
 // Exported for auto-migration on server startup
 export async function runMigrations() {
   console.log('Running database migrations...');
-  exec(migrations);
+  await exec(migrations);
   console.log('Migrations completed successfully');
 }
 
