@@ -24,8 +24,8 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "electron:dev": "npm run build && ELECTRON_DEV=true npx electron .",
-    "electron:build": "npm run build && node scripts/generate-icons.js && npx electron-builder --config electron-builder.config.js",
-    "electron:build:win": "npm run build && node scripts/generate-icons.js && npx electron-builder --win --config electron-builder.config.js",
+    "electron:build": "CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && node scripts/generate-icons.js && npx electron-builder --config electron-builder.config.js",
+    "electron:build:win": "CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && node scripts/generate-icons.js && npx electron-builder --win --config electron-builder.config.js",
     "electron:build:mac": "npm run build && node scripts/generate-icons.js && npx electron-builder --mac --config electron-builder.config.js",
     "electron:build:linux": "npm run build && node scripts/generate-icons.js && npx electron-builder --linux --config electron-builder.config.js",
     "generate-icons": "node scripts/generate-icons.js"

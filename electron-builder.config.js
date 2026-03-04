@@ -57,6 +57,12 @@ module.exports = {
       },
     ],
     icon: 'build/icon.png',
+    // Disable code signing — not needed for direct distribution
+    signingHashAlgorithms: null,
+    sign: null,
+    certificateFile: null,
+    certificatePassword: null,
+    forceCodeSigning: false,
   },
 
   // NSIS installer configuration
