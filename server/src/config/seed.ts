@@ -10,7 +10,7 @@ async function seed() {
 
     const user1 = await query(
       `INSERT INTO users (username, email, password_hash, email_verified, status)
-       VALUES ($1, $2, $3, TRUE, 'online')
+       VALUES ($1, $2, $3, 1,'online')
        ON CONFLICT (email) DO NOTHING
        RETURNING id`,
       ['DemoUser', 'demo@example.com', password]
@@ -18,7 +18,7 @@ async function seed() {
 
     const user2 = await query(
       `INSERT INTO users (username, email, password_hash, email_verified, status)
-       VALUES ($1, $2, $3, TRUE, 'online')
+       VALUES ($1, $2, $3, 1,'online')
        ON CONFLICT (email) DO NOTHING
        RETURNING id`,
       ['TestUser', 'test@example.com', password]

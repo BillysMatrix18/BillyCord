@@ -8,18 +8,18 @@ export async function getConversations(req: Request, res: Response): Promise<voi
 
     const result = await query(
       `SELECT c.*,
-        (SELECT json_agg(json_build_object('id', u.id, 'username', u.username, 'avatar_url', u.avatar_url, 'status', u.status))
+        (SELECT json_group_array(json_object('id', u.id, 'username', u.username, 'avatar_url', u.avatar_url, 'status', u.status))
          FROM conversation_members cm2
          JOIN users u ON u.id = cm2.user_id
          WHERE cm2.conversation_id = c.id AND cm2.user_id != $1
         ) as participants,
-        (SELECT json_build_object('content', dm.content, 'sender_id', dm.sender_id, 'created_at', dm.created_at)
+        (SELECT json_object('content', dm.content, 'sender_id', dm.sender_id, 'created_at', dm.created_at)
          FROM direct_messages dm WHERE dm.conversation_id = c.id
          ORDER BY dm.created_at DESC LIMIT 1
         ) as last_message
        FROM conversations c
        JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = $1
-       ORDER BY (SELECT MAX(dm2.created_at) FROM direct_messages dm2 WHERE dm2.conversation_id = c.id) DESC NULLS LAST`,
+       ORDER BY (SELECT MAX(dm2.created_at) FROM direct_messages dm2 WHERE dm2.conversation_id = c.id) DESC`,
       [userId]
     );
 
@@ -47,7 +47,7 @@ export async function createConversation(req: Request, res: Response): Promise<v
     if (!isGroup && participantIds.length === 1) {
       const existing = await client.query(
         `SELECT c.id FROM conversations c
-         WHERE c.is_group = FALSE
+         WHERE c.is_group = 0
          AND (SELECT COUNT(*) FROM conversation_members cm WHERE cm.conversation_id = c.id) = 2
          AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $1)
          AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $2)`,
@@ -142,7 +142,7 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
     const result = await query(
       `INSERT INTO direct_messages (conversation_id, sender_id, content, attachments)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [conversationId, userId, sanitizedContent, attachments || []]
+      [conversationId, userId, sanitizedContent, JSON.stringify(attachments || [])]
     );
 
     const userResult = await query(

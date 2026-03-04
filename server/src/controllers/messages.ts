@@ -11,7 +11,7 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
     let sql = `
       SELECT m.*, u.username as sender_name, u.avatar_url as sender_avatar,
         COALESCE(
-          (SELECT json_agg(json_build_object('emoji', r.emoji, 'user_id', r.user_id, 'username', ru.username))
+          (SELECT json_group_array(json_object('emoji', r.emoji, 'user_id', r.user_id, 'username', ru.username))
            FROM reactions r JOIN users ru ON ru.id = r.user_id
            WHERE r.message_id = m.id), '[]'
         ) as reactions
@@ -59,7 +59,7 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       `INSERT INTO messages (channel_id, sender_id, content, attachments)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [channelId, userId, sanitizedContent, attachments || []]
+      [channelId, userId, sanitizedContent, JSON.stringify(attachments || [])]
     );
 
     // Fetch sender info
@@ -106,7 +106,7 @@ export async function updateMessage(req: Request, res: Response): Promise<void> 
     const sanitizedContent = sanitizeHtml(content);
 
     const result = await query(
-      `UPDATE messages SET content = $1, edited = TRUE, updated_at = NOW()
+      `UPDATE messages SET content = $1, edited = 1, updated_at = NOW()
        WHERE id = $2 RETURNING *`,
       [sanitizedContent, messageId]
     );
@@ -208,7 +208,7 @@ export async function pinMessage(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    await query('UPDATE messages SET pinned = TRUE WHERE id = $1', [messageId]);
+    await query('UPDATE messages SET pinned = 1 WHERE id = $1', [messageId]);
     await query(
       `INSERT INTO pinned_messages (channel_id, message_id, pinned_by)
        VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
@@ -230,7 +230,7 @@ export async function getPinnedMessages(req: Request, res: Response): Promise<vo
       `SELECT m.*, u.username as sender_name, u.avatar_url as sender_avatar
        FROM messages m
        JOIN users u ON u.id = m.sender_id
-       WHERE m.channel_id = $1 AND m.pinned = TRUE
+       WHERE m.channel_id = $1 AND m.pinned = 1
        ORDER BY m.created_at DESC`,
       [channelId]
     );
