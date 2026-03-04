@@ -17,17 +17,33 @@ function requireAdmin(req: Request, res: Response, next: NextFunction): void {
 
 router.use(requireAdmin);
 
-// GET /api/admin/stats — dashboard statistics
+// ── Stats & Analytics ──────────────────────────────────────────────
+
 router.get('/stats', async (_req: Request, res: Response) => {
   try {
-    const [usersResult, onlineResult, serversResult, channelsResult, messagesResult] =
+    const [usersResult, onlineResult, serversResult, channelsResult, messagesResult, dmsResult, friendsResult] =
       await Promise.all([
         query('SELECT COUNT(*) as count FROM users'),
         query("SELECT COUNT(*) as count FROM users WHERE status = 'online'"),
         query('SELECT COUNT(*) as count FROM servers'),
         query('SELECT COUNT(*) as count FROM channels'),
         query('SELECT COUNT(*) as count FROM messages'),
+        query('SELECT COUNT(*) as count FROM direct_messages'),
+        query("SELECT COUNT(*) as count FROM friends WHERE status = 'accepted'"),
       ]);
+
+    // New users today
+    const newToday = await query(
+      "SELECT COUNT(*) as count FROM users WHERE date(created_at) = date('now')"
+    );
+    // New users this week
+    const newThisWeek = await query(
+      "SELECT COUNT(*) as count FROM users WHERE created_at >= datetime('now', '-7 days')"
+    );
+    // Active users last 24h
+    const activeLast24h = await query(
+      "SELECT COUNT(*) as count FROM users WHERE last_seen >= datetime('now', '-1 day')"
+    );
 
     res.json({
       totalUsers: parseInt(usersResult.rows[0].count),
@@ -35,8 +51,15 @@ router.get('/stats', async (_req: Request, res: Response) => {
       totalServers: parseInt(serversResult.rows[0].count),
       totalChannels: parseInt(channelsResult.rows[0].count),
       totalMessages: parseInt(messagesResult.rows[0].count),
+      totalDMs: parseInt(dmsResult.rows[0].count),
+      totalFriendships: parseInt(friendsResult.rows[0].count),
+      newUsersToday: parseInt(newToday.rows[0].count),
+      newUsersThisWeek: parseInt(newThisWeek.rows[0].count),
+      activeUsersLast24h: parseInt(activeLast24h.rows[0].count),
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage(),
+      nodeVersion: process.version,
+      platform: process.platform,
     });
   } catch (err) {
     console.error('Admin stats error:', err);
@@ -44,13 +67,93 @@ router.get('/stats', async (_req: Request, res: Response) => {
   }
 });
 
-// GET /api/admin/users — list all users
-router.get('/users', async (_req: Request, res: Response) => {
+// Analytics — messages per day for last 30 days
+router.get('/analytics/messages', async (_req: Request, res: Response) => {
   try {
     const result = await query(
-      `SELECT id, username, email, status, custom_status, created_at, last_seen
-       FROM users ORDER BY created_at DESC`
+      `SELECT date(created_at) as day, COUNT(*) as count
+       FROM messages
+       WHERE created_at >= datetime('now', '-30 days')
+       GROUP BY date(created_at)
+       ORDER BY day ASC`
     );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// Analytics — user signups per day for last 30 days
+router.get('/analytics/users', async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT date(created_at) as day, COUNT(*) as count
+       FROM users
+       WHERE created_at >= datetime('now', '-30 days')
+       GROUP BY date(created_at)
+       ORDER BY day ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// Analytics — most active channels
+router.get('/analytics/channels', async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT c.name as channel_name, s.name as server_name, COUNT(m.id) as message_count
+       FROM messages m
+       JOIN channels c ON m.channel_id = c.id
+       JOIN servers s ON c.server_id = s.id
+       WHERE m.created_at >= datetime('now', '-7 days')
+       GROUP BY m.channel_id
+       ORDER BY message_count DESC
+       LIMIT 20`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// Analytics — most active users
+router.get('/analytics/active-users', async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT u.username, u.avatar_url, COUNT(m.id) as message_count
+       FROM messages m
+       JOIN users u ON m.sender_id = u.id
+       WHERE m.created_at >= datetime('now', '-7 days')
+       GROUP BY m.sender_id
+       ORDER BY message_count DESC
+       LIMIT 20`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+// ── User Management ────────────────────────────────────────────────
+
+router.get('/users', async (req: Request, res: Response) => {
+  try {
+    const search = req.query.search as string;
+    let sql = `SELECT id, username, email, status, custom_status, avatar_url, created_at, last_seen
+               FROM users`;
+    const params: unknown[] = [];
+    if (search) {
+      sql += ` WHERE LOWER(username) LIKE LOWER($1) OR LOWER(email) LIKE LOWER($1)`;
+      params.push(`%${search}%`);
+    }
+    sql += ` ORDER BY created_at DESC`;
+    const result = await query(sql, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Admin users error:', err);
@@ -58,11 +161,35 @@ router.get('/users', async (_req: Request, res: Response) => {
   }
 });
 
-// DELETE /api/admin/users/:userId — delete a user
+router.get('/users/:userId', async (req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT id, username, email, avatar_url, banner_url, bio, status, custom_status,
+              theme, pronouns, location, birthday, social_links, profile_color,
+              profile_visibility, email_verified, created_at, last_seen
+       FROM users WHERE id = $1`,
+      [req.params.userId]
+    );
+    if (result.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
+
+    // Get user's servers
+    const servers = await query(
+      `SELECT s.id, s.name FROM server_members sm JOIN servers s ON sm.server_id = s.id WHERE sm.user_id = $1`,
+      [req.params.userId]
+    );
+    // Get user's message count
+    const msgCount = await query('SELECT COUNT(*) as count FROM messages WHERE sender_id = $1', [req.params.userId]);
+
+    res.json({ ...result.rows[0], servers: servers.rows, messageCount: parseInt(msgCount.rows[0].count) });
+  } catch (err) {
+    console.error('Admin user detail error:', err);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
 router.delete('/users/:userId', async (req: Request, res: Response) => {
   try {
-    const { userId } = req.params;
-    await query('DELETE FROM users WHERE id = $1', [userId]);
+    await query('DELETE FROM users WHERE id = $1', [req.params.userId]);
     res.json({ success: true });
   } catch (err) {
     console.error('Admin delete user error:', err);
@@ -70,7 +197,47 @@ router.delete('/users/:userId', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/admin/servers — list all servers
+// Ban/unban user (set status)
+router.post('/users/:userId/ban', async (req: Request, res: Response) => {
+  try {
+    const { reason } = req.body;
+    await query("UPDATE users SET status = 'offline', custom_status = $1 WHERE id = $2", [`BANNED: ${reason || 'No reason'}`, req.params.userId]);
+    // Disconnect their socket
+    const io = req.app.get('io');
+    if (io) io.to(`user:${req.params.userId}`).emit('force:disconnect', { reason: 'You have been banned.' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin ban error:', err);
+    res.status(500).json({ error: 'Failed to ban user' });
+  }
+});
+
+router.post('/users/:userId/unban', async (req: Request, res: Response) => {
+  try {
+    await query("UPDATE users SET custom_status = NULL WHERE id = $1", [req.params.userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin unban error:', err);
+    res.status(500).json({ error: 'Failed to unban user' });
+  }
+});
+
+// Reset user password (admin sets a new one)
+router.post('/users/:userId/reset-password', async (req: Request, res: Response) => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const newPassword = req.body.newPassword || 'TempPass123!';
+    const hash = await bcrypt.hash(newPassword, 12);
+    await query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, req.params.userId]);
+    res.json({ success: true, message: `Password reset. New: ${newPassword}` });
+  } catch (err) {
+    console.error('Admin reset password error:', err);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// ── Server Management ──────────────────────────────────────────────
+
 router.get('/servers', async (_req: Request, res: Response) => {
   try {
     const result = await query(
@@ -88,43 +255,139 @@ router.get('/servers', async (_req: Request, res: Response) => {
   }
 });
 
-// GET /api/admin/settings — get current server settings
-router.get('/settings', (_req: Request, res: Response) => {
-  res.json({
-    port: parseInt(process.env.PORT || '3001'),
-    nodeEnv: process.env.NODE_ENV || 'development',
-    debugMode: process.env.DEBUG === 'true',
-    maxUploadSize: '10mb',
-    jwtExpiry: '15m',
-    rateLimitWindow: '15min',
-    rateLimitMax: 100,
-    databaseConnected: true,
-    redisEnabled: !!process.env.REDIS_URL,
-  });
+router.delete('/servers/:serverId', async (req: Request, res: Response) => {
+  try {
+    await query('DELETE FROM servers WHERE id = $1', [req.params.serverId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin delete server error:', err);
+    res.status(500).json({ error: 'Failed to delete server' });
+  }
 });
 
-// POST /api/admin/announce — send announcement to all connected users
-router.post('/announce', (req: Request, res: Response) => {
+// ── Configurable Settings ──────────────────────────────────────────
+
+router.get('/settings', async (_req: Request, res: Response) => {
+  try {
+    const result = await query('SELECT * FROM server_settings ORDER BY category, setting_key');
+    // Also include runtime info
+    res.json({
+      settings: result.rows,
+      runtime: {
+        port: parseInt(process.env.PORT || '3001'),
+        nodeEnv: process.env.NODE_ENV || 'development',
+        databaseConnected: true,
+        redisEnabled: !!process.env.REDIS_URL,
+      },
+    });
+  } catch (err) {
+    console.error('Admin settings error:', err);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+router.patch('/settings/:key', async (req: Request, res: Response) => {
+  try {
+    const { value } = req.body;
+    if (value === undefined) { res.status(400).json({ error: 'Value is required' }); return; }
+    await query(
+      "UPDATE server_settings SET setting_value = $1, updated_at = datetime('now') WHERE setting_key = $2",
+      [String(value), req.params.key]
+    );
+    res.json({ success: true, key: req.params.key, value });
+  } catch (err) {
+    console.error('Admin update setting error:', err);
+    res.status(500).json({ error: 'Failed to update setting' });
+  }
+});
+
+// ── Announcements ──────────────────────────────────────────────────
+
+router.post('/announce', async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
-    if (!message) {
-      res.status(400).json({ error: 'Message required' });
-      return;
-    }
+    if (!message) { res.status(400).json({ error: 'Message required' }); return; }
     const io = req.app.get('io');
-    if (!io) {
-      res.status(500).json({ error: 'Socket server not initialized' });
-      return;
-    }
+    if (!io) { res.status(500).json({ error: 'Socket server not initialized' }); return; }
+
+    // Count connected sockets
+    const sockets = await io.fetchSockets();
+    const sentToCount = sockets.length;
+
+    // Save to announcements table
+    await query(
+      `INSERT INTO announcements (content, sent_to_count) VALUES ($1, $2)`,
+      [message, sentToCount]
+    );
+
     io.emit('admin:announcement', { message, timestamp: new Date().toISOString() });
-    res.json({ success: true, message: 'Announcement sent to all connected users' });
+    res.json({ success: true, message: 'Announcement sent', sentToCount });
   } catch (err) {
     console.error('Admin announce error:', err);
     res.status(500).json({ error: 'Failed to send announcement' });
   }
 });
 
-// GET /api/admin/activity — recent activity (last 50 messages)
+router.get('/announcements', async (_req: Request, res: Response) => {
+  try {
+    const result = await query(
+      `SELECT * FROM announcements ORDER BY created_at DESC LIMIT 50`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin announcements error:', err);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+});
+
+// ── Message Management ─────────────────────────────────────────────
+
+router.get('/messages/search', async (req: Request, res: Response) => {
+  try {
+    const { q, userId, channelId } = req.query;
+    let sql = `SELECT m.id, m.content, m.created_at, u.username as sender,
+                      c.name as channel_name, s.name as server_name
+               FROM messages m
+               LEFT JOIN users u ON m.sender_id = u.id
+               LEFT JOIN channels c ON m.channel_id = c.id
+               LEFT JOIN servers s ON c.server_id = s.id WHERE 1=1`;
+    const params: unknown[] = [];
+    let idx = 1;
+    if (q) { sql += ` AND LOWER(m.content) LIKE LOWER($${idx++})`; params.push(`%${q}%`); }
+    if (userId) { sql += ` AND m.sender_id = $${idx++}`; params.push(userId); }
+    if (channelId) { sql += ` AND m.channel_id = $${idx++}`; params.push(channelId); }
+    sql += ` ORDER BY m.created_at DESC LIMIT 100`;
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin message search error:', err);
+    res.status(500).json({ error: 'Failed to search messages' });
+  }
+});
+
+router.delete('/messages/:messageId', async (req: Request, res: Response) => {
+  try {
+    await query('DELETE FROM messages WHERE id = $1', [req.params.messageId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin delete message error:', err);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+});
+
+// Purge messages by user
+router.delete('/messages/purge/:userId', async (req: Request, res: Response) => {
+  try {
+    const result = await query('DELETE FROM messages WHERE sender_id = $1', [req.params.userId]);
+    res.json({ success: true, deletedCount: result.rowCount });
+  } catch (err) {
+    console.error('Admin purge messages error:', err);
+    res.status(500).json({ error: 'Failed to purge messages' });
+  }
+});
+
+// ── Activity & Logs ────────────────────────────────────────────────
+
 router.get('/activity', async (_req: Request, res: Response) => {
   try {
     const result = await query(
@@ -140,6 +403,35 @@ router.get('/activity', async (_req: Request, res: Response) => {
   } catch (err) {
     console.error('Admin activity error:', err);
     res.status(500).json({ error: 'Failed to fetch activity' });
+  }
+});
+
+router.get('/logs', async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query;
+    let sql = 'SELECT * FROM admin_logs';
+    const params: unknown[] = [];
+    if (type) { sql += ' WHERE admin_action = $1'; params.push(type); }
+    sql += ' ORDER BY created_at DESC LIMIT 200';
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Admin logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+});
+
+// ── User Preferences (category collapse, etc.) ─────────────────────
+
+router.get('/preferences/:userId/:serverId', async (req: Request, res: Response) => {
+  try {
+    const result = await query(
+      'SELECT * FROM user_preferences WHERE user_id = $1 AND server_id = $2',
+      [req.params.userId, req.params.serverId]
+    );
+    res.json(result.rows[0] || { collapsed_categories: '[]' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch preferences' });
   }
 });
 

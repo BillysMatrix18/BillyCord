@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { messageApi } from '../../services/api';
 import { removeMessage, updateMessage, setMessagePinned } from '../../store/messageSlice';
@@ -20,6 +20,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showReactions, setShowReactions] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   const handleDelete = async () => {
     try {
@@ -73,13 +74,26 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
       } else {
         await messageApi.pin(message.id);
       }
-      // The server broadcasts message:pinned via socket, which updates the store
-      // Also update locally for immediate feedback
       dispatch(setMessagePinned({ messageId: message.id, pinned: !message.pinned }));
     } catch (error) {
       console.error('Failed to pin/unpin message:', error);
     }
   };
+
+  const handleCopyText = useCallback(() => {
+    navigator.clipboard.writeText(message.content);
+    setContextMenu(null);
+  }, [message.content]);
+
+  const handleCopyId = useCallback(() => {
+    navigator.clipboard.writeText(message.id);
+    setContextMenu(null);
+  }, [message.id]);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
 
   const groupedReactions = message.reactions?.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { emoji: r.emoji, users: [], count: 0 };
@@ -99,7 +113,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
   };
 
   return (
-    <div className={`message ${showHeader ? 'message-group-start' : ''}`}>
+    <div className={`message ${showHeader ? 'message-group-start' : ''}`} onContextMenu={handleContextMenu}>
       {showHeader ? (
         <div className="message-avatar">
           {message.sender_avatar ? (
@@ -202,6 +216,37 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
             </button>
           ))}
         </div>
+      )}
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+          <div className="context-menu" style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 }}>
+            <div className="context-menu-item" onClick={() => { setShowReactions(true); setContextMenu(null); }}>
+              Add Reaction
+            </div>
+            {isAuthor && (
+              <div className="context-menu-item" onClick={() => { setIsEditing(true); setEditContent(message.content); setContextMenu(null); }}>
+                Edit Message
+              </div>
+            )}
+            <div className="context-menu-item" onClick={() => { handlePin(); setContextMenu(null); }}>
+              {message.pinned ? 'Unpin Message' : 'Pin Message'}
+            </div>
+            <div className="context-menu-item" onClick={handleCopyText}>
+              Copy Text
+            </div>
+            <div className="context-menu-item" onClick={handleCopyId}>
+              Copy Message ID
+            </div>
+            {isAuthor && (
+              <div className="context-menu-item context-menu-danger" onClick={() => { handleDelete(); setContextMenu(null); }}>
+                Delete Message
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

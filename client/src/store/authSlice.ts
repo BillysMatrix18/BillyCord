@@ -108,6 +108,11 @@ const authSlice = createSlice({
         state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
+        // Apply user's saved theme
+        if (action.payload.theme) {
+          localStorage.setItem('theme', action.payload.theme);
+          document.documentElement.setAttribute('data-theme', action.payload.theme);
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -116,6 +121,10 @@ const authSlice = createSlice({
       .addCase(fetchUser.fulfilled, (state, action) => {
         state.user = action.payload;
         state.isAuthenticated = true;
+        if (action.payload.theme) {
+          localStorage.setItem('theme', action.payload.theme);
+          document.documentElement.setAttribute('data-theme', action.payload.theme);
+        }
       })
       .addCase(fetchUser.rejected, (state) => {
         state.isAuthenticated = false;

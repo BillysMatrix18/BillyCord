@@ -28,7 +28,8 @@ export async function register(req: Request, res: Response): Promise<void> {
 
     const result = await query(
       `INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3)
-       RETURNING id, username, email, avatar_url, bio, status, created_at`,
+       RETURNING id, username, email, avatar_url, banner_url, bio, status, custom_status, theme,
+                 pronouns, location, birthday, social_links, profile_color, profile_visibility, created_at`,
       [username, email, passwordHash]
     );
 
@@ -37,19 +38,7 @@ export async function register(req: Request, res: Response): Promise<void> {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    res.status(201).json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar_url: user.avatar_url,
-        bio: user.bio,
-        status: user.status,
-        created_at: user.created_at,
-      },
-      accessToken,
-      refreshToken,
-    });
+    res.status(201).json({ user, accessToken, refreshToken });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -98,19 +87,18 @@ export async function login(req: Request, res: Response): Promise<void> {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    res.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar_url: user.avatar_url,
-        bio: user.bio,
-        status: 'online',
-        created_at: user.created_at,
-      },
-      accessToken,
-      refreshToken,
-    });
+    // Re-fetch user with all profile fields
+    const fullUser = await query(
+      `SELECT id, username, email, avatar_url, banner_url, bio, status, custom_status, theme,
+              pronouns, location, birthday, social_links, profile_color, profile_visibility,
+              email_verified, created_at
+       FROM users WHERE id = $1`,
+      [user.id]
+    );
+    const userData = fullUser.rows[0] || user;
+    userData.status = 'online';
+
+    res.json({ user: userData, accessToken, refreshToken });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -139,7 +127,9 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
 export async function getMe(req: Request, res: Response): Promise<void> {
   try {
     const result = await query(
-      `SELECT id, username, email, avatar_url, bio, status, custom_status, email_verified, created_at
+      `SELECT id, username, email, avatar_url, banner_url, bio, status, custom_status, theme,
+              pronouns, location, birthday, social_links, profile_color, profile_visibility,
+              email_verified, created_at
        FROM users WHERE id = $1`,
       [req.user!.userId]
     );
@@ -158,28 +148,23 @@ export async function getMe(req: Request, res: Response): Promise<void> {
 
 export async function updateProfile(req: Request, res: Response): Promise<void> {
   try {
-    const { username, bio, custom_status, avatar_url } = req.body;
     const userId = req.user!.userId;
+    const allowedFields = [
+      'username', 'bio', 'custom_status', 'avatar_url', 'banner_url', 'theme',
+      'pronouns', 'location', 'birthday', 'social_links', 'profile_color',
+      'profile_visibility', 'status',
+    ];
 
     const fields: string[] = [];
     const values: unknown[] = [];
     let paramIndex = 1;
 
-    if (username !== undefined) {
-      fields.push(`username = $${paramIndex++}`);
-      values.push(username);
-    }
-    if (bio !== undefined) {
-      fields.push(`bio = $${paramIndex++}`);
-      values.push(bio);
-    }
-    if (custom_status !== undefined) {
-      fields.push(`custom_status = $${paramIndex++}`);
-      values.push(custom_status);
-    }
-    if (avatar_url !== undefined) {
-      fields.push(`avatar_url = $${paramIndex++}`);
-      values.push(avatar_url);
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        const val = typeof req.body[field] === 'object' ? JSON.stringify(req.body[field]) : req.body[field];
+        fields.push(`${field} = $${paramIndex++}`);
+        values.push(val);
+      }
     }
 
     if (fields.length === 0) {
@@ -190,7 +175,9 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
     values.push(userId);
     const result = await query(
       `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex}
-       RETURNING id, username, email, avatar_url, bio, status, custom_status, created_at`,
+       RETURNING id, username, email, avatar_url, banner_url, bio, status, custom_status, theme,
+                 pronouns, location, birthday, social_links, profile_color, profile_visibility,
+                 email_verified, created_at`,
       values
     );
 

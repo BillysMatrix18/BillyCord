@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { toggleSettings, setTheme } from '../../store/uiSlice';
+import { toggleSettings, setThemeWithSync } from '../../store/uiSlice';
 import { updateProfile, logout } from '../../store/authSlice';
 import { authApi } from '../../services/api';
 import {
@@ -20,6 +20,11 @@ export default function SettingsOverlay() {
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [customStatus, setCustomStatus] = useState(user?.custom_status || '');
+  const [pronouns, setPronouns] = useState(user?.pronouns || '');
+  const [location, setLocation] = useState(user?.location || '');
+  const [birthday, setBirthday] = useState(user?.birthday || '');
+  const [profileColor, setProfileColor] = useState(user?.profile_color || '#5865F2');
+  const [profileVisibility, setProfileVisibility] = useState(user?.profile_visibility || 'public');
   const [profileSaved, setProfileSaved] = useState(false);
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -34,6 +39,11 @@ export default function SettingsOverlay() {
     if (username !== user?.username) updates.username = username;
     if (bio !== (user?.bio || '')) updates.bio = bio;
     if (customStatus !== (user?.custom_status || '')) updates.custom_status = customStatus;
+    if (pronouns !== (user?.pronouns || '')) updates.pronouns = pronouns;
+    if (location !== (user?.location || '')) updates.location = location;
+    if (birthday !== (user?.birthday || '')) updates.birthday = birthday;
+    if (profileColor !== (user?.profile_color || '#5865F2')) updates.profile_color = profileColor;
+    if (profileVisibility !== (user?.profile_visibility || 'public')) updates.profile_visibility = profileVisibility;
     if (Object.keys(updates).length > 0) {
       dispatch(updateProfile(updates));
       setProfileSaved(true);
@@ -197,6 +207,35 @@ export default function SettingsOverlay() {
               <label>Custom Status</label>
               <input type="text" className="form-input" value={customStatus} onChange={e => setCustomStatus(e.target.value)} maxLength={128} placeholder="What are you up to?" />
             </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="form-group">
+                <label>Pronouns</label>
+                <input type="text" className="form-input" value={pronouns} onChange={e => setPronouns(e.target.value)} placeholder="e.g. they/them" maxLength={40} />
+              </div>
+              <div className="form-group">
+                <label>Location</label>
+                <input type="text" className="form-input" value={location} onChange={e => setLocation(e.target.value)} placeholder="e.g. New York, USA" maxLength={60} />
+              </div>
+              <div className="form-group">
+                <label>Birthday</label>
+                <input type="date" className="form-input" value={birthday} onChange={e => setBirthday(e.target.value)} />
+              </div>
+              <div className="form-group">
+                <label>Profile Color</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input type="color" value={profileColor} onChange={e => setProfileColor(e.target.value)} style={{ width: 40, height: 34, border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', background: 'transparent' }} />
+                  <input type="text" className="form-input" value={profileColor} onChange={e => setProfileColor(e.target.value)} style={{ flex: 1 }} maxLength={7} />
+                </div>
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Profile Visibility</label>
+              <select className="form-input" value={profileVisibility} onChange={e => setProfileVisibility(e.target.value as 'public' | 'friends' | 'private')}>
+                <option value="public">Public - Anyone can see your profile</option>
+                <option value="friends">Friends Only - Only friends can see</option>
+                <option value="private">Private - Only you can see</option>
+              </select>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button className="btn btn-primary" style={{ width: 'auto' }} onClick={handleSaveProfile}>Save Changes</button>
               {profileSaved && <span className="animate-fade-in" style={{ color: 'var(--green)', fontSize: 14, fontWeight: 500 }}>Profile saved!</span>}
@@ -209,19 +248,19 @@ export default function SettingsOverlay() {
             <h2>Appearance</h2>
             <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Theme</label>
             <div className="theme-options">
-              <div className={`theme-option ${theme === 'dark' ? 'active' : ''}`} onClick={() => dispatch(setTheme('dark'))}>
+              <div className={`theme-option ${theme === 'dark' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('dark'))}>
                 <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #313338, #1e1f22)' }} />
                 <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'dark' ? 'var(--brand-color)' : 'var(--text-secondary)' }}>
                   <IconMoon size={16} /> Dark
                 </div>
               </div>
-              <div className={`theme-option ${theme === 'light' ? 'active' : ''}`} onClick={() => dispatch(setTheme('light'))}>
+              <div className={`theme-option ${theme === 'light' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('light'))}>
                 <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #ffffff, #f2f3f5)' }} />
                 <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'light' ? 'var(--brand-color)' : 'var(--text-secondary)' }}>
                   <IconSun size={16} /> Light
                 </div>
               </div>
-              <div className={`theme-option ${theme === 'super' ? 'active' : ''}`} onClick={() => dispatch(setTheme('super'))}
+              <div className={`theme-option ${theme === 'super' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('super'))}
                 style={theme === 'super' ? { borderColor: '#8b5cf6' } : {}}>
                 <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #0f0f23, #2d1b69, #ec4899, #8b5cf6)' }} />
                 <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'super' ? '#8b5cf6' : 'var(--text-secondary)' }}>

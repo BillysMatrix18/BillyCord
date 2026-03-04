@@ -183,6 +183,44 @@ CREATE TABLE IF NOT EXISTS pinned_messages (
   UNIQUE(channel_id, message_id)
 );
 
+-- Server settings table (admin-configurable limits)
+CREATE TABLE IF NOT EXISTS server_settings (
+  setting_key TEXT PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  data_type TEXT NOT NULL DEFAULT 'string',
+  category TEXT NOT NULL DEFAULT 'general',
+  description TEXT,
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Announcements history
+CREATE TABLE IF NOT EXISTS announcements (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  content TEXT NOT NULL,
+  created_by TEXT,
+  sent_to_count INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- User preferences (per-server UI state)
+CREATE TABLE IF NOT EXISTS user_preferences (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  server_id TEXT NOT NULL,
+  collapsed_categories TEXT DEFAULT '[]',
+  UNIQUE(user_id, server_id)
+);
+
+-- Admin action logs
+CREATE TABLE IF NOT EXISTS admin_logs (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  admin_action TEXT NOT NULL,
+  target_type TEXT,
+  target_id TEXT,
+  details TEXT DEFAULT '{}',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
@@ -196,12 +234,64 @@ CREATE INDEX IF NOT EXISTS idx_dm_conversation ON direct_messages(conversation_i
 CREATE INDEX IF NOT EXISTS idx_audit_logs_server ON audit_logs(server_id);
 CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id);
 CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code);
+CREATE INDEX IF NOT EXISTS idx_user_preferences ON user_preferences(user_id, server_id);
 `;
+
+// Safe ALTER TABLE helper — ignores "duplicate column" errors
+async function safeAlter(sql: string) {
+  try { await exec(sql); } catch { /* column already exists */ }
+}
+
+// Insert default setting if not exists
+async function defaultSetting(key: string, value: string, dataType: string, category: string, description: string) {
+  try {
+    await exec(`INSERT OR IGNORE INTO server_settings (setting_key, setting_value, data_type, category, description) VALUES ('${key}', '${value}', '${dataType}', '${category}', '${description}')`);
+  } catch { /* ignore */ }
+}
 
 // Exported for auto-migration on server startup
 export async function runMigrations() {
   console.log('Running database migrations...');
   await exec(migrations);
+
+  // Add new user profile columns (safe — no-op if already exist)
+  await safeAlter("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'");
+  await safeAlter("ALTER TABLE users ADD COLUMN banner_url TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN pronouns TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN location TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN birthday TEXT");
+  await safeAlter("ALTER TABLE users ADD COLUMN social_links TEXT DEFAULT '{}'");
+  await safeAlter("ALTER TABLE users ADD COLUMN profile_color TEXT DEFAULT '#5865F2'");
+  await safeAlter("ALTER TABLE users ADD COLUMN profile_visibility TEXT DEFAULT 'public'");
+
+  // Insert default server settings
+  await defaultSetting('max_users', '10000', 'integer', 'users', 'Maximum total users allowed');
+  await defaultSetting('max_friends_per_user', '1000', 'integer', 'users', 'Maximum friends per user');
+  await defaultSetting('max_servers_per_user', '100', 'integer', 'servers', 'Maximum servers a user can create');
+  await defaultSetting('max_channels_per_server', '500', 'integer', 'servers', 'Maximum channels per server');
+  await defaultSetting('max_message_length', '4000', 'integer', 'messages', 'Maximum message character length');
+  await defaultSetting('rate_limit_messages', '30', 'integer', 'messages', 'Max messages per minute per user');
+  await defaultSetting('message_retention_days', '0', 'integer', 'messages', 'Auto-delete messages after N days (0=never)');
+  await defaultSetting('max_pin_per_channel', '50', 'integer', 'messages', 'Maximum pinned messages per channel');
+  await defaultSetting('max_reactions_per_message', '20', 'integer', 'messages', 'Maximum unique reactions per message');
+  await defaultSetting('max_file_upload_mb', '25', 'integer', 'files', 'Maximum file upload size in MB');
+  await defaultSetting('allow_image_uploads', 'true', 'boolean', 'files', 'Allow image file uploads');
+  await defaultSetting('allow_video_uploads', 'true', 'boolean', 'files', 'Allow video file uploads');
+  await defaultSetting('allow_document_uploads', 'true', 'boolean', 'files', 'Allow document file uploads');
+  await defaultSetting('max_voice_participants', '25', 'integer', 'voice', 'Maximum participants per voice channel');
+  await defaultSetting('password_min_length', '8', 'integer', 'security', 'Minimum password length');
+  await defaultSetting('max_login_attempts', '10', 'integer', 'security', 'Max failed login attempts before lockout');
+  await defaultSetting('lockout_duration_minutes', '15', 'integer', 'security', 'Account lockout duration in minutes');
+  await defaultSetting('require_email_verification', 'false', 'boolean', 'security', 'Require email verification to login');
+  await defaultSetting('require_2fa', 'false', 'boolean', 'security', 'Require two-factor authentication');
+  await defaultSetting('session_timeout_hours', '168', 'integer', 'security', 'Session timeout in hours (168=1 week)');
+  await defaultSetting('maintenance_mode', 'false', 'boolean', 'system', 'Enable maintenance mode');
+  await defaultSetting('registration_enabled', 'true', 'boolean', 'system', 'Allow new user registrations');
+  await defaultSetting('slow_mode_default', '0', 'integer', 'messages', 'Default slow mode seconds (0=off)');
+  await defaultSetting('spam_detection', 'medium', 'string', 'moderation', 'Spam detection sensitivity (low/medium/high)');
+  await defaultSetting('auto_kick_spammers', 'false', 'boolean', 'moderation', 'Automatically kick detected spammers');
+  await defaultSetting('keyword_filter', '[]', 'json', 'moderation', 'Filtered keywords list (JSON array)');
+
   console.log('Migrations completed successfully');
 }
 

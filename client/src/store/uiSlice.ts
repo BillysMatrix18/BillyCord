@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { authApi } from '../services/api';
 
 type Theme = 'dark' | 'light' | 'super';
 
@@ -29,6 +30,17 @@ const initialState: UiState = {
   announcement: null,
 };
 
+// Save theme to backend (fire-and-forget)
+export const setThemeWithSync = createAsyncThunk(
+  'ui/setThemeWithSync',
+  async (theme: Theme) => {
+    localStorage.setItem('theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+    try { await authApi.updateProfile({ theme }); } catch { /* ignore if not logged in */ }
+    return theme;
+  }
+);
+
 const uiSlice = createSlice({
   name: 'ui',
   initialState,
@@ -52,6 +64,11 @@ const uiSlice = createSlice({
       state.showJoinServer = false;
       state.showPinnedMessages = false;
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(setThemeWithSync.fulfilled, (state, action) => {
+      state.theme = action.payload;
+    });
   },
 });
 
