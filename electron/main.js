@@ -12,7 +12,7 @@ let updateAvailable = false;
 
 // ----- Remote Server Configuration -----
 // Change this URL to your Replit deployment URL
-const SERVER_URL = process.env.BILLYCORD_SERVER_URL || 'https://yourreplit.replit.dev';
+const SERVER_URL = process.env.BILLYCORD_SERVER_URL || 'https://billypapastavro-discord-clone-test.replit.dev';
 const isDev = process.env.ELECTRON_DEV === 'true';
 
 // ----- Splash Screen -----
