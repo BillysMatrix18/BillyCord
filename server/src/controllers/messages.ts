@@ -222,6 +222,26 @@ export async function pinMessage(req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function unpinMessage(req: Request, res: Response): Promise<void> {
+  try {
+    const { messageId } = req.params;
+
+    const msg = await query('SELECT channel_id FROM messages WHERE id = $1', [messageId]);
+    if (msg.rows.length === 0) {
+      res.status(404).json({ error: 'Message not found' });
+      return;
+    }
+
+    await query('UPDATE messages SET pinned = 0 WHERE id = $1', [messageId]);
+    await query('DELETE FROM pinned_messages WHERE message_id = $1', [messageId]);
+
+    res.json({ message: 'Message unpinned' });
+  } catch (error) {
+    console.error('Unpin message error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 export async function getPinnedMessages(req: Request, res: Response): Promise<void> {
   try {
     const { channelId } = req.params;

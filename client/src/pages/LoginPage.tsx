@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../hooks/useAppDispatch';
 import { login, clearError } from '../store/authSlice';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const dispatch = useAppDispatch();
   const { loading, error } = useAppSelector((state) => state.auth);
@@ -12,7 +12,8 @@ export default function LoginPage() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     dispatch(clearError());
-    dispatch(login({ email, password }));
+    // Send as 'email' field since the server expects that key (but accepts username too)
+    dispatch(login({ email: loginId, password }));
   };
 
   return (
@@ -24,12 +25,13 @@ export default function LoginPage() {
         {error && <div className="error-message" style={{ marginBottom: 16, textAlign: 'center' }}>{error}</div>}
 
         <div className="form-group">
-          <label>Email or Phone Number</label>
+          <label>Email or Username</label>
           <input
-            type="email"
+            type="text"
             className="form-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
+            placeholder="Enter your email or username"
             required
           />
         </div>

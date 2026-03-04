@@ -221,6 +221,13 @@ export default function SettingsOverlay() {
                   <IconSun size={16} /> Light
                 </div>
               </div>
+              <div className={`theme-option ${theme === 'super' ? 'active' : ''}`} onClick={() => dispatch(setTheme('super'))}
+                style={theme === 'super' ? { borderColor: '#8b5cf6' } : {}}>
+                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #0f0f23, #2d1b69, #ec4899, #8b5cf6)' }} />
+                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'super' ? '#8b5cf6' : 'var(--text-secondary)' }}>
+                  Super Mode
+                </div>
+              </div>
             </div>
           </div>
         )}

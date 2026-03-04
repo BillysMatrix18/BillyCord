@@ -3,7 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { messageLimiter } from '../middleware/rateLimit';
 import {
   getMessages, createMessage, updateMessage, deleteMessage,
-  addReaction, removeReaction, pinMessage, getPinnedMessages,
+  addReaction, removeReaction, pinMessage, unpinMessage, getPinnedMessages,
 } from '../controllers/messages';
 
 const router = Router();
@@ -15,6 +15,7 @@ router.delete('/messages/:messageId', authenticate, deleteMessage);
 router.post('/messages/:messageId/reactions', authenticate, addReaction);
 router.delete('/messages/:messageId/reactions/:emoji', authenticate, removeReaction);
 router.post('/messages/:messageId/pin', authenticate, pinMessage);
+router.delete('/messages/:messageId/pin', authenticate, unpinMessage);
 router.get('/channels/:channelId/pins', authenticate, getPinnedMessages);
 
 export default router;

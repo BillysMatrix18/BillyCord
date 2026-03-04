@@ -100,6 +100,7 @@ export const messageApi = {
   removeReaction: (messageId: string, emoji: string) =>
     api.delete(`/messages/${messageId}/reactions/${emoji}`),
   pin: (messageId: string) => api.post(`/messages/${messageId}/pin`),
+  unpin: (messageId: string) => api.delete(`/messages/${messageId}/pin`),
   getPinned: (channelId: string) => api.get(`/channels/${channelId}/pins`),
 };
 

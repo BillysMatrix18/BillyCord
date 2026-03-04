@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { query } from '../config/database';
+import { query, getClient } from '../config/database';
 
 export async function sendFriendRequest(req: Request, res: Response): Promise<void> {
   try {
@@ -75,7 +75,46 @@ export async function respondToFriendRequest(req: Request, res: Response): Promi
 
     if (action === 'accept') {
       await query("UPDATE friends SET status = 'accepted' WHERE id = $1", [requestId]);
-      res.json({ message: 'Friend request accepted' });
+
+      // Auto-create DM conversation between the two users
+      const friendRow = request.rows[0];
+      const requesterId = friendRow.requester_id;
+      const receiverId = userId;
+
+      // Check if a 1:1 conversation already exists
+      const existingConv = await query(
+        `SELECT c.id FROM conversations c
+         WHERE c.is_group = 0
+         AND (SELECT COUNT(*) FROM conversation_members cm WHERE cm.conversation_id = c.id) = 2
+         AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $1)
+         AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $2)`,
+        [requesterId, receiverId]
+      );
+
+      let conversationId: string | null = null;
+      if (existingConv.rows.length > 0) {
+        conversationId = existingConv.rows[0].id;
+      } else {
+        // Create new conversation
+        const client = await getClient();
+        try {
+          await client.query('BEGIN');
+          const convResult = await client.query(
+            `INSERT INTO conversations (is_group, name) VALUES ($1, $2) RETURNING *`,
+            [false, null]
+          );
+          conversationId = convResult.rows[0].id;
+          await client.query(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)`, [conversationId, requesterId]);
+          await client.query(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)`, [conversationId, receiverId]);
+          await client.query('COMMIT');
+        } catch {
+          await client.query('ROLLBACK');
+        } finally {
+          client.release();
+        }
+      }
+
+      res.json({ message: 'Friend request accepted', conversationId });
     } else {
       await query('DELETE FROM friends WHERE id = $1', [requestId]);
       res.json({ message: 'Friend request declined' });

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchServers } from '../../store/serverSlice';
+import { setAnnouncement } from '../../store/uiSlice';
 import ServerList from '../server/ServerList';
 import ChannelSidebar from '../channel/ChannelSidebar';
 import ChatArea from '../chat/ChatArea';
@@ -12,10 +13,11 @@ import DmChatArea from '../dm/DmChatArea';
 import SettingsOverlay from '../settings/SettingsOverlay';
 import CreateServerModal from '../server/CreateServerModal';
 import JoinServerModal from '../server/JoinServerModal';
+import { IconX } from './Icons';
 
 export default function MainLayout() {
   const dispatch = useAppDispatch();
-  const { showSettings, showCreateServer, showJoinServer, showMemberList } = useAppSelector((state) => state.ui);
+  const { showSettings, showCreateServer, showJoinServer, showMemberList, announcement } = useAppSelector((state) => state.ui);
   const { currentServer } = useAppSelector((state) => state.servers);
 
   useEffect(() => {
@@ -24,23 +26,23 @@ export default function MainLayout() {
 
   return (
     <>
+      {/* Announcement banner */}
+      {announcement && (
+        <div className="announcement-banner animate-slide-up">
+          <div className="announcement-content">
+            <strong>Announcement:</strong> {announcement.message}
+          </div>
+          <button className="announcement-close" onClick={() => dispatch(setAnnouncement(null))}>
+            <IconX size={16} />
+          </button>
+        </div>
+      )}
+
       <div className="app-layout">
         <ServerList />
         <Routes>
-          {/* DM / Friends routes */}
-          <Route path="@me" element={
-            <>
-              <DmSidebar />
-              <FriendsPage />
-            </>
-          } />
-          <Route path="@me/:conversationId" element={
-            <>
-              <DmSidebar />
-              <DmChatArea />
-            </>
-          } />
-          {/* Server routes */}
+          <Route path="@me" element={<><DmSidebar /><FriendsPage /></>} />
+          <Route path="@me/:conversationId" element={<><DmSidebar /><DmChatArea /></>} />
           <Route path=":serverId/:channelId" element={
             <>
               <ChannelSidebar />

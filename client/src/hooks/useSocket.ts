@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from './useAppDispatch';
 import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage } from '../store/messageSlice';
 import { updateMemberStatus } from '../store/serverSlice';
 import { addDmMessage } from '../store/dmSlice';
+import { setAnnouncement } from '../store/uiSlice';
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
@@ -20,7 +21,6 @@ export function useSocket() {
     const socket = connectSocket(token);
     socketRef.current = socket;
 
-    // Listen for events
     socket.on('message:new', (message) => {
       dispatch(addMessage(message));
     });
@@ -55,6 +55,15 @@ export function useSocket() {
 
     socket.on('dm:new', ({ message }) => {
       dispatch(addDmMessage(message));
+    });
+
+    // Admin announcements
+    socket.on('admin:announcement', (data: { message: string; timestamp: string }) => {
+      dispatch(setAnnouncement(data));
+      // Auto-dismiss after 15 seconds
+      setTimeout(() => {
+        dispatch(setAnnouncement(null));
+      }, 15000);
     });
 
     return () => {

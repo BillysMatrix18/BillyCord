@@ -1,6 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-type Theme = 'dark' | 'light';
+type Theme = 'dark' | 'light' | 'super';
+
+interface Announcement {
+  message: string;
+  timestamp: string;
+}
 
 interface UiState {
   theme: Theme;
@@ -10,6 +15,7 @@ interface UiState {
   showMemberList: boolean;
   showPinnedMessages: boolean;
   sidebarCollapsed: boolean;
+  announcement: Announcement | null;
 }
 
 const initialState: UiState = {
@@ -20,6 +26,7 @@ const initialState: UiState = {
   showMemberList: true,
   showPinnedMessages: false,
   sidebarCollapsed: false,
+  announcement: null,
 };
 
 const uiSlice = createSlice({
@@ -36,6 +43,9 @@ const uiSlice = createSlice({
     toggleMemberList(state) { state.showMemberList = !state.showMemberList; },
     togglePinnedMessages(state) { state.showPinnedMessages = !state.showPinnedMessages; },
     toggleSidebar(state) { state.sidebarCollapsed = !state.sidebarCollapsed; },
+    setAnnouncement(state, action: PayloadAction<Announcement | null>) {
+      state.announcement = action.payload;
+    },
     closeAllModals(state) {
       state.showSettings = false;
       state.showCreateServer = false;
@@ -48,5 +58,6 @@ const uiSlice = createSlice({
 export const {
   setTheme, toggleSettings, toggleCreateServer, toggleJoinServer,
   toggleMemberList, togglePinnedMessages, toggleSidebar, closeAllModals,
+  setAnnouncement,
 } = uiSlice.actions;
 export default uiSlice.reducer;

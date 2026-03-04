@@ -64,15 +64,19 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const { email, password } = parsed.data;
+    const { email: loginIdentifier, password } = parsed.data;
 
+    // Allow login with either email or username
+    const isEmail = loginIdentifier.includes('@');
     const result = await query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
+      isEmail
+        ? 'SELECT * FROM users WHERE email = $1'
+        : 'SELECT * FROM users WHERE username = $1',
+      [loginIdentifier]
     );
 
     if (result.rows.length === 0) {
-      res.status(401).json({ error: 'Invalid email or password' });
+      res.status(401).json({ error: 'Invalid username/email or password' });
       return;
     }
 
@@ -80,7 +84,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const passwordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordValid) {
-      res.status(401).json({ error: 'Invalid email or password' });
+      res.status(401).json({ error: 'Invalid username/email or password' });
       return;
     }
 

@@ -68,9 +68,15 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
 
   const handlePin = async () => {
     try {
-      await messageApi.pin(message.id);
+      if (message.pinned) {
+        await messageApi.unpin(message.id);
+        dispatch(updateMessage({ ...message, pinned: false }));
+      } else {
+        await messageApi.pin(message.id);
+        dispatch(updateMessage({ ...message, pinned: true }));
+      }
     } catch (error) {
-      console.error('Failed to pin message:', error);
+      console.error('Failed to pin/unpin message:', error);
     }
   };
 
@@ -170,7 +176,8 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
             <IconEdit size={16} />
           </button>
         )}
-        <button onClick={handlePin} title="Pin Message">
+        <button onClick={handlePin} title={message.pinned ? 'Unpin Message' : 'Pin Message'}
+          style={message.pinned ? { color: 'var(--brand-color)' } : {}}>
           <IconPin size={16} />
         </button>
         {isAuthor && (
