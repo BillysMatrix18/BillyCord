@@ -3,9 +3,9 @@
  * @see https://www.electron.build/configuration
  */
 module.exports = {
-  appId: 'com.discord-clone.app',
-  productName: 'Discord Clone',
-  copyright: 'Copyright © 2024 Discord Clone',
+  appId: 'com.billycord.app',
+  productName: 'BillyCord',
+  copyright: 'Copyright © 2024 BillyCord',
 
   directories: {
     output: 'dist-electron',
@@ -65,7 +65,7 @@ module.exports = {
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: 'Discord Clone',
+    shortcutName: 'BillyCord',
     installerIcon: 'build/icon.ico',
     uninstallerIcon: 'build/icon.ico',
     installerHeaderIcon: 'build/icon.ico',
@@ -86,7 +86,7 @@ module.exports = {
     target: ['AppImage', 'deb'],
     icon: 'build/icon.png',
     category: 'Network;Chat;InstantMessaging;',
-    maintainer: 'Discord Clone',
+    maintainer: 'BillyCord',
   },
 
   // Publish (disabled - manual distribution)

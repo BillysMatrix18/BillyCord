@@ -37,7 +37,7 @@ function getServerEntry() {
 }
 
 function getUserDataPath() {
-  return path.join(app.getPath('userData'), 'discord-clone-data');
+  return path.join(app.getPath('userData'), 'billycord-data');
 }
 
 // ----- Splash Screen -----
@@ -49,7 +49,7 @@ function createSplashWindow() {
     transparent: false,
     resizable: false,
     alwaysOnTop: true,
-    backgroundColor: '#36393f',
+    backgroundColor: '#1a1a2e',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -64,7 +64,7 @@ function createSplashWindow() {
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
           font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-          background: #36393f;
+          background: #1a1a2e;
           color: #fff;
           display: flex;
           flex-direction: column;
@@ -77,24 +77,26 @@ function createSplashWindow() {
         .logo {
           width: 80px;
           height: 80px;
-          background: #5865f2;
-          border-radius: 24px;
+          background: #000;
+          border-radius: 20px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 36px;
+          font-size: 32px;
           font-weight: 700;
+          color: #3B82F6;
           margin-bottom: 24px;
+          border: 2px solid #3B82F6;
           animation: pulse 2s ease-in-out infinite;
         }
         @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.05); opacity: 0.9; }
+          0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+          50% { transform: scale(1.05); box-shadow: 0 0 20px 4px rgba(59,130,246,0.2); }
         }
-        h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+        h1 { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: #fff; }
         .status {
           font-size: 14px;
-          color: #b9bbbe;
+          color: #8892b0;
           margin-top: 16px;
         }
         .dots::after {
@@ -110,14 +112,14 @@ function createSplashWindow() {
         .progress-bar {
           width: 200px;
           height: 4px;
-          background: #202225;
+          background: #0d1117;
           border-radius: 2px;
           margin-top: 24px;
           overflow: hidden;
         }
         .progress-fill {
           height: 100%;
-          background: #5865f2;
+          background: #3B82F6;
           border-radius: 2px;
           animation: progress 3s ease-in-out infinite;
         }
@@ -129,8 +131,8 @@ function createSplashWindow() {
       </style>
     </head>
     <body>
-      <div class="logo">DC</div>
-      <h1>Discord Clone</h1>
+      <div class="logo">BC</div>
+      <h1>BillyCord</h1>
       <div class="status">Starting<span class="dots"></span></div>
       <div class="progress-bar"><div class="progress-fill"></div></div>
     </body>
@@ -149,8 +151,8 @@ function createMainWindow() {
     minHeight: 500,
     frame: true,
     show: false,
-    backgroundColor: '#36393f',
-    title: 'Discord Clone',
+    backgroundColor: '#1a1a2e',
+    title: 'BillyCord',
     icon: getAppIcon(),
     webPreferences: {
       nodeIntegration: false,
@@ -207,7 +209,7 @@ function createTray() {
 
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Show Discord Clone',
+      label: 'Show BillyCord',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -225,7 +227,7 @@ function createTray() {
     },
   ]);
 
-  tray.setToolTip('Discord Clone');
+  tray.setToolTip('BillyCord');
   tray.setContextMenu(contextMenu);
 
   tray.on('double-click', () => {
@@ -414,7 +416,7 @@ app.on('ready', async () => {
     }
 
     dialog.showErrorBox(
-      'Discord Clone - Startup Error',
+      'BillyCord - Startup Error',
       `Failed to start the application.\n\n${error.message}\n\nMake sure PostgreSQL is running and DATABASE_URL is configured.\n\nYou can set DATABASE_URL in:\n${path.join(getProjectRoot(), 'server', '.env')}`
     );
 

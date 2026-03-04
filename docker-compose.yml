@@ -4,7 +4,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: discord-clone-db
+    container_name: billycord-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -22,7 +22,7 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: discord-clone-redis
+    container_name: billycord-redis
     ports:
       - "6379:6379"
     volumes:
@@ -38,7 +38,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: discord-clone-server
+    container_name: billycord-server
     ports:
       - "3001:3001"
     environment:
@@ -62,7 +62,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: discord-clone-client
+    container_name: billycord-client
     ports:
       - "5173:80"
     depends_on:

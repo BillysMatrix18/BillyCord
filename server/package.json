@@ -1,7 +1,7 @@
 {
-  "name": "discord-clone-server",
+  "name": "billycord-server",
   "version": "1.0.0",
-  "description": "Discord clone backend server",
+  "description": "BillyCord backend server",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",

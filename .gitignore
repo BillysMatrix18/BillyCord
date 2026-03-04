@@ -11,7 +11,3 @@ uploads/
 
 # Electron build output
 dist-electron/
-
-# Keep build/ icon files but ignore generated binaries
-build/icon.png
-build/icon.ico

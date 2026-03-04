@@ -1,6 +1,6 @@
-# Discord Clone
+# BillyCord
 
-A full-featured Discord clone with real-time messaging, voice channels, server management, direct messages, and more. Built with React, Node.js, Socket.IO, PostgreSQL, and WebRTC.
+A full-featured chat application with real-time messaging, voice channels, server management, direct messages, and more. Built with React, Node.js, Socket.IO, PostgreSQL, and WebRTC.
 
 ## Features
 
@@ -59,7 +59,7 @@ A full-featured Discord clone with real-time messaging, voice channels, server m
 ## Project Structure
 
 ```
-discord-clone/
+billycord/
 ├── client/                    # React frontend
 │   ├── src/
 │   │   ├── components/        # React components
@@ -106,7 +106,7 @@ discord-clone/
 ```bash
 # Clone the repository
 git clone <repo-url>
-cd discord-clone
+cd billycord
 
 # Copy environment variables
 cp .env.example .env
@@ -115,10 +115,10 @@ cp .env.example .env
 docker-compose up -d
 
 # Run database migrations
-docker exec discord-clone-server npm run db:migrate
+docker exec billycord-server npm run db:migrate
 
 # (Optional) Seed demo data
-docker exec discord-clone-server npm run db:seed
+docker exec billycord-server npm run db:seed
 ```
 
 The app will be available at `http://localhost:5173`.
