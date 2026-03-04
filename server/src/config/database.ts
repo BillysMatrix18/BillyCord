@@ -45,7 +45,7 @@ function convertSql(text: string, params?: unknown[]): { sql: string; params: un
 /**
  * Auto-parse JSON strings in result rows (TEXT columns storing JSON).
  */
-function processRow(row: Record<string, unknown>): Record<string, unknown> {
+function processRow(row: DbRow): DbRow {
   if (!row || typeof row !== 'object') return row;
   for (const key of Object.keys(row)) {
     const val = row[key];
@@ -58,10 +58,13 @@ function processRow(row: Record<string, unknown>): Record<string, unknown> {
   return row;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type DbRow = any;
+
 /** Promisified db.all — returns rows (for SELECT / RETURNING) */
-function dbAll(sql: string, params: unknown[]): Promise<Record<string, unknown>[]> {
+function dbAll(sql: string, params: unknown[]): Promise<DbRow[]> {
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err: Error | null, rows: Record<string, unknown>[]) => {
+    db.all(sql, params, (err: Error | null, rows: DbRow[]) => {
       if (err) reject(err);
       else resolve(rows || []);
     });
@@ -99,7 +102,7 @@ export async function query(text: string, params?: unknown[]) {
   // Transaction control statements
   if (trimmed === 'BEGIN' || trimmed === 'COMMIT' || trimmed === 'ROLLBACK') {
     await dbExec(sql);
-    return { rows: [] as Record<string, unknown>[], rowCount: 0 };
+    return { rows: [] as DbRow[], rowCount: 0 };
   }
 
   const isSelect = trimmed.startsWith('SELECT') || trimmed.startsWith('WITH');
