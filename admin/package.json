@@ -1,0 +1,18 @@
+{
+  "name": "billycord-admin",
+  "version": "1.0.0",
+  "productName": "BillyCord Admin",
+  "description": "BillyCord Admin Dashboard - Monitor and control your BillyCord server",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "ELECTRON_DEV=true electron .",
+    "build": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --config electron-builder.config.js",
+    "build:win": "cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win --config electron-builder.config.js"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "cross-env": "^7.0.3"
+  }
+}

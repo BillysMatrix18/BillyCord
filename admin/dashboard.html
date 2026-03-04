@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BillyCord Admin Dashboard</title>
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #1c2333;
+      --bg-card: #1a2030;
+      --border: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #eab308;
+      --orange: #f97316;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Login Screen ── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: var(--bg-primary);
+    }
+    .login-box {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      width: 400px;
+      text-align: center;
+    }
+    .login-box .logo {
+      width: 64px; height: 64px;
+      background: #000; border-radius: 16px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 24px; font-weight: 700; color: var(--accent);
+      border: 2px solid var(--accent); margin-bottom: 16px;
+    }
+    .login-box h1 { font-size: 20px; margin-bottom: 4px; }
+    .login-box p { color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; }
+    .login-box label { display: block; text-align: left; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+    .login-box input {
+      width: 100%; padding: 10px 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg-primary);
+      color: var(--text-primary); font-size: 14px; outline: none; margin-bottom: 16px;
+    }
+    .login-box input:focus { border-color: var(--accent); }
+    .login-box button {
+      width: 100%; padding: 10px; border-radius: 6px; border: none;
+      background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .login-box button:hover { background: var(--accent-hover); }
+    .login-error { color: var(--red); font-size: 13px; margin-top: 12px; display: none; }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; height: 100vh; flex-direction: column; }
+    #dashboard.active { display: flex; }
+
+    /* Header */
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header-logo {
+      width: 32px; height: 32px;
+      background: #000; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; color: var(--accent);
+      border: 1.5px solid var(--accent);
+    }
+    .header h1 { font-size: 16px; font-weight: 600; }
+    .header h1 span { color: var(--text-secondary); font-weight: 400; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .status-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--text-secondary);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+    .btn-sm {
+      padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-tertiary); color: var(--text-secondary);
+      font-size: 12px; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--text-primary); }
+
+    /* Tabs */
+    .tab-bar {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex; padding: 0 24px; flex-shrink: 0;
+    }
+    .tab {
+      padding: 10px 20px; font-size: 13px; font-weight: 500;
+      color: var(--text-secondary); cursor: pointer;
+      border-bottom: 2px solid transparent; transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* Content */
+    .content { flex: 1; overflow-y: auto; padding: 24px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Stat Cards */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px;
+    }
+    .stat-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; }
+    .stat-card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+    /* Server Controls */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .control-btn {
+      padding: 24px; border-radius: 10px; border: 2px solid var(--border);
+      background: var(--bg-card); color: var(--text-primary);
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; transition: all 0.2s;
+    }
+    .control-btn .icon { font-size: 28px; }
+    .control-btn.start { border-color: #16a34a33; }
+    .control-btn.start:hover { border-color: var(--green); background: #16a34a15; }
+    .control-btn.stop { border-color: #dc262633; }
+    .control-btn.stop:hover { border-color: var(--red); background: #dc262615; }
+    .control-btn.restart { border-color: #ea580c33; }
+    .control-btn.restart:hover { border-color: var(--orange); background: #ea580c15; }
+
+    /* Tables */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left; padding: 12px 16px;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-muted); background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 10px 16px; font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #ffffff05; }
+
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge.online { background: #16a34a22; color: var(--green); }
+    .badge.offline { background: #dc262622; color: var(--red); }
+    .badge.idle { background: #eab30822; color: var(--yellow); }
+    .badge.dnd { background: #dc262622; color: var(--red); }
+
+    /* Logs */
+    .log-container {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      height: calc(100vh - 200px);
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    .log-line { white-space: pre-wrap; word-break: break-all; }
+    .log-line .time { color: var(--text-muted); }
+    .log-line .info { color: var(--accent); }
+    .log-line .warn { color: var(--yellow); }
+    .log-line .error { color: var(--red); }
+    .log-line .msg { color: var(--text-secondary); }
+
+    /* Settings */
+    .settings-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .setting-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px;
+    }
+    .setting-card h3 { font-size: 14px; margin-bottom: 4px; }
+    .setting-card .desc { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .setting-card .val {
+      font-size: 16px; font-weight: 600; color: var(--accent);
+      background: var(--bg-primary); padding: 8px 12px; border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    /* Announce bar */
+    .announce-bar {
+      display: flex; gap: 8px; margin-bottom: 24px;
+    }
+    .announce-bar input {
+      flex: 1; padding: 10px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      color: var(--text-primary); font-size: 14px; outline: none;
+    }
+    .announce-bar input:focus { border-color: var(--accent); }
+    .announce-bar button {
+      padding: 10px 20px; border-radius: 8px; border: none;
+      background: var(--accent); color: #fff; font-weight: 600;
+      cursor: pointer; font-size: 13px; white-space: nowrap;
+    }
+    .announce-bar button:hover { background: var(--accent-hover); }
+
+    /* Section title */
+    .section-title {
+      font-size: 14px; font-weight: 600; color: var(--text-secondary);
+      margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* Action buttons in tables */
+    .btn-danger {
+      padding: 4px 10px; border-radius: 4px; border: 1px solid var(--red);
+      background: transparent; color: var(--red); font-size: 11px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-danger:hover { background: var(--red); color: #fff; }
+
+    /* Uptime display */
+    .uptime { font-size: 13px; color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+
+<!-- ═══ Login Screen ═══ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="logo">BC</div>
+    <h1>Admin Dashboard</h1>
+    <p>Enter your credentials to access the BillyCord admin panel</p>
+
+    <label>Server URL</label>
+    <input type="text" id="login-url" placeholder="http://localhost:3001" value="http://localhost:3001">
+
+    <label>Admin Secret</label>
+    <input type="password" id="login-secret" placeholder="Enter admin secret">
+
+    <button onclick="doLogin()">Connect</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ═══ Dashboard ═══ -->
+<div id="dashboard">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-logo">BC</div>
+      <h1>Admin Dashboard <span>/ BillyCord</span></h1>
+    </div>
+    <div class="header-right">
+      <div class="status-badge">
+        <div class="status-dot" id="server-status-dot"></div>
+        <span id="server-status-text">Checking...</span>
+      </div>
+      <div class="uptime" id="uptime-display"></div>
+      <button class="btn-sm" onclick="refreshAll()">Refresh</button>
+      <button class="btn-sm" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <div class="tab active" data-tab="stats" onclick="switchTab('stats')">Stats</div>
+    <div class="tab" data-tab="users" onclick="switchTab('users')">Users</div>
+    <div class="tab" data-tab="servers" onclick="switchTab('servers')">Servers</div>
+    <div class="tab" data-tab="logs" onclick="switchTab('logs')">Logs</div>
+    <div class="tab" data-tab="settings" onclick="switchTab('settings')">Settings</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ── STATS TAB ── -->
+    <div class="tab-content active" id="tab-stats">
+      <div class="section-title">Server Controls</div>
+      <div class="controls-grid">
+        <button class="control-btn start" onclick="serverControl('start')">
+          <span class="icon">&#9654;</span> START SERVER
+        </button>
+        <button class="control-btn stop" onclick="serverControl('stop')">
+          <span class="icon">&#9632;</span> STOP SERVER
+        </button>
+        <button class="control-btn restart" onclick="serverControl('restart')">
+          <span class="icon">&#8635;</span> RESTART SERVER
+        </button>
+      </div>
+
+      <div class="section-title">Overview</div>
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="label">Online Users</div>
+          <div class="value" id="stat-online" style="color: var(--green);">0</div>
+          <div class="sub">currently connected</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total Users</div>
+          <div class="value" id="stat-users">0</div>
+          <div class="sub">registered accounts</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total Messages</div>
+          <div class="value" id="stat-messages" style="color: var(--accent);">0</div>
+          <div class="sub">all-time messages</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Servers</div>
+          <div class="value" id="stat-servers">0</div>
+          <div class="sub">community servers</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Channels</div>
+          <div class="value" id="stat-channels">0</div>
+          <div class="sub">active channels</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Memory Usage</div>
+          <div class="value" id="stat-memory" style="color: var(--orange);">0</div>
+          <div class="sub">MB used (heap)</div>
+        </div>
+      </div>
+
+      <div class="section-title">Broadcast Announcement</div>
+      <div class="announce-bar">
+        <input type="text" id="announce-input" placeholder="Type an announcement to send to all connected users...">
+        <button onclick="sendAnnouncement()">Send to All</button>
+      </div>
+
+      <div class="section-title">Recent Activity</div>
+      <div class="table-container" id="activity-table-container">
+        <table>
+          <thead><tr><th>Time</th><th>User</th><th>Server</th><th>Channel</th><th>Message</th></tr></thead>
+          <tbody id="activity-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── USERS TAB ── -->
+    <div class="tab-content" id="tab-users">
+      <div class="section-title">All Registered Users</div>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Username</th><th>Email</th><th>Status</th><th>Custom Status</th><th>Joined</th><th>Last Seen</th><th>Actions</th></tr></thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── SERVERS TAB ── -->
+    <div class="tab-content" id="tab-servers">
+      <div class="section-title">All Servers</div>
+      <div class="table-container">
+        <table>
+          <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Channels</th><th>Created</th></tr></thead>
+          <tbody id="servers-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── LOGS TAB ── -->
+    <div class="tab-content" id="tab-logs">
+      <div class="section-title">Live Server Logs</div>
+      <div class="log-container" id="log-container"></div>
+    </div>
+
+    <!-- ── SETTINGS TAB ── -->
+    <div class="tab-content" id="tab-settings">
+      <div class="section-title">Server Configuration</div>
+      <div class="settings-grid" id="settings-grid"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ═══════════════════════════════════════════════
+  //  State
+  // ═══════════════════════════════════════════════
+  let serverUrl = '';
+  let adminSecret = '';
+  let refreshInterval = null;
+  let logLines = [];
+  let serverOnline = false;
+
+  // ═══════════════════════════════════════════════
+  //  Login / Logout
+  // ═══════════════════════════════════════════════
+  function doLogin() {
+    serverUrl = document.getElementById('login-url').value.trim().replace(/\/$/, '');
+    adminSecret = document.getElementById('login-secret').value.trim();
+    const errEl = document.getElementById('login-error');
+
+    if (!serverUrl) { errEl.textContent = 'Server URL is required'; errEl.style.display = 'block'; return; }
+    if (!adminSecret) { errEl.textContent = 'Admin secret is required'; errEl.style.display = 'block'; return; }
+
+    errEl.style.display = 'none';
+
+    // Test connection
+    apiFetch('/api/admin/stats')
+      .then(data => {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('dashboard').classList.add('active');
+        serverOnline = true;
+        updateServerStatus(true);
+        populateStats(data);
+        refreshAll();
+        // Auto-refresh every 5 seconds
+        refreshInterval = setInterval(autoRefresh, 5000);
+      })
+      .catch(err => {
+        errEl.textContent = err.message || 'Failed to connect. Check URL and secret.';
+        errEl.style.display = 'block';
+      });
+  }
+
+  // Allow Enter key to submit login
+  document.getElementById('login-secret').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('login-url').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('login-secret').focus();
+  });
+
+  function doLogout() {
+    clearInterval(refreshInterval);
+    document.getElementById('dashboard').classList.remove('active');
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-secret').value = '';
+    adminSecret = '';
+  }
+
+  // ═══════════════════════════════════════════════
+  //  API Helper
+  // ═══════════════════════════════════════════════
+  async function apiFetch(endpoint, options = {}) {
+    const res = await fetch(`${serverUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-secret': adminSecret,
+        ...(options.headers || {}),
+      },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Tab Navigation
+  // ═══════════════════════════════════════════════
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === `tab-${name}`));
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Refresh Data
+  // ═══════════════════════════════════════════════
+  function refreshAll() {
+    fetchStats();
+    fetchUsers();
+    fetchServers();
+    fetchActivity();
+    fetchSettings();
+  }
+
+  function autoRefresh() {
+    fetchStats();
+    // Only refresh active tab data
+    const activeTab = document.querySelector('.tab.active')?.dataset.tab;
+    if (activeTab === 'users') fetchUsers();
+    if (activeTab === 'servers') fetchServers();
+    if (activeTab === 'logs') addLogLine('info', 'Auto-refresh tick');
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Stats
+  // ═══════════════════════════════════════════════
+  function fetchStats() {
+    apiFetch('/api/admin/stats')
+      .then(data => {
+        serverOnline = true;
+        updateServerStatus(true);
+        populateStats(data);
+      })
+      .catch(() => {
+        serverOnline = false;
+        updateServerStatus(false);
+      });
+  }
+
+  function populateStats(data) {
+    document.getElementById('stat-online').textContent = data.onlineUsers;
+    document.getElementById('stat-users').textContent = data.totalUsers;
+    document.getElementById('stat-messages').textContent = data.totalMessages.toLocaleString();
+    document.getElementById('stat-servers').textContent = data.totalServers;
+    document.getElementById('stat-channels').textContent = data.totalChannels;
+    const memMB = Math.round(data.memoryUsage.heapUsed / 1024 / 1024);
+    document.getElementById('stat-memory').textContent = memMB;
+
+    // Uptime
+    const secs = Math.floor(data.uptime);
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    document.getElementById('uptime-display').textContent =
+      `Uptime: ${h}h ${m}m ${s}s`;
+  }
+
+  function updateServerStatus(online) {
+    const dot = document.getElementById('server-status-dot');
+    const text = document.getElementById('server-status-text');
+    dot.className = 'status-dot ' + (online ? 'online' : 'offline');
+    text.textContent = online ? 'Server Online' : 'Server Offline';
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Users
+  // ═══════════════════════════════════════════════
+  function fetchUsers() {
+    apiFetch('/api/admin/users').then(users => {
+      const tbody = document.getElementById('users-body');
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td><strong>${esc(u.username)}</strong></td>
+          <td>${esc(u.email)}</td>
+          <td><span class="badge ${u.status || 'offline'}">${u.status || 'offline'}</span></td>
+          <td>${esc(u.custom_status || '—')}</td>
+          <td>${fmtDate(u.created_at)}</td>
+          <td>${fmtDate(u.last_seen)}</td>
+          <td><button class="btn-danger" onclick="deleteUser('${u.id}','${esc(u.username)}')">Delete</button></td>
+        </tr>
+      `).join('');
+    }).catch(() => {});
+  }
+
+  function deleteUser(id, name) {
+    if (!confirm(`Are you sure you want to delete user "${name}"? This cannot be undone.`)) return;
+    apiFetch(`/api/admin/users/${id}`, { method: 'DELETE' })
+      .then(() => {
+        addLogLine('warn', `Deleted user: ${name}`);
+        fetchUsers();
+        fetchStats();
+      })
+      .catch(err => addLogLine('error', `Failed to delete user: ${err.message}`));
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Servers
+  // ═══════════════════════════════════════════════
+  function fetchServers() {
+    apiFetch('/api/admin/servers').then(servers => {
+      const tbody = document.getElementById('servers-body');
+      tbody.innerHTML = servers.map(s => `
+        <tr>
+          <td><strong>${esc(s.name)}</strong></td>
+          <td>${esc(s.owner_name || 'Unknown')}</td>
+          <td>${s.member_count}</td>
+          <td>${s.channel_count}</td>
+          <td>${fmtDate(s.created_at)}</td>
+        </tr>
+      `).join('');
+    }).catch(() => {});
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Activity
+  // ═══════════════════════════════════════════════
+  function fetchActivity() {
+    apiFetch('/api/admin/activity').then(messages => {
+      const tbody = document.getElementById('activity-body');
+      tbody.innerHTML = messages.slice(0, 20).map(m => `
+        <tr>
+          <td style="color:var(--text-muted);white-space:nowrap">${fmtTime(m.created_at)}</td>
+          <td>${esc(m.sender || '?')}</td>
+          <td>${esc(m.server_name || 'DM')}</td>
+          <td>#${esc(m.channel_name || '?')}</td>
+          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.content)}</td>
+        </tr>
+      `).join('');
+    }).catch(() => {});
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Logs
+  // ═══════════════════════════════════════════════
+  function addLogLine(level, message) {
+    const now = new Date().toLocaleTimeString();
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="time">[${now}]</span> <span class="${level}">[${level.toUpperCase()}]</span> <span class="msg">${esc(message)}</span>`;
+    const container = document.getElementById('log-container');
+    container.appendChild(line);
+    // Keep max 500 lines
+    while (container.children.length > 500) container.removeChild(container.firstChild);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Settings
+  // ═══════════════════════════════════════════════
+  function fetchSettings() {
+    apiFetch('/api/admin/settings').then(settings => {
+      const grid = document.getElementById('settings-grid');
+      const items = [
+        { title: 'Port', desc: 'Server listening port', val: settings.port },
+        { title: 'Environment', desc: 'Node environment mode', val: settings.nodeEnv },
+        { title: 'Debug Mode', desc: 'Verbose logging enabled', val: settings.debugMode ? 'ON' : 'OFF' },
+        { title: 'Max Upload Size', desc: 'Maximum file upload size', val: settings.maxUploadSize },
+        { title: 'JWT Token Expiry', desc: 'Access token lifetime', val: settings.jwtExpiry },
+        { title: 'Rate Limit', desc: `${settings.rateLimitMax} requests per ${settings.rateLimitWindow}`, val: `${settings.rateLimitMax}/window` },
+        { title: 'Database', desc: 'PostgreSQL connection status', val: settings.databaseConnected ? 'Connected' : 'Disconnected' },
+        { title: 'Redis', desc: 'Redis cache status', val: settings.redisEnabled ? 'Enabled' : 'Disabled (in-memory)' },
+      ];
+      grid.innerHTML = items.map(i => `
+        <div class="setting-card">
+          <h3>${i.title}</h3>
+          <div class="desc">${i.desc}</div>
+          <div class="val">${i.val}</div>
+        </div>
+      `).join('');
+    }).catch(() => {});
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Announcements
+  // ═══════════════════════════════════════════════
+  function sendAnnouncement() {
+    const input = document.getElementById('announce-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    apiFetch('/api/admin/announce', {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    }).then(() => {
+      addLogLine('info', `Announcement sent: "${message}"`);
+      input.value = '';
+    }).catch(err => {
+      addLogLine('error', `Failed to send announcement: ${err.message}`);
+    });
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Server Controls
+  // ═══════════════════════════════════════════════
+  function serverControl(action) {
+    // These controls are informational since the admin dashboard connects
+    // to an already-running server. In a local setup, you'd wire these
+    // to process management. For now they log the action.
+    const messages = {
+      start: 'Server is already running (connected via API)',
+      stop: 'To stop the server, close the server process on your machine or Replit',
+      restart: 'To restart, stop and start the server process manually',
+    };
+
+    if (action === 'start' && !serverOnline) {
+      addLogLine('warn', 'Cannot start server remotely. Start the server process manually.');
+    } else if (action === 'stop' && serverOnline) {
+      addLogLine('warn', messages.stop);
+    } else if (action === 'restart') {
+      addLogLine('warn', messages.restart);
+    } else {
+      addLogLine('info', messages[action]);
+    }
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Helpers
+  // ═══════════════════════════════════════════════
+  function esc(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ═══════════════════════════════════════════════
+  //  Load saved credentials
+  // ═══════════════════════════════════════════════
+  (function loadSaved() {
+    try {
+      const saved = localStorage.getItem('admin-url');
+      if (saved) document.getElementById('login-url').value = saved;
+    } catch {}
+  })();
+
+  // Save URL on successful login
+  const origLogin = doLogin;
+  doLogin = function() {
+    const url = document.getElementById('login-url').value.trim();
+    try { localStorage.setItem('admin-url', url); } catch {}
+    origLogin();
+  };
+</script>
+
+</body>
+</html>

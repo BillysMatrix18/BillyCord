@@ -11,6 +11,7 @@ import serverRoutes from './routes/servers';
 import messageRoutes from './routes/messages';
 import friendRoutes from './routes/friends';
 import dmRoutes from './routes/dm';
+import adminRoutes from './routes/admin';
 import { generalLimiter } from './middleware/rateLimit';
 import { initializeSocket } from './services/socket';
 import { runMigrations } from './config/migrate';
@@ -69,6 +70,7 @@ app.use('/api/servers', serverRoutes);
 app.use('/api', messageRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/dm', dmRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
