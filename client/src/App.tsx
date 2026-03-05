@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import MainLayout from './components/common/MainLayout';
 import ConnectionScreen from './components/common/ConnectionScreen';
-import { getServerBaseUrl } from './components/common/ConnectionScreen';
 import { setApiBaseUrl } from './services/api';
 import { setSocketServerUrl } from './services/socket';
 
@@ -16,15 +15,6 @@ function App() {
   const { isAuthenticated, user } = useAppSelector((state) => state.auth);
   const { theme } = useAppSelector((state) => state.ui);
   const [isConnected, setIsConnected] = useState(false);
-
-  // Check if we already have a valid saved connection on mount
-  useEffect(() => {
-    const savedUrl = getServerBaseUrl();
-    if (savedUrl) {
-      // The ConnectionScreen will auto-connect and call onConnected
-      // But if there's no saved address, we know we need the screen
-    }
-  }, []);
 
   useSocket();
 
@@ -45,7 +35,7 @@ function App() {
     setIsConnected(true);
   }, []);
 
-  // Show connection screen if not connected to a server yet
+  // Always show connection screen first — user enters IP every launch
   if (!isConnected) {
     return <ConnectionScreen onConnected={handleConnected} />;
   }

@@ -64,9 +64,15 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/dm', dmRoutes);
 app.use('/api/admin', adminRoutes);
 
-// Health check
+// Health check — used by ConnectionScreen and Admin Dashboard
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    serverName: 'BillyCord',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    version: '1.0.0',
+  });
 });
 
 // Serve client build in production
