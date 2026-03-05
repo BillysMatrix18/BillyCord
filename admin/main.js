@@ -92,10 +92,11 @@ function startServer() {
 
     try {
       if (entry.useTsx) {
-        // Run tsx CLI directly via node - avoids shell path-splitting issues with spaces
-        // process.execPath = node binary, tsx bin = dist/cli.mjs
+        // Run tsx watch with relative path from server cwd - keeps process alive
+        // Using relative path avoids Windows spaces-in-path issues entirely
         const tsxCli = path.join(serverCwd, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-        serverProcess = spawn(process.execPath, [tsxCli, entry.entry], {
+        sendLog('info', `tsx CLI: ${tsxCli}`);
+        serverProcess = spawn(process.execPath, [tsxCli, 'watch', 'src/index.ts'], {
           env: serverEnv,
           cwd: serverCwd,
           stdio: ['pipe', 'pipe', 'pipe'],
