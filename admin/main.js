@@ -92,13 +92,13 @@ function startServer() {
 
     try {
       if (entry.useTsx) {
-        // Use npx tsx for reliability - avoids path issues with spaces on Windows
-        const npxCmd = isWin ? 'npx.cmd' : 'npx';
-        serverProcess = spawn(npxCmd, ['tsx', entry.entry], {
+        // Run tsx CLI directly via node - avoids shell path-splitting issues with spaces
+        // process.execPath = node binary, tsx bin = dist/cli.mjs
+        const tsxCli = path.join(serverCwd, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+        serverProcess = spawn(process.execPath, [tsxCli, entry.entry], {
           env: serverEnv,
           cwd: serverCwd,
           stdio: ['pipe', 'pipe', 'pipe'],
-          shell: isWin,
           windowsHide: true,
         });
       } else {
