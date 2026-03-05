@@ -18,6 +18,7 @@ import { runMigrations } from './config/migrate';
 import { initRedis } from './config/redis';
 import { startDiscoveryBeacon, getLanIp } from './services/discovery';
 import { startLogExporter } from './services/logExporter';
+import { loadSettings } from './services/settingsCache';
 
 dotenv.config();
 
@@ -119,6 +120,9 @@ async function start() {
     await runMigrations();
 
     await initRedis();
+
+    // Load admin settings into memory cache
+    await loadSettings();
 
     httpServer.listen(PORT, '0.0.0.0', () => {
       const lanIp = getLanIp();

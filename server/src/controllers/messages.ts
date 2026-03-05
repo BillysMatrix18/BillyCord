@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { query } from '../config/database';
 import { sanitizeHtml } from '../utils/validation';
 import { logMessageEdit, logMessageDelete } from '../services/logger';
+import { getSettingInt, checkRateLimit } from '../services/settingsCache';
 
 export async function getMessages(req: Request, res: Response): Promise<void> {
   try {
@@ -49,8 +50,17 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    if (content.length > 4000) {
-      res.status(400).json({ error: 'Message too long (max 4000 characters)' });
+    // Enforce max message length from admin settings
+    const maxLength = getSettingInt('max_message_length', 2000);
+    if (content.length > maxLength) {
+      res.status(400).json({ error: `Message too long (max ${maxLength} characters)` });
+      return;
+    }
+
+    // Enforce rate limiting from admin settings
+    if (checkRateLimit(userId)) {
+      const rateLimit = getSettingInt('rate_limit_messages', 20);
+      res.status(429).json({ error: `Rate limited. Max ${rateLimit} messages per minute.` });
       return;
     }
 
@@ -91,6 +101,13 @@ export async function updateMessage(req: Request, res: Response): Promise<void> 
 
     if (!content || content.trim().length === 0) {
       res.status(400).json({ error: 'Message content is required' });
+      return;
+    }
+
+    // Enforce max message length on edits too
+    const maxLen = getSettingInt('max_message_length', 2000);
+    if (content.length > maxLen) {
+      res.status(400).json({ error: `Message too long (max ${maxLen} characters)` });
       return;
     }
 
@@ -214,6 +231,18 @@ export async function pinMessage(req: Request, res: Response): Promise<void> {
     }
 
     const channelId = msg.rows[0].channel_id;
+
+    // Enforce pin limit from admin settings
+    const pinLimit = getSettingInt('max_pin_per_channel', 50);
+    const pinCount = await query(
+      'SELECT COUNT(*) as count FROM pinned_messages WHERE channel_id = $1',
+      [channelId]
+    );
+    if (pinCount.rows[0].count >= pinLimit) {
+      res.status(400).json({ error: `Pin limit reached (max ${pinLimit} per channel)` });
+      return;
+    }
+
     await query('UPDATE messages SET pinned = 1 WHERE id = $1', [messageId]);
     await query(
       `INSERT INTO pinned_messages (channel_id, message_id, pinned_by)

@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
 import { runLogExport } from '../services/logExporter';
 import { logAdminAction } from '../services/logger';
+import { reloadSettings } from '../services/settingsCache';
 
 const router = Router();
 
@@ -296,6 +297,8 @@ router.patch('/settings/:key', async (req: Request, res: Response) => {
       "UPDATE server_settings SET setting_value = $1, updated_at = datetime('now') WHERE setting_key = $2",
       [String(value), req.params.key]
     );
+    // Reload settings cache so changes take effect immediately
+    await reloadSettings();
     res.json({ success: true, key: req.params.key, value });
   } catch (err) {
     console.error('Admin update setting error:', err);
@@ -317,6 +320,8 @@ router.post('/settings', async (req: Request, res: Response) => {
         [key, String(value)]
       );
     }
+    // Reload settings cache so changes take effect immediately
+    await reloadSettings();
     res.json({ success: true, updated: Object.keys(settings).length });
   } catch (err) {
     console.error('Admin bulk settings error:', err);
