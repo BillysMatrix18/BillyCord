@@ -79,6 +79,133 @@ function discoverServer(timeoutMs = 5000) {
   });
 }
 
+// ----- Manual IP Entry Window -----
+function showManualIpEntry() {
+  return new Promise((resolve) => {
+    const saved = loadSavedUrl();
+    const savedHost = saved ? saved.replace(/^https?:\/\//, '') : '';
+
+    const ipWindow = new BrowserWindow({
+      width: 480, height: 380, frame: false,
+      resizable: false, alwaysOnTop: true, backgroundColor: '#1a1a2e',
+      webPreferences: { nodeIntegration: false, contextIsolation: false },
+    });
+
+    const html = `<!DOCTYPE html><html><head><style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;-webkit-app-region:drag;user-select:none}
+      .card{-webkit-app-region:no-drag;background:#0d1117;border:1px solid #1e2a3a;border-radius:12px;padding:32px;width:400px;text-align:center}
+      h2{font-size:20px;font-weight:700;margin-bottom:4px;color:#fff}
+      .subtitle{font-size:13px;color:#8892b0;margin-bottom:24px}
+      label{display:block;text-align:left;font-size:12px;font-weight:600;color:#8892b0;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px}
+      input{width:100%;padding:12px 14px;background:#161b22;border:2px solid #1e2a3a;border-radius:8px;color:#fff;font-size:15px;outline:none;transition:border-color 0.2s}
+      input:focus{border-color:#3B82F6}
+      input::placeholder{color:#444}
+      .hint{font-size:11px;color:#555;margin-top:6px;text-align:left}
+      .error{font-size:12px;color:#f44;margin-top:8px;min-height:18px}
+      .buttons{display:flex;gap:10px;margin-top:20px}
+      button{flex:1;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.15s,transform 0.15s}
+      .btn-primary{background:#3B82F6;color:#fff}
+      .btn-primary:hover{background:#2563EB}
+      .btn-primary:active{transform:scale(0.97)}
+      .btn-primary:disabled{background:#1e3a5f;color:#6a8bb5;cursor:not-allowed;transform:none}
+      .btn-secondary{background:#1e2a3a;color:#8892b0}
+      .btn-secondary:hover{background:#263245}
+      .connecting{color:#3B82F6;font-size:13px;margin-top:8px}
+    </style></head><body>
+      <div class="card">
+        <h2>Connect to Server</h2>
+        <p class="subtitle">Enter the IP address and port of the BillyCord server</p>
+        <label for="ip">Server Address</label>
+        <input id="ip" type="text" placeholder="192.168.0.15:3001 or 203.45.67.89:3001" value="${savedHost}" autofocus />
+        <div class="hint">Format: IP:PORT (e.g. 192.168.1.5:3001)</div>
+        <div class="error" id="error"></div>
+        <div class="connecting" id="status"></div>
+        <div class="buttons">
+          <button class="btn-secondary" id="cancelBtn">Cancel</button>
+          <button class="btn-primary" id="connectBtn">Connect</button>
+        </div>
+      </div>
+      <script>
+        const {ipcRenderer} = require('electron');
+        const input = document.getElementById('ip');
+        const errorEl = document.getElementById('error');
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+
+        input.addEventListener('input', () => { errorEl.textContent = ''; });
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connectBtn.click(); });
+
+        cancelBtn.addEventListener('click', () => {
+          ipcRenderer.send('manual-ip-cancel');
+        });
+
+        connectBtn.addEventListener('click', () => {
+          let addr = input.value.trim();
+          if (!addr) { errorEl.textContent = 'Please enter a server address.'; return; }
+
+          // Basic validation
+          const parts = addr.split(':');
+          if (parts.length < 2) { errorEl.textContent = 'Include a port number (e.g. 192.168.1.5:3001)'; return; }
+          const port = parseInt(parts[parts.length - 1]);
+          if (isNaN(port) || port < 1 || port > 65535) { errorEl.textContent = 'Invalid port number (1-65535)'; return; }
+
+          errorEl.textContent = '';
+          statusEl.textContent = 'Connecting...';
+          connectBtn.disabled = true;
+
+          ipcRenderer.send('manual-ip-connect', addr);
+        });
+
+        ipcRenderer.on('manual-ip-error', (_e, msg) => {
+          statusEl.textContent = '';
+          errorEl.textContent = msg;
+          connectBtn.disabled = false;
+        });
+      </script>
+    </body></html>`;
+
+    ipWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+    const { ipcMain } = require('electron');
+
+    const onConnect = (_event, address) => {
+      const url = `http://${address}`;
+      checkServerHealth(url).then((healthy) => {
+        if (healthy) {
+          cleanup();
+          if (!ipWindow.isDestroyed()) ipWindow.close();
+          resolve(url);
+        } else {
+          if (!ipWindow.isDestroyed()) {
+            ipWindow.webContents.send('manual-ip-error', `Could not reach server at ${address}. Make sure the server is running.`);
+          }
+        }
+      });
+    };
+
+    const onCancel = () => {
+      cleanup();
+      if (!ipWindow.isDestroyed()) ipWindow.close();
+      resolve(null);
+    };
+
+    function cleanup() {
+      ipcMain.removeListener('manual-ip-connect', onConnect);
+      ipcMain.removeListener('manual-ip-cancel', onCancel);
+    }
+
+    ipcMain.on('manual-ip-connect', onConnect);
+    ipcMain.on('manual-ip-cancel', onCancel);
+
+    ipWindow.on('closed', () => {
+      cleanup();
+      resolve(null);
+    });
+  });
+}
+
 // ----- Health check -----
 function checkServerHealth(url) {
   return new Promise((resolve) => {
@@ -157,10 +284,19 @@ function createMainWindow() {
       type: 'error',
       title: 'BillyCord - Server Offline',
       message: `Could not connect to the BillyCord server.\n\nServer: ${SERVER_URL}\nError: ${errorDescription}\n\nThe server admin needs to start the server. Try again later.`,
-      buttons: ['Retry', 'Quit'],
+      buttons: ['Enter IP Manually', 'Retry', 'Quit'],
       defaultId: 0,
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.response === 0) {
+        const url = await showManualIpEntry();
+        if (url) {
+          SERVER_URL = url;
+          saveServerUrl(url);
+          createMainWindow();
+        } else {
+          startConnectionFlow();
+        }
+      } else if (result.response === 1) {
         startConnectionFlow();
       } else {
         isQuitting = true;
@@ -212,7 +348,7 @@ async function startConnectionFlow() {
     }
   }
 
-  // Step 3: Nothing found
+  // Step 3: Nothing found – offer manual IP entry
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.close(); splashWindow = null;
   }
@@ -220,11 +356,20 @@ async function startConnectionFlow() {
   dialog.showMessageBox({
     type: 'error',
     title: 'BillyCord - Server Offline',
-    message: 'Could not find the BillyCord server.\n\nThe server admin needs to start the server on their PC.\nOnce the server is running, launch BillyCord again.',
-    buttons: ['Retry', 'Quit'],
+    message: 'Could not find the BillyCord server.\n\nThe server admin needs to start the server on their PC.\nOr enter the server IP address manually.',
+    buttons: ['Enter IP Manually', 'Retry', 'Quit'],
     defaultId: 0,
-  }).then((result) => {
+  }).then(async (result) => {
     if (result.response === 0) {
+      const url = await showManualIpEntry();
+      if (url) {
+        SERVER_URL = url;
+        saveServerUrl(url);
+        createMainWindow();
+      } else {
+        startConnectionFlow();
+      }
+    } else if (result.response === 1) {
       startConnectionFlow();
     } else {
       isQuitting = true;
