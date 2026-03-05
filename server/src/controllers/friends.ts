@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { query, getClient } from '../config/database';
+import { getSettingInt } from '../services/settingsCache';
 
 export async function sendFriendRequest(req: Request, res: Response): Promise<void> {
   try {
@@ -37,6 +38,18 @@ export async function sendFriendRequest(req: Request, res: Response): Promise<vo
         return;
       }
       res.status(409).json({ error: 'Friend request already exists' });
+      return;
+    }
+
+    // Enforce max friends per user
+    const maxFriends = getSettingInt('max_friends_per_user', 5000);
+    const friendCount = await query(
+      `SELECT COUNT(*) as count FROM friends
+       WHERE (requester_id = $1 OR receiver_id = $1) AND status = 'accepted'`,
+      [userId]
+    );
+    if (friendCount.rows[0].count >= maxFriends) {
+      res.status(400).json({ error: `Friend limit reached (max ${maxFriends} friends)` });
       return;
     }
 

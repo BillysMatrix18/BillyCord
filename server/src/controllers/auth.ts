@@ -4,6 +4,7 @@ import { query } from '../config/database';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { registerSchema, loginSchema } from '../utils/validation';
 import { logUserActivity, logSecurity } from '../services/logger';
+import { getSettingInt, getSettingBool, getSetting } from '../services/settingsCache';
 
 export async function register(req: Request, res: Response): Promise<void> {
   try {
@@ -14,6 +15,27 @@ export async function register(req: Request, res: Response): Promise<void> {
     }
 
     const { username, email, password } = parsed.data;
+
+    // Check if registration is enabled
+    if (!getSettingBool('registration_enabled', true)) {
+      res.status(403).json({ error: 'Registration is currently disabled' });
+      return;
+    }
+
+    // Enforce password minimum length from admin settings
+    const minPwLen = getSettingInt('password_min_length', 8);
+    if (password.length < minPwLen) {
+      res.status(400).json({ error: `Password must be at least ${minPwLen} characters` });
+      return;
+    }
+
+    // Enforce max users limit
+    const maxUsers = getSettingInt('max_users', 10000);
+    const userCount = await query('SELECT COUNT(*) as count FROM users');
+    if (userCount.rows[0].count >= maxUsers) {
+      res.status(403).json({ error: 'Maximum user limit reached. Registration is closed.' });
+      return;
+    }
 
     // Check for existing user
     const existing = await query(
@@ -79,7 +101,36 @@ export async function login(req: Request, res: Response): Promise<void> {
 
     if (!passwordValid) {
       logSecurity('login_failed', user.id, { identifier: loginIdentifier, reason: 'wrong_password' }, req.ip, req.headers['user-agent'] as string);
+
+      // Track failed login attempts for lockout
+      const maxAttempts = getSettingInt('max_login_attempts', 5);
+      const lockoutMinutes = getSettingInt('lockout_duration_minutes', 15);
+      const recentFails = await query(
+        `SELECT COUNT(*) as count FROM security_logs
+         WHERE user_id = $1 AND event_type = 'login_failed'
+         AND created_at > datetime('now', $2)`,
+        [user.id, `-${lockoutMinutes} minutes`]
+      );
+      if (recentFails.rows[0].count >= maxAttempts) {
+        res.status(429).json({ error: `Account locked. Too many failed attempts. Try again in ${lockoutMinutes} minutes.` });
+        return;
+      }
+
       res.status(401).json({ error: 'Invalid username/email or password' });
+      return;
+    }
+
+    // Check lockout before allowing login (even with correct password)
+    const maxAttempts = getSettingInt('max_login_attempts', 5);
+    const lockoutMinutes = getSettingInt('lockout_duration_minutes', 15);
+    const recentFails = await query(
+      `SELECT COUNT(*) as count FROM security_logs
+       WHERE user_id = $1 AND event_type = 'login_failed'
+       AND created_at > datetime('now', $2)`,
+      [user.id, `-${lockoutMinutes} minutes`]
+    );
+    if (recentFails.rows[0].count >= maxAttempts) {
+      res.status(429).json({ error: `Account locked. Too many failed attempts. Try again in ${lockoutMinutes} minutes.` });
       return;
     }
 
@@ -203,8 +254,9 @@ export async function changePassword(req: Request, res: Response): Promise<void>
     const { currentPassword, newPassword } = req.body;
     const userId = req.user!.userId;
 
-    if (!currentPassword || !newPassword || newPassword.length < 8) {
-      res.status(400).json({ error: 'Invalid password data' });
+    const minPwLen = getSettingInt('password_min_length', 8);
+    if (!currentPassword || !newPassword || newPassword.length < minPwLen) {
+      res.status(400).json({ error: `Password must be at least ${minPwLen} characters` });
       return;
     }
 

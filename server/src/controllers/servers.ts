@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { query, getClient } from '../config/database';
 import { createServerSchema } from '../utils/validation';
 import { Permissions } from '../types';
+import { getSettingInt } from '../services/settingsCache';
 
 export async function createServer(req: Request, res: Response): Promise<void> {
   const client = await getClient();
@@ -14,6 +15,17 @@ export async function createServer(req: Request, res: Response): Promise<void> {
 
     const { name, description } = parsed.data;
     const userId = req.user!.userId;
+
+    // Enforce max servers per user
+    const maxServers = getSettingInt('max_servers_per_user', 100);
+    const ownedCount = await query(
+      'SELECT COUNT(*) as count FROM servers WHERE owner_id = $1',
+      [userId]
+    );
+    if (ownedCount.rows[0].count >= maxServers) {
+      res.status(400).json({ error: `Server limit reached (max ${maxServers} servers)` });
+      return;
+    }
 
     await client.query('BEGIN');
 

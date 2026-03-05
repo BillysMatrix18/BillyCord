@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { query } from '../config/database';
 import { createChannelSchema } from '../utils/validation';
+import { getSettingInt } from '../services/settingsCache';
 
 export async function createChannel(req: Request, res: Response): Promise<void> {
   try {
@@ -18,6 +19,17 @@ export async function createChannel(req: Request, res: Response): Promise<void> 
     const server = await query('SELECT owner_id FROM servers WHERE id = $1', [serverId]);
     if (server.rows.length === 0 || server.rows[0].owner_id !== userId) {
       res.status(403).json({ error: 'Insufficient permissions' });
+      return;
+    }
+
+    // Enforce max channels per server
+    const maxChannels = getSettingInt('max_channels_per_server', 500);
+    const channelCount = await query(
+      'SELECT COUNT(*) as count FROM channels WHERE server_id = $1',
+      [serverId]
+    );
+    if (channelCount.rows[0].count >= maxChannels) {
+      res.status(400).json({ error: `Channel limit reached (max ${maxChannels} per server)` });
       return;
     }
 

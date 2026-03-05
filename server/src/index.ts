@@ -18,7 +18,7 @@ import { runMigrations } from './config/migrate';
 import { initRedis } from './config/redis';
 import { startDiscoveryBeacon, getLanIp } from './services/discovery';
 import { startLogExporter } from './services/logExporter';
-import { loadSettings } from './services/settingsCache';
+import { loadSettings, getSettingBool } from './services/settingsCache';
 
 dotenv.config();
 
@@ -45,6 +45,16 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 app.use('/uploads', express.static(uploadsDir));
+
+// Maintenance mode check (skip admin routes so admin can disable it)
+app.use('/api', (req, res, next) => {
+  if (req.path.startsWith('/admin')) return next();
+  if (getSettingBool('maintenance_mode', false)) {
+    res.status(503).json({ error: 'Server is under maintenance. Please try again later.' });
+    return;
+  }
+  next();
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);
