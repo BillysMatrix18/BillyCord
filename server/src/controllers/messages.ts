@@ -79,6 +79,15 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       [userId]
     );
 
+    // Increment unread for all other server members
+    const channelResult = await query('SELECT server_id FROM channels WHERE id = $1', [channelId]);
+    if (channelResult.rows.length > 0) {
+      await query(
+        `UPDATE server_members SET unread_count = unread_count + 1 WHERE server_id = $1 AND user_id != $2`,
+        [channelResult.rows[0].server_id, userId]
+      );
+    }
+
     const message = {
       ...result.rows[0],
       sender_name: userResult.rows[0].username,

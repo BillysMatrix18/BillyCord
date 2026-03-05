@@ -5,6 +5,7 @@ import { fetchDmMessages, clearDmMessages } from '../../store/dmSlice';
 import { dmApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
 import { IconPlus, IconSend } from '../common/Icons';
+import UserProfileModal from '../common/UserProfileModal';
 
 export default function DmChatArea() {
   const { conversationId } = useParams();
@@ -13,6 +14,7 @@ export default function DmChatArea() {
   const { user } = useAppSelector((state) => state.auth);
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [profileUser, setProfileUser] = useState<{ id: string; name: string; avatar: string | null } | null>(null);
 
   const conversation = conversations.find(c => c.id === conversationId);
   const displayName = conversation?.is_group
@@ -85,7 +87,10 @@ export default function DmChatArea() {
           {messages.map((msg, index) => (
             <div key={msg.id} className={`message ${shouldShowHeader(index) ? 'message-group-start' : ''}`}>
               {shouldShowHeader(index) ? (
-                <div className="message-avatar">
+                <div
+                  className="message-avatar clickable"
+                  onClick={() => setProfileUser({ id: msg.sender_id, name: msg.sender_name, avatar: msg.sender_avatar })}
+                >
                   {msg.sender_avatar ? <img src={msg.sender_avatar} alt="" /> : msg.sender_name?.[0]?.toUpperCase() || '?'}
                 </div>
               ) : (
@@ -94,7 +99,12 @@ export default function DmChatArea() {
               <div className="message-body">
                 {shouldShowHeader(index) && (
                   <div className="message-header">
-                    <span className="author">{msg.sender_name}</span>
+                    <span
+                      className="author clickable"
+                      onClick={() => setProfileUser({ id: msg.sender_id, name: msg.sender_name, avatar: msg.sender_avatar })}
+                    >
+                      {msg.sender_name}
+                    </span>
                     <span className="timestamp">{formatTime(msg.created_at)}</span>
                   </div>
                 )}
@@ -122,6 +132,15 @@ export default function DmChatArea() {
           </button>
         </div>
       </div>
+
+      {profileUser && (
+        <UserProfileModal
+          userId={profileUser.id}
+          username={profileUser.name}
+          avatarUrl={profileUser.avatar}
+          onClose={() => setProfileUser(null)}
+        />
+      )}
     </div>
   );
 }

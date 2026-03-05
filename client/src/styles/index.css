@@ -2121,3 +2121,276 @@ input, textarea {
   .server-icon { width: 40px; height: 40px; font-size: 14px; }
   .server-list-nav .nav-icon { width: 40px; height: 40px; }
 }
+
+/* ── Unread Badges ── */
+.unread-badge {
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  flex-shrink: 0;
+  animation: badge-pop 0.2s ease-out;
+}
+
+.server-unread-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  border: 3px solid var(--bg-tertiary);
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+  border-radius: 8px;
+}
+
+@keyframes badge-pop {
+  0% { transform: scale(0); }
+  80% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* ── User Profile Modal ── */
+.profile-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+}
+
+.profile-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 340px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  z-index: 2001;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.profile-modal-banner {
+  height: 60px;
+  width: 100%;
+}
+
+.profile-modal-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  color: #fff;
+  border-radius: var(--radius-full);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.profile-modal-close:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.profile-modal-avatar {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  margin: -40px 0 0 20px;
+  border-radius: var(--radius-full);
+  background: var(--bg-secondary);
+  border: 6px solid var(--bg-secondary);
+  overflow: visible;
+}
+
+.profile-modal-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.profile-modal-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--brand-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.profile-modal-status-dot {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  border: 3px solid var(--bg-secondary);
+}
+
+.profile-modal-body {
+  padding: 12px 20px 20px;
+}
+
+.profile-modal-username {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--header-primary);
+  margin: 0;
+}
+
+.profile-modal-status {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.profile-modal-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--bg-modifier-active);
+}
+
+.profile-modal-section h3 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--header-secondary);
+  margin: 0 0 6px;
+}
+
+.profile-modal-section p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.profile-modal-action-status {
+  padding: 6px 10px;
+  margin-top: 8px;
+  background: var(--bg-modifier-hover);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.profile-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.profile-modal-actions .btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.profile-modal-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.profile-modal-actions .btn-primary {
+  background: var(--brand-color);
+  color: #fff;
+}
+
+.profile-modal-actions .btn-primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.profile-modal-actions .btn-secondary {
+  background: var(--bg-modifier-active);
+  color: var(--text-primary);
+}
+
+.profile-modal-actions .btn-secondary:hover:not(:disabled) {
+  background: var(--bg-modifier-selected);
+}
+
+.profile-modal-actions .btn-danger {
+  background: var(--red-light);
+  color: var(--red);
+}
+
+.profile-modal-actions .btn-danger:hover:not(:disabled) {
+  background: var(--red);
+  color: #fff;
+}
+
+/* ── Clickable elements ── */
+.clickable {
+  cursor: pointer;
+}
+
+.message-avatar.clickable:hover {
+  opacity: 0.8;
+}
+
+.message-header .author.clickable:hover {
+  text-decoration: underline;
+}
+
+.member-item.clickable:hover {
+  background: var(--bg-modifier-hover);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Context Menu Enhancements ── */
+.context-menu-icon {
+  display: inline-block;
+  width: 20px;
+  text-align: center;
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--bg-modifier-active);
+  margin: 4px 0;
+}
+
+/* ── Copy Toast ── */
+.copy-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-floating);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 3000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}

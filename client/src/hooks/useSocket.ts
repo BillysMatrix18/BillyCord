@@ -4,7 +4,7 @@ import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import { useAppDispatch, useAppSelector } from './useAppDispatch';
 import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage, setMessagePinned } from '../store/messageSlice';
 import { updateMemberStatus } from '../store/serverSlice';
-import { addDmMessage } from '../store/dmSlice';
+import { addDmMessage, incrementConversationUnread, fetchConversations } from '../store/dmSlice';
 import { setAnnouncement } from '../store/uiSlice';
 
 export function useSocket() {
@@ -57,8 +57,11 @@ export function useSocket() {
       dispatch(setMessagePinned({ messageId, pinned }));
     });
 
-    socket.on('dm:new', ({ message }) => {
+    socket.on('dm:new', ({ conversationId, message }) => {
       dispatch(addDmMessage(message));
+      dispatch(incrementConversationUnread(conversationId));
+      // Re-fetch conversations to update sidebar order & last_message
+      dispatch(fetchConversations());
     });
 
     // Admin announcements

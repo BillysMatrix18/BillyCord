@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { fetchConversations } from '../../store/dmSlice';
+import { fetchConversations, clearConversationUnread } from '../../store/dmSlice';
 import { toggleSettings } from '../../store/uiSlice';
 import { setUserStatus } from '../../store/authSlice';
-import { authApi } from '../../services/api';
+import { authApi, dmApi } from '../../services/api';
 import { IconSettings, IconUsers, IconSearch } from '../common/Icons';
 
 const STATUS_OPTIONS = [
@@ -25,6 +25,14 @@ export default function DmSidebar() {
   useEffect(() => {
     dispatch(fetchConversations());
   }, [dispatch]);
+
+  // Mark conversation as read when opened
+  useEffect(() => {
+    if (conversationId) {
+      dispatch(clearConversationUnread(conversationId));
+      dmApi.markRead(conversationId).catch(() => {});
+    }
+  }, [conversationId, dispatch]);
 
   const handleStatusChange = async (status: string) => {
     dispatch(setUserStatus(status));
@@ -61,6 +69,7 @@ export default function DmSidebar() {
             ? conv.name || conv.participants?.map(p => p.username).join(', ')
             : conv.participants?.[0]?.username || 'Unknown';
           const status = conv.is_group ? undefined : conv.participants?.[0]?.status;
+          const unread = conv.unread_count || 0;
 
           return (
             <div
@@ -85,6 +94,9 @@ export default function DmSidebar() {
                   </div>
                 )}
               </div>
+              {unread > 0 && (
+                <div className="unread-badge">{unread > 99 ? '99+' : unread}</div>
+              )}
             </div>
           );
         })}

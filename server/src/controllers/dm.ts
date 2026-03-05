@@ -17,7 +17,8 @@ export async function getConversations(req: Request, res: Response): Promise<voi
         (SELECT json_object('content', dm.content, 'sender_id', dm.sender_id, 'created_at', dm.created_at)
          FROM direct_messages dm WHERE dm.conversation_id = c.id
          ORDER BY dm.created_at DESC LIMIT 1
-        ) as last_message
+        ) as last_message,
+        (SELECT cm3.unread_count FROM conversation_members cm3 WHERE cm3.conversation_id = c.id AND cm3.user_id = $1) as unread_count
        FROM conversations c
        JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = $1
        ORDER BY (SELECT MAX(dm2.created_at) FROM direct_messages dm2 WHERE dm2.conversation_id = c.id) DESC`,
@@ -151,6 +152,12 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
       [userId]
     );
 
+    // Increment unread for other members
+    await query(
+      `UPDATE conversation_members SET unread_count = unread_count + 1 WHERE conversation_id = $1 AND user_id != $2`,
+      [conversationId, userId]
+    );
+
     const message = {
       ...result.rows[0],
       sender_name: userResult.rows[0].username,
@@ -272,6 +279,21 @@ export async function leaveGroup(req: Request, res: Response): Promise<void> {
     res.json({ success: true });
   } catch (error) {
     console.error('Leave group error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function markConversationRead(req: Request, res: Response): Promise<void> {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user!.userId;
+    await query(
+      'UPDATE conversation_members SET unread_count = 0 WHERE conversation_id = $1 AND user_id = $2',
+      [conversationId, userId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark read error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

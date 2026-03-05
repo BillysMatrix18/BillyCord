@@ -44,6 +44,18 @@ const dmSlice = createSlice({
         state.messages.push(action.payload);
       }
     },
+    incrementConversationUnread(state, action: PayloadAction<string>) {
+      const conv = state.conversations.find(c => c.id === action.payload);
+      if (conv) {
+        conv.unread_count = (conv.unread_count || 0) + 1;
+      }
+    },
+    clearConversationUnread(state, action: PayloadAction<string>) {
+      const conv = state.conversations.find(c => c.id === action.payload);
+      if (conv) {
+        conv.unread_count = 0;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -58,5 +70,5 @@ const dmSlice = createSlice({
   },
 });
 
-export const { setCurrentConversation, clearDmMessages, addDmMessage } = dmSlice.actions;
+export const { setCurrentConversation, clearDmMessages, addDmMessage, incrementConversationUnread, clearConversationUnread } = dmSlice.actions;
 export default dmSlice.reducer;

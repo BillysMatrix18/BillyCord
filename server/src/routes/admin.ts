@@ -336,20 +336,81 @@ router.post('/announce', async (req: Request, res: Response) => {
     const { message } = req.body;
     if (!message) { res.status(400).json({ error: 'Message required' }); return; }
     const io = req.app.get('io');
-    if (!io) { res.status(500).json({ error: 'Socket server not initialized' }); return; }
 
-    // Count connected sockets
-    const sockets = await io.fetchSockets();
-    const sentToCount = sockets.length;
+    // Get all real users (not billybot)
+    const usersResult = await query("SELECT id FROM users WHERE id != 'billybot'");
+    const users = usersResult.rows;
+    let sentCount = 0;
+
+    const formattedContent = `**[SYSTEM ANNOUNCEMENT]**\n\n${message}`;
+
+    for (const user of users) {
+      try {
+        // Find existing 1:1 conversation between billybot and this user
+        let convId: string | null = null;
+        const existingConv = await query(
+          `SELECT c.id FROM conversations c
+           WHERE c.is_group = 0
+           AND (SELECT COUNT(*) FROM conversation_members cm WHERE cm.conversation_id = c.id) = 2
+           AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = 'billybot')
+           AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $1)`,
+          [user.id]
+        );
+
+        if (existingConv.rows.length > 0) {
+          convId = existingConv.rows[0].id;
+        } else {
+          // Create new conversation
+          const newConv = await query(
+            `INSERT INTO conversations (is_group, name, owner_id) VALUES (0, NULL, NULL) RETURNING id`
+          );
+          convId = newConv.rows[0].id;
+          await query(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, 'billybot')`, [convId]);
+          await query(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)`, [convId, user.id]);
+        }
+
+        // Send the DM
+        const msgResult = await query(
+          `INSERT INTO direct_messages (conversation_id, sender_id, content) VALUES ($1, 'billybot', $2) RETURNING *`,
+          [convId, formattedContent]
+        );
+
+        // Increment unread count for the user
+        await query(
+          `UPDATE conversation_members SET unread_count = unread_count + 1 WHERE conversation_id = $1 AND user_id = $2`,
+          [convId, user.id]
+        );
+
+        // Emit DM event via socket
+        if (io) {
+          io.to(`user:${user.id}`).emit('dm:new', {
+            conversationId: convId,
+            message: {
+              ...msgResult.rows[0],
+              sender_name: 'BillyBot',
+              sender_avatar: null,
+            },
+          });
+        }
+
+        sentCount++;
+      } catch (err) {
+        console.error(`Failed to send announcement DM to user ${user.id}:`, err);
+      }
+    }
 
     // Save to announcements table
     await query(
       `INSERT INTO announcements (content, sent_to_count) VALUES ($1, $2)`,
-      [message, sentToCount]
+      [message, sentCount]
     );
 
-    io.emit('admin:announcement', { message, timestamp: new Date().toISOString() });
-    res.json({ success: true, message: 'Announcement sent', sentToCount });
+    // Also broadcast the banner announcement
+    if (io) {
+      io.emit('admin:announcement', { message, timestamp: new Date().toISOString() });
+    }
+
+    res.json({ success: true, message: 'Announcement sent as DM to all users', sentToCount: sentCount });
   } catch (err) {
     console.error('Admin announce error:', err);
     res.status(500).json({ error: 'Failed to send announcement' });

@@ -346,6 +346,10 @@ export async function runMigrations() {
   await safeAlter("ALTER TABLE users ADD COLUMN profile_color TEXT DEFAULT '#5865F2'");
   await safeAlter("ALTER TABLE users ADD COLUMN profile_visibility TEXT DEFAULT 'public'");
 
+  // Add unread tracking columns
+  await safeAlter("ALTER TABLE conversation_members ADD COLUMN unread_count INTEGER DEFAULT 0");
+  await safeAlter("ALTER TABLE server_members ADD COLUMN unread_count INTEGER DEFAULT 0");
+
   // Insert default server settings
   await defaultSetting('max_users', '10000', 'integer', 'users', 'Maximum total users allowed');
   await defaultSetting('max_friends_per_user', '5000', 'integer', 'users', 'Maximum friends per user');
@@ -382,6 +386,10 @@ export async function runMigrations() {
   await defaultSetting('auto_kick_spammers', 'false', 'boolean', 'moderation', 'Automatically kick detected spammers');
   await defaultSetting('auto_mute_profanity', 'false', 'boolean', 'moderation', 'Auto-mute messages containing profanity');
   await defaultSetting('keyword_filter', '', 'string', 'moderation', 'Filtered keywords (one per line)');
+
+  // Create BillyBot system user
+  await exec(`INSERT OR IGNORE INTO users (id, username, email, password_hash, status, bio)
+VALUES ('billybot', 'BillyBot', 'billybot@system', 'SYSTEM_USER_NO_LOGIN', 'online', 'BillyCord System Bot - Delivers announcements and system messages')`);
 
   console.log('Migrations completed successfully');
 }

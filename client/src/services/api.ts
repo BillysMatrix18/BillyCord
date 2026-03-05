@@ -72,6 +72,7 @@ export const serverApi = {
     api.delete(`/servers/${serverId}/members/${userId}/ban`),
   getBans: (serverId: string) => api.get(`/servers/${serverId}/bans`),
   getAuditLogs: (serverId: string) => api.get(`/servers/${serverId}/audit-logs`),
+  markRead: (serverId: string) => api.post(`/servers/${serverId}/read`),
 };
 
 // Channels
@@ -135,6 +136,8 @@ export const dmApi = {
     api.post(`/dm/conversations/${conversationId}/leave`),
   getMembers: (conversationId: string) =>
     api.get(`/dm/conversations/${conversationId}/members`),
+  markRead: (conversationId: string) =>
+    api.post(`/dm/conversations/${conversationId}/read`),
 };
 
 // Roles

@@ -25,6 +25,7 @@ export interface Server {
   owner_id: string;
   description: string | null;
   member_count: number;
+  unread_count: number;
   created_at: string;
 }
 
@@ -86,6 +87,7 @@ export interface Conversation {
   description: string | null;
   participants: { id: string; username: string; avatar_url: string | null; status: string }[];
   last_message: { content: string; sender_id: string; created_at: string } | null;
+  unread_count: number;
   created_at: string;
 }
 

@@ -82,6 +82,12 @@ const serverSlice = createSlice({
         member.status = action.payload.status;
       }
     },
+    clearServerUnread(state, action: PayloadAction<string>) {
+      const server = state.servers.find(s => s.id === action.payload);
+      if (server) {
+        server.unread_count = 0;
+      }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -108,5 +114,5 @@ const serverSlice = createSlice({
   },
 });
 
-export const { setCurrentServer, clearServerError, updateMemberStatus } = serverSlice.actions;
+export const { setCurrentServer, clearServerError, updateMemberStatus, clearServerUnread } = serverSlice.actions;
 export default serverSlice.reducer;

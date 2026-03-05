@@ -1,13 +1,28 @@
+import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { toggleCreateServer, toggleJoinServer, toggleSettings } from '../../store/uiSlice';
+import { clearServerUnread } from '../../store/serverSlice';
+import { serverApi } from '../../services/api';
 import { IconHome, IconPlus, IconCompass, IconSettings } from '../common/Icons';
 
 export default function ServerList() {
   const navigate = useNavigate();
   const { serverId } = useParams();
   const { servers } = useAppSelector((state) => state.servers);
+  const { conversations } = useAppSelector((state) => state.dm);
   const dispatch = useAppDispatch();
+
+  // Calculate total unread DMs for the home button badge
+  const totalDmUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+
+  // Mark server as read when selected
+  useEffect(() => {
+    if (serverId) {
+      dispatch(clearServerUnread(serverId));
+      serverApi.markRead(serverId).catch(() => {});
+    }
+  }, [serverId, dispatch]);
 
   return (
     <div className="server-list">
@@ -16,26 +31,37 @@ export default function ServerList() {
         className={`server-icon ${!serverId ? 'active' : ''}`}
         onClick={() => navigate('/channels/@me')}
         title="Direct Messages"
+        style={{ position: 'relative' }}
       >
         <IconHome size={24} />
+        {totalDmUnread > 0 && (
+          <div className="unread-badge server-unread-badge">{totalDmUnread > 99 ? '99+' : totalDmUnread}</div>
+        )}
       </div>
 
       <div className="server-separator" />
 
-      {servers.map((server) => (
-        <div
-          key={server.id}
-          className={`server-icon ${serverId === server.id ? 'active' : ''}`}
-          onClick={() => navigate(`/channels/${server.id}`)}
-          title={server.name}
-        >
-          {server.icon_url ? (
-            <img src={server.icon_url} alt={server.name} />
-          ) : (
-            server.name.substring(0, 2).toUpperCase()
-          )}
-        </div>
-      ))}
+      {servers.map((server) => {
+        const unread = server.unread_count || 0;
+        return (
+          <div
+            key={server.id}
+            className={`server-icon ${serverId === server.id ? 'active' : ''}`}
+            onClick={() => navigate(`/channels/${server.id}`)}
+            title={server.name}
+            style={{ position: 'relative' }}
+          >
+            {server.icon_url ? (
+              <img src={server.icon_url} alt={server.name} />
+            ) : (
+              server.name.substring(0, 2).toUpperCase()
+            )}
+            {unread > 0 && (
+              <div className="unread-badge server-unread-badge">{unread > 99 ? '99+' : unread}</div>
+            )}
+          </div>
+        );
+      })}
 
       <div className="server-separator" />
 

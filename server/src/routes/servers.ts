@@ -3,7 +3,7 @@ import { authenticate } from '../middleware/auth';
 import {
   createServer, getServers, getServer, updateServer, deleteServer,
   joinServer, leaveServer, getMembers, kickMember, banMember, unbanMember,
-  getBans, getAuditLogs,
+  getBans, getAuditLogs, markServerRead,
 } from '../controllers/servers';
 import { createChannel, getChannels, updateChannel, deleteChannel, createCategory } from '../controllers/channels';
 import { createRole, getRoles, updateRole, deleteRole, assignRole, removeRole } from '../controllers/roles';
@@ -21,6 +21,7 @@ router.delete('/:serverId', authenticate, deleteServer);
 // Join/Leave
 router.post('/join/:code', authenticate, joinServer);
 router.post('/:serverId/leave', authenticate, leaveServer);
+router.post('/:serverId/read', authenticate, markServerRead);
 
 // Members
 router.get('/:serverId/members', authenticate, getMembers);

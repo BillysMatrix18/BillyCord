@@ -92,7 +92,7 @@ export async function getServers(req: Request, res: Response): Promise<void> {
   try {
     const userId = req.user!.userId;
     const result = await query(
-      `SELECT s.*, sm.joined_at, sm.nickname,
+      `SELECT s.*, sm.joined_at, sm.nickname, sm.unread_count,
         (SELECT COUNT(*) FROM server_members WHERE server_id = s.id) as member_count
        FROM servers s
        JOIN server_members sm ON s.id = sm.server_id AND sm.user_id = $1
@@ -437,6 +437,21 @@ export async function getBans(req: Request, res: Response): Promise<void> {
     res.json({ bans: result.rows });
   } catch (error) {
     console.error('Get bans error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function markServerRead(req: Request, res: Response): Promise<void> {
+  try {
+    const { serverId } = req.params;
+    const userId = req.user!.userId;
+    await query(
+      'UPDATE server_members SET unread_count = 0 WHERE server_id = $1 AND user_id = $2',
+      [serverId, userId]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Mark server read error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

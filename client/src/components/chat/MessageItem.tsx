@@ -5,22 +5,26 @@ import { removeMessage, updateMessage, setMessagePinned } from '../../store/mess
 import { getSocket } from '../../services/socket';
 import { Message } from '../../types';
 import { IconSmile, IconEdit, IconPin, IconTrash } from '../common/Icons';
+import UserProfileModal from '../common/UserProfileModal';
 
 interface MessageItemProps {
   message: Message;
   showHeader: boolean;
   formatTime: (date: string) => string;
+  onReply?: (message: Message) => void;
 }
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
-export default function MessageItem({ message, showHeader, formatTime }: MessageItemProps) {
+export default function MessageItem({ message, showHeader, formatTime, onReply }: MessageItemProps) {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
   const [showReactions, setShowReactions] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [copyToast, setCopyToast] = useState(false);
 
   const handleDelete = async () => {
     try {
@@ -83,6 +87,8 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
   const handleCopyText = useCallback(() => {
     navigator.clipboard.writeText(message.content);
     setContextMenu(null);
+    setCopyToast(true);
+    setTimeout(() => setCopyToast(false), 2000);
   }, [message.content]);
 
   const handleCopyId = useCallback(() => {
@@ -94,6 +100,11 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
+
+  const handleReply = useCallback(() => {
+    if (onReply) onReply(message);
+    setContextMenu(null);
+  }, [message, onReply]);
 
   const groupedReactions = message.reactions?.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { emoji: r.emoji, users: [], count: 0 };
@@ -115,7 +126,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
   return (
     <div className={`message ${showHeader ? 'message-group-start' : ''}`} onContextMenu={handleContextMenu}>
       {showHeader ? (
-        <div className="message-avatar">
+        <div className="message-avatar clickable" onClick={() => setShowProfile(true)}>
           {message.sender_avatar ? (
             <img src={message.sender_avatar} alt={message.sender_name} />
           ) : (
@@ -129,7 +140,7 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
       <div className="message-body">
         {showHeader && (
           <div className="message-header">
-            <span className="author">{message.sender_name}</span>
+            <span className="author clickable" onClick={() => setShowProfile(true)}>{message.sender_name}</span>
             <span className="timestamp">{formatTime(message.created_at)}</span>
           </div>
         )}
@@ -222,31 +233,57 @@ export default function MessageItem({ message, showHeader, formatTime }: Message
       {contextMenu && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setContextMenu(null)} onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
-          <div className="context-menu" style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 }}>
+          <div className="context-menu animate-fade-in" style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 }}>
             <div className="context-menu-item" onClick={() => { setShowReactions(true); setContextMenu(null); }}>
-              Add Reaction
+              <span className="context-menu-icon">😀</span> Add Reaction
             </div>
-            {isAuthor && (
-              <div className="context-menu-item" onClick={() => { setIsEditing(true); setEditContent(message.content); setContextMenu(null); }}>
-                Edit Message
+            {onReply && (
+              <div className="context-menu-item" onClick={handleReply}>
+                <span className="context-menu-icon">↩</span> Reply
               </div>
             )}
-            <div className="context-menu-item" onClick={() => { handlePin(); setContextMenu(null); }}>
-              {message.pinned ? 'Unpin Message' : 'Pin Message'}
-            </div>
+            {isAuthor && (
+              <div className="context-menu-item" onClick={() => { setIsEditing(true); setEditContent(message.content); setContextMenu(null); }}>
+                <span className="context-menu-icon">✏️</span> Edit Message
+              </div>
+            )}
+            {isAuthor && (
+              <div className="context-menu-item" onClick={() => { handlePin(); setContextMenu(null); }}>
+                <span className="context-menu-icon">📌</span> {message.pinned ? 'Unpin Message' : 'Pin Message'}
+              </div>
+            )}
             <div className="context-menu-item" onClick={handleCopyText}>
-              Copy Text
+              <span className="context-menu-icon">📋</span> Copy Text
             </div>
             <div className="context-menu-item" onClick={handleCopyId}>
-              Copy Message ID
+              <span className="context-menu-icon">#</span> Copy Message ID
             </div>
             {isAuthor && (
-              <div className="context-menu-item context-menu-danger" onClick={() => { handleDelete(); setContextMenu(null); }}>
-                Delete Message
-              </div>
+              <>
+                <div className="context-menu-separator" />
+                <div className="context-menu-item context-menu-danger" onClick={() => { handleDelete(); setContextMenu(null); }}>
+                  <span className="context-menu-icon">🗑️</span> Delete Message
+                </div>
+              </>
             )}
           </div>
         </>
+      )}
+
+      {/* Copy toast */}
+      {copyToast && (
+        <div className="copy-toast animate-fade-in">Copied to clipboard</div>
+      )}
+
+      {/* User profile modal */}
+      {showProfile && (
+        <UserProfileModal
+          userId={message.sender_id}
+          username={message.sender_name}
+          avatarUrl={message.sender_avatar}
+          status={undefined}
+          onClose={() => setShowProfile(false)}
+        />
       )}
     </div>
   );
