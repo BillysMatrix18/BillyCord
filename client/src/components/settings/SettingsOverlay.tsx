@@ -382,6 +382,13 @@ export default function SettingsOverlay() {
                   Super Mode
                 </div>
               </div>
+              <div className={`theme-option ${theme === 'glass' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('glass'))}
+                style={theme === 'glass' ? { borderColor: '#0A84FF' } : {}}>
+                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #0A1A2E, #16213E, rgba(10,132,255,0.3), #0F0F1E)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)' }} />
+                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'glass' ? '#0A84FF' : 'var(--text-secondary)' }}>
+                  Liquid Glass
+                </div>
+              </div>
             </div>
 
             <div style={{ marginTop: 32 }}>

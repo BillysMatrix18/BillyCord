@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { authApi } from '../services/api';
 
-type Theme = 'dark' | 'light' | 'super';
+type Theme = 'dark' | 'light' | 'super' | 'glass';
 
 interface Announcement {
   message: string;
