@@ -98,7 +98,10 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY });
+    const menuW = 220, menuH = 300;
+    const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+    const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+    setContextMenu({ x, y });
   }, []);
 
   const handleReply = useCallback(() => {

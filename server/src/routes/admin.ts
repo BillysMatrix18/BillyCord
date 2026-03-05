@@ -401,7 +401,7 @@ router.post('/announce', async (req: Request, res: Response) => {
 
     // Save to announcements table
     await query(
-      `INSERT INTO announcements (content, sent_to_count) VALUES ($1, $2)`,
+      `INSERT INTO announcements (content, created_by, sent_to_count) VALUES ($1, 'admin', $2)`,
       [message, sentCount]
     );
 
