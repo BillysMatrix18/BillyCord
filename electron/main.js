@@ -80,13 +80,14 @@ function discoverServer(timeoutMs = 5000) {
 }
 
 // ----- Manual IP Entry Window -----
-function showManualIpEntry() {
+// discoveryPromise: optional – if provided, auto-fills the input when a server is found
+function showManualIpEntry(discoveryPromise) {
   return new Promise((resolve) => {
     const saved = loadSavedUrl();
     const savedHost = saved ? saved.replace(/^https?:\/\//, '') : '';
 
     const ipWindow = new BrowserWindow({
-      width: 480, height: 380, frame: false,
+      width: 500, height: 420, frame: false,
       resizable: false, alwaysOnTop: true, backgroundColor: '#1a1a2e',
       webPreferences: { nodeIntegration: false, contextIsolation: false },
     });
@@ -94,17 +95,20 @@ function showManualIpEntry() {
     const html = `<!DOCTYPE html><html><head><style>
       *{margin:0;padding:0;box-sizing:border-box}
       body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;-webkit-app-region:drag;user-select:none}
-      .card{-webkit-app-region:no-drag;background:#0d1117;border:1px solid #1e2a3a;border-radius:12px;padding:32px;width:400px;text-align:center}
-      h2{font-size:20px;font-weight:700;margin-bottom:4px;color:#fff}
-      .subtitle{font-size:13px;color:#8892b0;margin-bottom:24px}
+      .card{-webkit-app-region:no-drag;background:#0d1117;border:1px solid #1e2a3a;border-radius:12px;padding:32px;width:430px;text-align:center}
+      .logo{font-size:28px;font-weight:800;color:#3B82F6;margin-bottom:4px;letter-spacing:-0.5px}
+      h2{font-size:18px;font-weight:600;margin-bottom:4px;color:#fff}
+      .subtitle{font-size:13px;color:#8892b0;margin-bottom:20px;line-height:1.5}
       label{display:block;text-align:left;font-size:12px;font-weight:600;color:#8892b0;text-transform:uppercase;margin-bottom:8px;letter-spacing:0.5px}
-      input{width:100%;padding:12px 14px;background:#161b22;border:2px solid #1e2a3a;border-radius:8px;color:#fff;font-size:15px;outline:none;transition:border-color 0.2s}
-      input:focus{border-color:#3B82F6}
+      input{width:100%;padding:12px 14px;background:#161b22;border:2px solid #1e2a3a;border-radius:8px;color:#fff;font-size:15px;outline:none;transition:border-color 0.2s,box-shadow 0.2s}
+      input:focus{border-color:#3B82F6;box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
       input::placeholder{color:#444}
       .hint{font-size:11px;color:#555;margin-top:6px;text-align:left}
+      .discovered{font-size:12px;color:#22c55e;margin-top:8px;text-align:left;display:none}
+      .discovered::before{content:'✓ '}
       .error{font-size:12px;color:#f44;margin-top:8px;min-height:18px}
-      .buttons{display:flex;gap:10px;margin-top:20px}
-      button{flex:1;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.15s,transform 0.15s}
+      .buttons{display:flex;gap:10px;margin-top:18px}
+      button{flex:1;padding:11px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:background 0.15s,transform 0.15s}
       .btn-primary{background:#3B82F6;color:#fff}
       .btn-primary:hover{background:#2563EB}
       .btn-primary:active{transform:scale(0.97)}
@@ -112,17 +116,21 @@ function showManualIpEntry() {
       .btn-secondary{background:#1e2a3a;color:#8892b0}
       .btn-secondary:hover{background:#263245}
       .connecting{color:#3B82F6;font-size:13px;margin-top:8px}
+      .divider{display:flex;align-items:center;gap:12px;margin:16px 0 12px;color:#555;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+      .divider::before,.divider::after{content:'';flex:1;height:1px;background:#1e2a3a}
     </style></head><body>
       <div class="card">
+        <div class="logo">BillyCord</div>
         <h2>Connect to Server</h2>
-        <p class="subtitle">Enter the IP address and port of the BillyCord server</p>
+        <p class="subtitle">Ask the server admin for the IP address and port,<br>then enter it below to connect.</p>
         <label for="ip">Server Address</label>
         <input id="ip" type="text" placeholder="192.168.0.15:3001 or 203.45.67.89:3001" value="${savedHost}" autofocus />
-        <div class="hint">Format: IP:PORT (e.g. 192.168.1.5:3001)</div>
+        <div class="hint">Format: IP:PORT — ask your server admin for this</div>
+        <div class="discovered" id="discovered"></div>
         <div class="error" id="error"></div>
         <div class="connecting" id="status"></div>
         <div class="buttons">
-          <button class="btn-secondary" id="cancelBtn">Cancel</button>
+          <button class="btn-secondary" id="cancelBtn">Quit</button>
           <button class="btn-primary" id="connectBtn">Connect</button>
         </div>
       </div>
@@ -131,6 +139,7 @@ function showManualIpEntry() {
         const input = document.getElementById('ip');
         const errorEl = document.getElementById('error');
         const statusEl = document.getElementById('status');
+        const discoveredEl = document.getElementById('discovered');
         const connectBtn = document.getElementById('connectBtn');
         const cancelBtn = document.getElementById('cancelBtn');
 
@@ -145,7 +154,6 @@ function showManualIpEntry() {
           let addr = input.value.trim();
           if (!addr) { errorEl.textContent = 'Please enter a server address.'; return; }
 
-          // Basic validation
           const parts = addr.split(':');
           if (parts.length < 2) { errorEl.textContent = 'Include a port number (e.g. 192.168.1.5:3001)'; return; }
           const port = parseInt(parts[parts.length - 1]);
@@ -163,10 +171,31 @@ function showManualIpEntry() {
           errorEl.textContent = msg;
           connectBtn.disabled = false;
         });
+
+        // If auto-discovery finds a server, auto-fill the input
+        ipcRenderer.on('manual-ip-discovered', (_e, addr) => {
+          if (!input.value.trim()) {
+            input.value = addr;
+            discoveredEl.textContent = 'Server found on your network! Click Connect.';
+            discoveredEl.style.display = 'block';
+            input.style.borderColor = '#22c55e';
+            setTimeout(() => { input.style.borderColor = ''; }, 2000);
+          }
+        });
       </script>
     </body></html>`;
 
     ipWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+    // If a discovery promise was provided, send the result to the window
+    if (discoveryPromise) {
+      discoveryPromise.then((discoveredUrl) => {
+        if (discoveredUrl && !ipWindow.isDestroyed()) {
+          const addr = discoveredUrl.replace(/^https?:\/\//, '');
+          ipWindow.webContents.send('manual-ip-discovered', addr);
+        }
+      }).catch(() => {});
+    }
 
     const { ipcMain } = require('electron');
 
@@ -315,14 +344,51 @@ function createMainWindow() {
 }
 
 // ----- Connection Flow -----
-// 1. Try UDP discovery (find server on LAN)
-// 2. If not found, try saved address
-// 3. If nothing works, show offline message
+// First-time users always see the IP entry screen.
+// Returning users with a saved address get auto-connected (with UDP fallback).
 async function startConnectionFlow() {
-  createSplashWindow('Searching for server');
+  const saved = loadSavedUrl();
 
-  // Step 1: UDP auto-discovery
-  console.log('Searching for BillyCord server on local network...');
+  // --- First-time launch: no saved address → show IP entry screen immediately ---
+  if (!saved) {
+    console.log('No saved server address – showing manual IP entry screen');
+
+    // Try auto-discovery silently in the background while showing the entry screen
+    const discoveryPromise = discoverServer(4000);
+
+    const url = await showManualIpEntry(discoveryPromise);
+    if (url) {
+      SERVER_URL = url;
+      saveServerUrl(url);
+      createMainWindow();
+    } else {
+      // User cancelled – quit
+      isQuitting = true;
+      app.quit();
+    }
+    return;
+  }
+
+  // --- Returning user: try saved address, then UDP, then prompt ---
+  createSplashWindow('Connecting to server');
+
+  // Step 1: Try saved address first (fastest path for returning users)
+  console.log('Trying saved server address:', saved);
+  const savedHealthy = await checkServerHealth(saved);
+  if (savedHealthy) {
+    SERVER_URL = saved;
+    createMainWindow();
+    return;
+  }
+
+  // Step 2: Saved address failed – try UDP auto-discovery
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.executeJavaScript(
+      `document.querySelector('.status').innerHTML = 'Searching for server<span class="dots"></span>'`
+    ).catch(() => {});
+  }
+
+  console.log('Saved address unreachable, trying auto-discovery...');
   const discovered = await discoverServer(5000);
 
   if (discovered) {
@@ -336,19 +402,7 @@ async function startConnectionFlow() {
     }
   }
 
-  // Step 2: Try saved address
-  const saved = loadSavedUrl();
-  if (saved) {
-    console.log('Trying saved server address:', saved);
-    const healthy = await checkServerHealth(saved);
-    if (healthy) {
-      SERVER_URL = saved;
-      createMainWindow();
-      return;
-    }
-  }
-
-  // Step 3: Nothing found – offer manual IP entry
+  // Step 3: Nothing worked – close splash and show error with manual entry option
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.close(); splashWindow = null;
   }
@@ -356,7 +410,7 @@ async function startConnectionFlow() {
   dialog.showMessageBox({
     type: 'error',
     title: 'BillyCord - Server Offline',
-    message: 'Could not find the BillyCord server.\n\nThe server admin needs to start the server on their PC.\nOr enter the server IP address manually.',
+    message: `Could not connect to the saved server (${saved.replace(/^https?:\/\//, '')}).\n\nThe server admin needs to start the server, or you can enter a new IP address.`,
     buttons: ['Enter IP Manually', 'Retry', 'Quit'],
     defaultId: 0,
   }).then(async (result) => {

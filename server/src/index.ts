@@ -140,12 +140,28 @@ async function start() {
     // Load admin settings into memory cache
     await loadSettings();
 
-    httpServer.listen(PORT, '0.0.0.0', () => {
-      const lanIp = getLanIp();
-      console.log(`Server running on port ${PORT}`);
-      console.log(`LAN address: http://${lanIp}:${PORT}`);
-      console.log(`WebSocket server initialized`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    // Listen with proper error handling for port conflicts
+    await new Promise<void>((resolve, reject) => {
+      httpServer.once('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`\n✖ Port ${PORT} is already in use!`);
+          console.error(`  Another BillyCord instance or application is using this port.`);
+          console.error(`  Fix: Close the other application, or set a different port with PORT=XXXX\n`);
+        } else if (err.code === 'EACCES') {
+          console.error(`\n✖ Permission denied for port ${PORT}.`);
+          console.error(`  Ports below 1024 require admin/root privileges.\n`);
+        }
+        reject(err);
+      });
+
+      httpServer.listen(PORT, '0.0.0.0', () => {
+        const lanIp = getLanIp();
+        console.log(`Server running on port ${PORT}`);
+        console.log(`LAN address: http://${lanIp}:${PORT}`);
+        console.log(`WebSocket server initialized`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        resolve();
+      });
     });
 
     // Start UDP discovery beacon so BillyCord.exe clients can find this server
@@ -158,6 +174,31 @@ async function start() {
     process.exit(1);
   }
 }
+
+// Graceful shutdown – close connections cleanly so port is released
+function gracefulShutdown(signal: string) {
+  console.log(`\n${signal} received – shutting down gracefully...`);
+  httpServer.close(() => {
+    console.log('HTTP server closed.');
+    process.exit(0);
+  });
+  // Force-close after 5 seconds if connections won't drain
+  setTimeout(() => {
+    console.error('Forcing shutdown after timeout.');
+    process.exit(1);
+  }, 5000);
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Catch unhandled errors so the server doesn't silently crash
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (server staying up):', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection (server staying up):', reason);
+});
 
 start();
 
