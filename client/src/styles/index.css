@@ -3339,3 +3339,535 @@ input, textarea {
 [data-theme="glass"] .user-avatar {
   background: linear-gradient(135deg, #0A84FF, #5AC8FA);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ENHANCED SMOOTH ANIMATIONS – Additive layer (does not change existing styles)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── New keyframes ── */
+
+@keyframes hoverLift {
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-3px); }
+}
+
+@keyframes subtleFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+@keyframes breatheGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0); }
+  50%      { box-shadow: 0 0 16px 2px rgba(88, 101, 242, 0.12); }
+}
+
+@keyframes rippleIn {
+  0%   { transform: scale(0.6); opacity: 0; }
+  50%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideUpSmooth {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDownSmooth {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideLeftSmooth {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeScaleUp {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes headerSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes staggerFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes inputFocusPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0.4); }
+  70%  { box-shadow: 0 0 0 6px rgba(88, 101, 242, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0); }
+}
+
+@keyframes statusDotPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.3); }
+}
+
+@keyframes unreadBounce {
+  0%   { transform: scale(1); }
+  30%  { transform: scale(1.25); }
+  50%  { transform: scale(0.95); }
+  70%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes typewriterDots {
+  0%, 20% { content: '.'; }
+  40%     { content: '..'; }
+  60%, 100% { content: '...'; }
+}
+
+@keyframes gentleBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25%      { transform: translateY(-2px) rotate(0.5deg); }
+  75%      { transform: translateY(1px) rotate(-0.3deg); }
+}
+
+@keyframes settingsTabSlide {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes memberListStagger {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes channelListStagger {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes avatarHoverPop {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(1.12); }
+  100% { transform: scale(1.08); }
+}
+
+@keyframes badgePing {
+  0%   { transform: scale(1); opacity: 1; }
+  50%  { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+@keyframes smoothReveal {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+/* ── Smooth transitions for core interactive elements ── */
+
+/* Server icons – buttery morph */
+.server-icon {
+  transition: border-radius 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              background-color 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 200ms ease,
+              transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              filter 250ms ease;
+}
+
+/* Channel items – slide-in feel */
+.channel-item {
+  transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 180ms ease,
+              transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              padding-left 200ms ease,
+              border-color 200ms ease,
+              box-shadow 200ms ease;
+}
+
+/* Member items – smooth glide */
+.member-item {
+  transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 200ms ease;
+}
+
+/* Messages – gentle hover */
+.message {
+  transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-radius 200ms ease;
+}
+
+/* Form inputs – focus glow */
+.form-input {
+  transition: border-color 200ms ease,
+              box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              background 200ms ease;
+}
+
+/* Buttons – responsive press */
+.btn {
+  transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 150ms ease,
+              transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 250ms ease,
+              border-color 200ms ease,
+              filter 200ms ease;
+}
+
+/* Settings items – slide in on hover */
+.settings-item {
+  transition: background 180ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 150ms ease,
+              transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              padding-left 200ms ease;
+}
+
+/* Friend items – smooth glide */
+.friend-item {
+  transition: background 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 200ms ease;
+}
+
+/* Theme option cards */
+.theme-option {
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 200ms ease;
+}
+
+/* Reaction badges */
+.reaction-badge {
+  transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 200ms ease,
+              border-color 200ms ease,
+              box-shadow 200ms ease;
+}
+
+/* User panel buttons */
+.user-panel-buttons button {
+  transition: background 150ms ease,
+              color 150ms ease,
+              transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Chat header buttons */
+.chat-header-right button {
+  transition: background 150ms ease,
+              color 150ms ease,
+              transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Message action buttons */
+.message-actions button {
+  transition: background 120ms ease,
+              color 120ms ease,
+              transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Friend action buttons */
+.friend-actions button {
+  transition: background 150ms ease,
+              color 150ms ease,
+              transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 200ms ease;
+}
+
+/* Voice control buttons */
+.voice-controls button {
+  transition: background 150ms ease,
+              color 150ms ease,
+              transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Settings close button */
+.settings-close {
+  transition: border-color 250ms ease,
+              color 250ms ease,
+              transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 300ms ease;
+}
+
+/* Switch toggle slider */
+.switch-toggle .switch-slider {
+  transition: background 250ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 300ms ease;
+}
+.switch-toggle .switch-slider::before {
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 200ms ease;
+}
+
+/* Avatars – all types */
+.user-avatar,
+.message .message-avatar,
+.member-item .member-avatar,
+.settings-avatar-wrapper .avatar-large {
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 250ms ease,
+              filter 200ms ease;
+}
+
+/* Pinned message items */
+.pinned-message-item {
+  transition: background 200ms ease,
+              transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 200ms ease;
+}
+
+/* Context menu items */
+.context-menu-item {
+  transition: background 100ms ease,
+              color 100ms ease,
+              transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Status dots – alive feel */
+.member-status-dot {
+  transition: background 200ms ease,
+              transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Server header chevron */
+.server-header svg {
+  transition: opacity 200ms ease,
+              transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Entrance animations for staggered lists ── */
+
+/* Settings tab content fade in */
+.settings-content > .animate-fade-in {
+  animation: fadeScaleUp 250ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Channel list items stagger */
+.channel-list .channel-item {
+  animation: channelListStagger 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.channel-list .channel-item:nth-child(1)  { animation-delay: 0ms; }
+.channel-list .channel-item:nth-child(2)  { animation-delay: 20ms; }
+.channel-list .channel-item:nth-child(3)  { animation-delay: 40ms; }
+.channel-list .channel-item:nth-child(4)  { animation-delay: 60ms; }
+.channel-list .channel-item:nth-child(5)  { animation-delay: 80ms; }
+.channel-list .channel-item:nth-child(6)  { animation-delay: 100ms; }
+.channel-list .channel-item:nth-child(7)  { animation-delay: 120ms; }
+.channel-list .channel-item:nth-child(8)  { animation-delay: 140ms; }
+.channel-list .channel-item:nth-child(9)  { animation-delay: 160ms; }
+.channel-list .channel-item:nth-child(10) { animation-delay: 180ms; }
+
+/* Member list items stagger */
+.member-list .member-item {
+  animation: memberListStagger 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.member-list .member-item:nth-child(1)  { animation-delay: 0ms; }
+.member-list .member-item:nth-child(2)  { animation-delay: 25ms; }
+.member-list .member-item:nth-child(3)  { animation-delay: 50ms; }
+.member-list .member-item:nth-child(4)  { animation-delay: 75ms; }
+.member-list .member-item:nth-child(5)  { animation-delay: 100ms; }
+.member-list .member-item:nth-child(6)  { animation-delay: 125ms; }
+.member-list .member-item:nth-child(7)  { animation-delay: 150ms; }
+.member-list .member-item:nth-child(8)  { animation-delay: 175ms; }
+.member-list .member-item:nth-child(9)  { animation-delay: 200ms; }
+.member-list .member-item:nth-child(10) { animation-delay: 225ms; }
+
+/* Server list icons stagger on load */
+.server-list .server-icon {
+  animation: rippleIn 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.server-list .server-icon:nth-child(1)  { animation-delay: 0ms; }
+.server-list .server-icon:nth-child(2)  { animation-delay: 40ms; }
+.server-list .server-icon:nth-child(3)  { animation-delay: 80ms; }
+.server-list .server-icon:nth-child(4)  { animation-delay: 120ms; }
+.server-list .server-icon:nth-child(5)  { animation-delay: 160ms; }
+.server-list .server-icon:nth-child(6)  { animation-delay: 200ms; }
+.server-list .server-icon:nth-child(7)  { animation-delay: 240ms; }
+.server-list .server-icon:nth-child(8)  { animation-delay: 280ms; }
+.server-list .server-icon:nth-child(9)  { animation-delay: 320ms; }
+.server-list .server-icon:nth-child(10) { animation-delay: 360ms; }
+
+/* Friends list stagger */
+.friends-list .friend-item {
+  animation: slideUpSmooth 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.friends-list .friend-item:nth-child(1)  { animation-delay: 0ms; }
+.friends-list .friend-item:nth-child(2)  { animation-delay: 30ms; }
+.friends-list .friend-item:nth-child(3)  { animation-delay: 60ms; }
+.friends-list .friend-item:nth-child(4)  { animation-delay: 90ms; }
+.friends-list .friend-item:nth-child(5)  { animation-delay: 120ms; }
+.friends-list .friend-item:nth-child(6)  { animation-delay: 150ms; }
+.friends-list .friend-item:nth-child(7)  { animation-delay: 180ms; }
+.friends-list .friend-item:nth-child(8)  { animation-delay: 210ms; }
+
+/* Messages stagger – last 10 messages slide in */
+.messages-list .message {
+  animation: messageFadeIn 250ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.messages-list .message:nth-last-child(1)  { animation-delay: 0ms; }
+.messages-list .message:nth-last-child(2)  { animation-delay: 30ms; }
+.messages-list .message:nth-last-child(3)  { animation-delay: 50ms; }
+.messages-list .message:nth-last-child(4)  { animation-delay: 65ms; }
+.messages-list .message:nth-last-child(5)  { animation-delay: 75ms; }
+
+/* Settings sidebar items stagger */
+.settings-sidebar-inner .settings-item {
+  animation: settingsTabSlide 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.settings-sidebar-inner .settings-item:nth-child(1)  { animation-delay: 30ms; }
+.settings-sidebar-inner .settings-item:nth-child(2)  { animation-delay: 55ms; }
+.settings-sidebar-inner .settings-item:nth-child(3)  { animation-delay: 80ms; }
+.settings-sidebar-inner .settings-item:nth-child(4)  { animation-delay: 105ms; }
+.settings-sidebar-inner .settings-item:nth-child(5)  { animation-delay: 130ms; }
+.settings-sidebar-inner .settings-item:nth-child(6)  { animation-delay: 155ms; }
+.settings-sidebar-inner .settings-item:nth-child(7)  { animation-delay: 180ms; }
+.settings-sidebar-inner .settings-item:nth-child(8)  { animation-delay: 205ms; }
+.settings-sidebar-inner .settings-item:nth-child(9)  { animation-delay: 230ms; }
+.settings-sidebar-inner .settings-item:nth-child(10) { animation-delay: 255ms; }
+.settings-sidebar-inner .settings-item:nth-child(11) { animation-delay: 280ms; }
+.settings-sidebar-inner .settings-item:nth-child(12) { animation-delay: 305ms; }
+
+/* ── Enhanced hover micro-interactions ── */
+
+/* Server icon – active breathing glow */
+.server-icon.active {
+  animation: breatheGlow 3s ease-in-out infinite;
+}
+
+/* Online status dot – alive pulse */
+.member-status-dot.online {
+  animation: statusDotPulse 3s ease-in-out infinite;
+}
+
+/* Unread badge – attention bounce on appearance */
+.unread-badge {
+  animation: unreadBounce 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Ping ring behind unread badge */
+.unread-badge::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: inherit;
+  animation: badgePing 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Avatar pop on hover */
+.message .message-avatar:hover {
+  animation: avatarHoverPop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Smooth focus pulse on inputs */
+.form-input:focus {
+  animation: inputFocusPulse 600ms ease-out;
+}
+
+/* Message input wrapper focus breathing */
+.message-input-wrapper:focus-within {
+  animation: inputFocusPulse 600ms ease-out;
+}
+
+/* Chat header – slide in on channel switch */
+.chat-header {
+  animation: headerSlideIn 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Empty state gentle float */
+.empty-state svg {
+  animation: subtleFloat 4s ease-in-out infinite;
+}
+
+/* ── Smooth panel transitions ── */
+
+/* Channel sidebar smooth width for future collapse */
+.channel-sidebar {
+  transition: width 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 200ms ease;
+}
+
+/* Member list smooth width */
+.member-list {
+  transition: width 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 200ms ease;
+}
+
+/* Modal overlay stronger blur transition */
+.modal-overlay {
+  transition: backdrop-filter 300ms ease;
+}
+
+/* Profile modal overlay */
+.profile-modal-overlay {
+  transition: backdrop-filter 300ms ease;
+}
+
+/* Announcement banner smooth entry */
+.announcement-banner {
+  animation: slideDownSmooth 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Voice panel smooth appearance */
+.voice-panel {
+  animation: slideUpSmooth 250ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Add friend section reveal */
+.add-friend-section {
+  animation: fadeScaleUp 250ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Pinned message items stagger */
+.pinned-messages-list .pinned-message-item {
+  animation: slideLeftSmooth 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.pinned-messages-list .pinned-message-item:nth-child(1) { animation-delay: 0ms; }
+.pinned-messages-list .pinned-message-item:nth-child(2) { animation-delay: 50ms; }
+.pinned-messages-list .pinned-message-item:nth-child(3) { animation-delay: 100ms; }
+.pinned-messages-list .pinned-message-item:nth-child(4) { animation-delay: 150ms; }
+.pinned-messages-list .pinned-message-item:nth-child(5) { animation-delay: 200ms; }
+
+/* Theme options stagger on render */
+.theme-options .theme-option {
+  animation: fadeScaleUp 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.theme-options .theme-option:nth-child(1) { animation-delay: 0ms; }
+.theme-options .theme-option:nth-child(2) { animation-delay: 60ms; }
+.theme-options .theme-option:nth-child(3) { animation-delay: 120ms; }
+.theme-options .theme-option:nth-child(4) { animation-delay: 180ms; }
+
+/* Danger zone subtle attention */
+.danger-zone {
+  transition: box-shadow 300ms ease,
+              border-color 250ms ease;
+}
+
+/* Settings card hover lift */
+.settings-card {
+  transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.settings-card:hover {
+  transform: translateY(-1px);
+}
+
+/* Settings toggle row smooth highlight */
+.settings-toggle-row {
+  transition: background 200ms ease,
+              margin 200ms ease,
+              padding 200ms ease,
+              border-radius 200ms ease;
+}
+
+/* Smooth scrollbar appearance */
+::-webkit-scrollbar-thumb {
+  transition: background-color 200ms ease;
+}
+
+/* ── Utility classes for additive animations ── */
+.animate-stagger-in     { animation: staggerFadeIn 200ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.animate-slide-left     { animation: slideLeftSmooth 250ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.animate-slide-down     { animation: slideDownSmooth 250ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.animate-ripple         { animation: rippleIn 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-bounce-in      { animation: unreadBounce 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-gentle-bob     { animation: gentleBob 4s ease-in-out infinite; }
