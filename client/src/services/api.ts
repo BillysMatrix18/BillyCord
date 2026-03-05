@@ -1,11 +1,21 @@
 import axios from 'axios';
 
-const API_BASE = '/api';
+let API_BASE = '/api';
 
 const api = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 });
+
+/**
+ * Update the API base URL to point to a different server.
+ * Called when user connects via the ConnectionScreen.
+ * @param serverUrl - e.g. "http://203.45.67.89:3001"
+ */
+export function setApiBaseUrl(serverUrl: string) {
+  API_BASE = `${serverUrl}/api`;
+  api.defaults.baseURL = API_BASE;
+}
 
 // Attach token to requests
 api.interceptors.request.use((config) => {
@@ -26,7 +36,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const { data } = await axios.post(`${API_BASE}/auth/refresh`, { refreshToken });
+          const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken });
           localStorage.setItem('accessToken', data.accessToken);
           localStorage.setItem('refreshToken', data.refreshToken);
           originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;

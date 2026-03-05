@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { toggleSettings, setThemeWithSync } from '../../store/uiSlice';
 import { updateProfile, logout } from '../../store/authSlice';
 import { authApi } from '../../services/api';
+import { clearServerAddress } from '../common/ConnectionScreen';
 import {
   IconUser, IconPalette, IconBell, IconShield, IconKeyboard, IconLogout,
   IconX, IconCamera, IconTrashAccount, IconLock, IconSun, IconMoon,
@@ -220,6 +221,10 @@ export default function SettingsOverlay() {
             </div>
           ))}
           <div style={{ height: 1, background: 'var(--bg-modifier-hover)', margin: '8px 0' }} />
+          <div className="settings-item" onClick={() => { clearServerAddress(); window.location.reload(); }}>
+            <IconLogout size={16} />
+            Change Server
+          </div>
           <div className="settings-item" style={{ color: 'var(--red)' }} onClick={() => { dispatch(logout()); dispatch(toggleSettings()); }}>
             <IconLogout size={16} />
             Log Out
@@ -664,8 +669,11 @@ export default function SettingsOverlay() {
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>
                   <strong style={{ color: 'var(--text-primary)' }}>Runtime:</strong> Node.js v20.x
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}>
                   <strong style={{ color: 'var(--text-primary)' }}>Architecture:</strong> React + TypeScript
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Server:</strong> {localStorage.getItem('serverAddress') || 'Local'}
                 </div>
               </div>
 
