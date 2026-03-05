@@ -63,6 +63,19 @@ function getAppIcon() {
 }
 
 // ----- Server Process Management -----
+
+// Find system node binary - process.execPath is Electron's binary, NOT node
+function findNodeBinary() {
+  const isWin = process.platform === 'win32';
+  try {
+    const cmd = isWin ? 'where node' : 'which node';
+    const result = require('child_process').execSync(cmd, { encoding: 'utf8', timeout: 5000 }).trim();
+    const firstLine = result.split('\n')[0].trim();
+    if (firstLine && fs.existsSync(firstLine)) return firstLine;
+  } catch (_) { /* fallback */ }
+  return 'node'; // hope it's in PATH
+}
+
 function startServer() {
   return new Promise((resolve) => {
     if (serverProcess) {
@@ -84,10 +97,13 @@ function startServer() {
     };
 
     const serverCwd = path.join(getProjectRoot(), 'server');
+    const nodeBin = findNodeBinary();
 
-    sendLog('info', `Starting server from: ${entry.entry}`);
+    sendLog('info', `Starting server...`);
     sendLog('info', `Working directory: ${serverCwd}`);
     sendLog('info', `Mode: ${entry.useTsx ? 'TypeScript (tsx)' : 'Compiled JS'}`);
+    sendLog('info', `process.execPath (Electron): ${process.execPath}`);
+    sendLog('info', `System node binary: ${nodeBin}`);
 
     let resolved = false;
     function resolveOnce(result) {
@@ -96,29 +112,31 @@ function startServer() {
 
     try {
       if (entry.useTsx) {
-        // Use tsx (no watch) - the server's app.listen() keeps the process alive
-        // tsx watch spawns a child process internally which causes premature exit detection
         const tsxCli = path.join(serverCwd, 'node_modules', 'tsx', 'dist', 'cli.mjs');
-        sendLog('info', `tsx CLI: ${tsxCli}`);
+        sendLog('info', `tsx CLI path: ${tsxCli}`);
+        sendLog('info', `tsx CLI exists: ${fs.existsSync(tsxCli)}`);
 
-        // Check tsx CLI exists
         if (!fs.existsSync(tsxCli)) {
-          sendLog('error', `tsx CLI not found at: ${tsxCli}`);
           resolveOnce({ success: false, error: 'tsx not installed in server/node_modules' });
           return;
         }
 
-        serverProcess = spawn(process.execPath, [tsxCli, 'src/index.ts'], {
+        // IMPORTANT: Use system node, NOT process.execPath (Electron binary)
+        // Electron's node doesn't handle tsx/ESM properly and exits with code 0
+        sendLog('info', `Spawning: ${nodeBin} ${tsxCli} src/index.ts`);
+        serverProcess = spawn(nodeBin, [tsxCli, 'src/index.ts'], {
           env: serverEnv,
           cwd: serverCwd,
           stdio: ['ignore', 'pipe', 'pipe'],
           windowsHide: true,
         });
       } else {
-        serverProcess = fork(entry.entry, [], {
+        sendLog('info', `Spawning: ${nodeBin} ${entry.entry}`);
+        serverProcess = spawn(nodeBin, [entry.entry], {
           env: serverEnv,
           cwd: serverCwd,
-          stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+          stdio: ['ignore', 'pipe', 'pipe'],
+          windowsHide: true,
         });
       }
     } catch (err) {
@@ -131,28 +149,33 @@ function startServer() {
     sendLog('info', `Server process spawned (PID: ${pid})`);
 
     serverProcess.stdout?.on('data', (data) => {
-      const text = data.toString().trim();
-      if (!text) return;
-      sendLog('info', text);
-      // Detect when server is actually listening
-      if (text.includes('running on port') || text.includes('listening on') || text.includes(`port ${SERVER_PORT}`)) {
-        serverRunning = true;
-        mainWindow?.webContents.send('server:status', true);
-        sendLog('info', 'Server is online and listening!');
-        resolveOnce({ success: true });
-      }
+      const raw = data.toString();
+      raw.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        sendLog('info', `[stdout] ${trimmed}`);
+        if (trimmed.includes('running on port') || trimmed.includes('listening on') || trimmed.includes(`port ${SERVER_PORT}`)) {
+          serverRunning = true;
+          mainWindow?.webContents.send('server:status', true);
+          sendLog('info', 'Server is online and listening!');
+          resolveOnce({ success: true });
+        }
+      });
     });
 
     serverProcess.stderr?.on('data', (data) => {
-      const text = data.toString().trim();
-      if (text) sendLog('error', text);
+      const raw = data.toString();
+      raw.split('\n').forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed) sendLog('error', `[stderr] ${trimmed}`);
+      });
     });
 
-    serverProcess.on('exit', (code, signal) => {
+    serverProcess.on('close', (code, signal) => {
       const wasRunning = serverRunning;
       serverRunning = false;
       serverProcess = null;
-      sendLog('warn', `Server process exited (code: ${code}, signal: ${signal})`);
+      sendLog('warn', `Server process closed (code: ${code}, signal: ${signal})`);
       mainWindow?.webContents.send('server:status', false);
       if (!wasRunning) {
         resolveOnce({ success: false, error: `Server exited before starting (code: ${code}, signal: ${signal})` });
@@ -167,10 +190,9 @@ function startServer() {
       resolveOnce({ success: false, error: `Process error: ${err.message}` });
     });
 
-    // Fallback timeout - if no "running on port" detected in 15s, check if process is still alive
+    // Fallback timeout
     setTimeout(() => {
       if (serverProcess && !resolved) {
-        // Process is still alive but hasn't logged the listen message - mark as running anyway
         serverRunning = true;
         mainWindow?.webContents.send('server:status', true);
         sendLog('info', 'Server process is alive (timeout fallback)');
