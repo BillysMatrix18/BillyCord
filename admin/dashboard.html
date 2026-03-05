@@ -159,6 +159,69 @@
     .setting-card .desc { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
     .setting-card .val { font-size: 16px; font-weight: 600; color: var(--accent); background: var(--bg-primary); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); }
 
+    .settings-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .settings-tab {
+      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-secondary); font-size: 13px;
+      cursor: pointer; font-weight: 500; transition: all 0.15s;
+    }
+    .settings-tab:hover { border-color: var(--accent); color: var(--text-primary); }
+    .settings-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .settings-section { display: none; }
+    .settings-section.active { display: block; }
+    .settings-actions { display: flex; gap: 12px; margin-bottom: 20px; }
+    .btn-save {
+      padding: 10px 24px; border-radius: 8px; border: none;
+      background: var(--green); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer;
+    }
+    .btn-save:hover { background: #16a34a; }
+    .btn-reset {
+      padding: 10px 24px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-secondary); font-weight: 600; font-size: 14px; cursor: pointer;
+    }
+    .btn-reset:hover { border-color: var(--red); color: var(--red); }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 10px;
+    }
+    .setting-row .setting-info { flex: 1; margin-right: 20px; }
+    .setting-row .setting-label { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .setting-row .setting-desc { font-size: 12px; color: var(--text-muted); }
+    .setting-row input[type="number"], .setting-row input[type="text"] {
+      width: 120px; padding: 8px 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg-primary);
+      color: var(--text-primary); font-size: 14px; text-align: right; outline: none;
+    }
+    .setting-row input:focus { border-color: var(--accent); }
+    .setting-row select {
+      padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-primary); color: var(--text-primary); font-size: 14px; outline: none;
+    }
+    .setting-row select:focus { border-color: var(--accent); }
+    .setting-row textarea {
+      width: 300px; min-height: 80px; padding: 8px 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg-primary);
+      color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical; outline: none;
+    }
+    .setting-row textarea:focus { border-color: var(--accent); }
+    .toggle-switch {
+      position: relative; width: 44px; height: 24px; cursor: pointer;
+    }
+    .toggle-switch input { display: none; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; width: 18px; height: 18px;
+      left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background: var(--green); }
+    .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .save-status { font-size: 13px; padding: 8px 16px; border-radius: 6px; display: none; }
+    .save-status.success { display: inline-block; background: #16a34a22; color: var(--green); }
+    .save-status.error { display: inline-block; background: #dc262622; color: var(--red); }
+
     .announce-bar { display: flex; gap: 8px; margin-bottom: 24px; }
     .announce-bar input { flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); font-size: 14px; outline: none; }
     .announce-bar input:focus { border-color: var(--accent); }
@@ -296,7 +359,186 @@
     <!-- SETTINGS -->
     <div class="tab-content" id="tab-settings">
       <div class="section-title">Server Configuration</div>
-      <div class="settings-grid" id="settings-grid"></div>
+
+      <div class="settings-actions">
+        <button class="btn-save" onclick="saveAllSettings()">Apply Changes</button>
+        <button class="btn-reset" onclick="resetDefaults()">Reset to Defaults</button>
+        <span class="save-status" id="save-status"></span>
+      </div>
+
+      <div class="settings-tabs">
+        <div class="settings-tab active" onclick="switchSettingsTab('users')">User Limits</div>
+        <div class="settings-tab" onclick="switchSettingsTab('messages')">Messages</div>
+        <div class="settings-tab" onclick="switchSettingsTab('files')">File Upload</div>
+        <div class="settings-tab" onclick="switchSettingsTab('voice')">Voice &amp; Video</div>
+        <div class="settings-tab" onclick="switchSettingsTab('security')">Security</div>
+        <div class="settings-tab" onclick="switchSettingsTab('moderation')">Moderation</div>
+        <div class="settings-tab" onclick="switchSettingsTab('system')">System</div>
+      </div>
+
+      <!-- User Limits -->
+      <div class="settings-section active" id="settings-users">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Users Allowed</div><div class="setting-desc">Maximum total registered users on the server</div></div>
+          <input type="number" data-key="max_users" min="1" value="10000">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Servers Per User</div><div class="setting-desc">Maximum servers a single user can create</div></div>
+          <input type="number" data-key="max_servers_per_user" min="1" value="100">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Friends Per User</div><div class="setting-desc">Maximum friends list size per user</div></div>
+          <input type="number" data-key="max_friends_per_user" min="1" value="5000">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Simultaneous Logins</div><div class="setting-desc">Maximum concurrent sessions per user account</div></div>
+          <input type="number" data-key="max_simultaneous_logins" min="1" value="5">
+        </div>
+      </div>
+
+      <!-- Messages -->
+      <div class="settings-section" id="settings-messages">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Message Length</div><div class="setting-desc">Maximum characters per message</div></div>
+          <input type="number" data-key="max_message_length" min="1" max="10000" value="2000">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Message Retention Days</div><div class="setting-desc">Auto-delete messages after N days (0 = keep forever)</div></div>
+          <input type="number" data-key="message_retention_days" min="0" value="365">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Rate Limit (Messages/Min)</div><div class="setting-desc">Maximum messages a user can send per minute</div></div>
+          <input type="number" data-key="rate_limit_messages" min="1" value="20">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Pin Limit Per Channel</div><div class="setting-desc">Maximum pinned messages per channel</div></div>
+          <input type="number" data-key="max_pin_per_channel" min="1" value="50">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Emoji Reactions Per Message</div><div class="setting-desc">Maximum unique emoji reactions per message</div></div>
+          <input type="number" data-key="max_reactions_per_message" min="1" value="10">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Default Slow Mode (Seconds)</div><div class="setting-desc">Default slow mode delay for new channels (0 = off)</div></div>
+          <input type="number" data-key="slow_mode_default" min="0" value="0">
+        </div>
+      </div>
+
+      <!-- File Upload -->
+      <div class="settings-section" id="settings-files">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max File Upload Size (MB)</div><div class="setting-desc">Maximum file size for uploads</div></div>
+          <input type="number" data-key="max_file_upload_mb" min="1" value="25">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Allow Images</div><div class="setting-desc">Allow users to upload image files (PNG, JPG, GIF, etc.)</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_image_uploads" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Allow Documents</div><div class="setting-desc">Allow document uploads (PDF, DOC, TXT, etc.)</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_document_uploads" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Allow Audio</div><div class="setting-desc">Allow audio file uploads (MP3, WAV, OGG, etc.)</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_audio_uploads" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Allow Video</div><div class="setting-desc">Allow video file uploads (MP4, MOV, WEBM, etc.)</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_video_uploads" checked><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Voice & Video -->
+      <div class="settings-section" id="settings-voice">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Simultaneous Voice Calls</div><div class="setting-desc">Maximum concurrent voice calls server-wide (0 = unlimited)</div></div>
+          <input type="number" data-key="max_simultaneous_calls" min="0" value="0">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Participants Per Channel</div><div class="setting-desc">Maximum users in a single voice channel (0 = unlimited)</div></div>
+          <input type="number" data-key="max_voice_participants" min="0" value="0">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Audio Bitrate (kbps)</div><div class="setting-desc">Audio quality bitrate for voice channels</div></div>
+          <input type="number" data-key="audio_bitrate_kbps" min="32" max="512" value="128">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Video Bitrate (Mbps)</div><div class="setting-desc">Video quality bitrate for video calls</div></div>
+          <input type="text" data-key="video_bitrate_mbps" value="2.5" style="width:80px">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Screen Sharing Allowed</div><div class="setting-desc">Allow users to share their screen in voice channels</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="screen_sharing_allowed" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Recording Allowed</div><div class="setting-desc">Allow users to record voice/video calls</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="recording_allowed"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Security -->
+      <div class="settings-section" id="settings-security">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Two-Factor Authentication</div><div class="setting-desc">Require, make optional, or disable 2FA for all users</div></div>
+          <select data-key="require_2fa"><option value="optional">Optional</option><option value="required">Required</option><option value="disabled">Disabled</option></select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Password Min Length</div><div class="setting-desc">Minimum password length for new accounts</div></div>
+          <input type="number" data-key="password_min_length" min="4" max="64" value="8">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Login Attempt Limit</div><div class="setting-desc">Failed login attempts before account lockout</div></div>
+          <input type="number" data-key="max_login_attempts" min="1" value="5">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Lockout Duration (Minutes)</div><div class="setting-desc">How long accounts are locked after exceeding attempt limit</div></div>
+          <input type="number" data-key="lockout_duration_minutes" min="1" value="15">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">IP Rate Limiting (Req/Min)</div><div class="setting-desc">Maximum requests per minute per IP address (0 = unlimited)</div></div>
+          <input type="number" data-key="ip_rate_limiting" min="0" value="0">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Session Timeout (Hours)</div><div class="setting-desc">Auto-logout inactive sessions after this many hours</div></div>
+          <input type="number" data-key="session_timeout_hours" min="1" value="168">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Require Email Verification</div><div class="setting-desc">Users must verify email before accessing the platform</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="require_email_verification"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Moderation -->
+      <div class="settings-section" id="settings-moderation">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Spam Detection Sensitivity</div><div class="setting-desc">How aggressively to detect and flag spam messages</div></div>
+          <select data-key="spam_detection"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Auto-Kick Spammers</div><div class="setting-desc">Automatically kick users detected as spammers</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="auto_kick_spammers"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Auto-Mute Profanity</div><div class="setting-desc">Automatically mute messages containing profanity</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="auto_mute_profanity"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row" style="align-items:flex-start">
+          <div class="setting-info"><div class="setting-label">Keyword Filter List</div><div class="setting-desc">Blocked keywords, one per line. Messages containing these will be filtered.</div></div>
+          <textarea data-key="keyword_filter" placeholder="Enter blocked keywords, one per line..."></textarea>
+        </div>
+      </div>
+
+      <!-- System -->
+      <div class="settings-section" id="settings-system">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Maintenance Mode</div><div class="setting-desc">Put the server in maintenance mode (blocks normal users)</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="maintenance_mode"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Registration Enabled</div><div class="setting-desc">Allow new user registrations</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="registration_enabled" checked><span class="toggle-slider"></span></label>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -485,17 +727,96 @@
   }
 
   // ── Settings ──
+  let settingsDefaults = {};
+
   function fetchSettings() {
-    apiFetch('/api/admin/settings').then(s => {
-      const items = [
-        {t:'Port',d:'Server listening port',v:s.port}, {t:'Environment',d:'Node environment mode',v:s.nodeEnv},
-        {t:'Debug Mode',d:'Verbose logging',v:s.debugMode?'ON':'OFF'}, {t:'Max Upload Size',d:'Max file upload',v:s.maxUploadSize},
-        {t:'JWT Expiry',d:'Access token lifetime',v:s.jwtExpiry}, {t:'Rate Limit',d:`${s.rateLimitMax} req / ${s.rateLimitWindow}`,v:`${s.rateLimitMax}/window`},
-        {t:'Database',d:'PostgreSQL connection',v:s.databaseConnected?'Connected':'Disconnected'},
-        {t:'Redis',d:'Cache status',v:s.redisEnabled?'Enabled':'Disabled (in-memory)'},
-      ];
-      document.getElementById('settings-grid').innerHTML = items.map(i => `<div class="setting-card"><h3>${i.t}</h3><div class="desc">${i.d}</div><div class="val">${i.v}</div></div>`).join('');
-    }).catch(()=>{});
+    apiFetch('/api/admin/settings').then(data => {
+      const settings = data.settings || [];
+      settings.forEach(s => {
+        settingsDefaults[s.setting_key] = s.setting_value;
+        const el = document.querySelector(`[data-key="${s.setting_key}"]`);
+        if (!el) return;
+        if (el.type === 'checkbox') {
+          el.checked = s.setting_value === 'true';
+        } else if (el.tagName === 'SELECT') {
+          el.value = s.setting_value;
+        } else if (el.tagName === 'TEXTAREA') {
+          el.value = s.setting_value || '';
+        } else {
+          el.value = s.setting_value;
+        }
+      });
+    }).catch(e => { console.error('Failed to load settings:', e); });
+  }
+
+  function switchSettingsTab(name) {
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+    event.target.classList.add('active');
+    const section = document.getElementById('settings-' + name);
+    if (section) section.classList.add('active');
+  }
+
+  function gatherSettings() {
+    const result = {};
+    document.querySelectorAll('[data-key]').forEach(el => {
+      const key = el.getAttribute('data-key');
+      if (el.type === 'checkbox') {
+        result[key] = el.checked ? 'true' : 'false';
+      } else {
+        result[key] = el.value;
+      }
+    });
+    return result;
+  }
+
+  function saveAllSettings() {
+    const settings = gatherSettings();
+    const statusEl = document.getElementById('save-status');
+    statusEl.className = 'save-status';
+    statusEl.style.display = 'none';
+
+    apiPost('/api/admin/settings', { settings }).then(r => {
+      statusEl.textContent = 'Settings saved successfully!';
+      statusEl.className = 'save-status success';
+      setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 3000);
+      addLogLine('info', `Settings saved (${r.updated} values updated)`);
+    }).catch(e => {
+      statusEl.textContent = 'Failed to save settings: ' + e.message;
+      statusEl.className = 'save-status error';
+      addLogLine('error', 'Failed to save settings: ' + e.message);
+    });
+  }
+
+  function resetDefaults() {
+    if (!confirm('Reset ALL settings to defaults? This cannot be undone.')) return;
+    const defaults = {
+      max_users: '10000', max_servers_per_user: '100', max_friends_per_user: '5000',
+      max_simultaneous_logins: '5', max_message_length: '2000', message_retention_days: '365',
+      rate_limit_messages: '20', max_pin_per_channel: '50', max_reactions_per_message: '10',
+      slow_mode_default: '0', max_file_upload_mb: '25', allow_image_uploads: 'true',
+      allow_document_uploads: 'true', allow_audio_uploads: 'true', allow_video_uploads: 'true',
+      max_simultaneous_calls: '0', max_voice_participants: '0', audio_bitrate_kbps: '128',
+      video_bitrate_mbps: '2.5', screen_sharing_allowed: 'true', recording_allowed: 'false',
+      require_2fa: 'optional', password_min_length: '8', max_login_attempts: '5',
+      lockout_duration_minutes: '15', ip_rate_limiting: '0', session_timeout_hours: '168',
+      require_email_verification: 'false', maintenance_mode: 'false', registration_enabled: 'true',
+      spam_detection: 'medium', auto_kick_spammers: 'false', auto_mute_profanity: 'false',
+      keyword_filter: '',
+    };
+    Object.entries(defaults).forEach(([key, val]) => {
+      const el = document.querySelector(`[data-key="${key}"]`);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = val === 'true';
+      else el.value = val;
+    });
+    apiPost('/api/admin/settings', { settings: defaults }).then(() => {
+      const statusEl = document.getElementById('save-status');
+      statusEl.textContent = 'All settings reset to defaults!';
+      statusEl.className = 'save-status success';
+      setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 3000);
+      addLogLine('info', 'All settings reset to defaults');
+    }).catch(e => addLogLine('error', 'Failed to reset: ' + e.message));
   }
 
   // ── Announce ──

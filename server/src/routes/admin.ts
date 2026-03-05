@@ -303,6 +303,27 @@ router.patch('/settings/:key', async (req: Request, res: Response) => {
   }
 });
 
+// Bulk save all settings
+router.post('/settings', async (req: Request, res: Response) => {
+  try {
+    const { settings } = req.body;
+    if (!settings || typeof settings !== 'object') {
+      res.status(400).json({ error: 'Settings object is required' });
+      return;
+    }
+    for (const [key, value] of Object.entries(settings)) {
+      await query(
+        "INSERT OR REPLACE INTO server_settings (setting_key, setting_value, data_type, category, description, updated_at) VALUES ($1, $2, COALESCE((SELECT data_type FROM server_settings WHERE setting_key = $1), 'string'), COALESCE((SELECT category FROM server_settings WHERE setting_key = $1), 'general'), COALESCE((SELECT description FROM server_settings WHERE setting_key = $1), ''), datetime('now'))",
+        [key, String(value)]
+      );
+    }
+    res.json({ success: true, updated: Object.keys(settings).length });
+  } catch (err) {
+    console.error('Admin bulk settings error:', err);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
 // ── Announcements ──────────────────────────────────────────────────
 
 router.post('/announce', async (req: Request, res: Response) => {

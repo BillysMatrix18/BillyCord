@@ -348,31 +348,40 @@ export async function runMigrations() {
 
   // Insert default server settings
   await defaultSetting('max_users', '10000', 'integer', 'users', 'Maximum total users allowed');
-  await defaultSetting('max_friends_per_user', '1000', 'integer', 'users', 'Maximum friends per user');
-  await defaultSetting('max_servers_per_user', '100', 'integer', 'servers', 'Maximum servers a user can create');
+  await defaultSetting('max_friends_per_user', '5000', 'integer', 'users', 'Maximum friends per user');
+  await defaultSetting('max_servers_per_user', '100', 'integer', 'users', 'Maximum servers a user can create');
+  await defaultSetting('max_simultaneous_logins', '5', 'integer', 'users', 'Maximum simultaneous logins per user');
   await defaultSetting('max_channels_per_server', '500', 'integer', 'servers', 'Maximum channels per server');
-  await defaultSetting('max_message_length', '4000', 'integer', 'messages', 'Maximum message character length');
-  await defaultSetting('rate_limit_messages', '30', 'integer', 'messages', 'Max messages per minute per user');
-  await defaultSetting('message_retention_days', '0', 'integer', 'messages', 'Auto-delete messages after N days (0=never)');
+  await defaultSetting('max_message_length', '2000', 'integer', 'messages', 'Maximum message character length');
+  await defaultSetting('rate_limit_messages', '20', 'integer', 'messages', 'Max messages per minute per user');
+  await defaultSetting('message_retention_days', '365', 'integer', 'messages', 'Message retention in days (0=forever)');
   await defaultSetting('max_pin_per_channel', '50', 'integer', 'messages', 'Maximum pinned messages per channel');
-  await defaultSetting('max_reactions_per_message', '20', 'integer', 'messages', 'Maximum unique reactions per message');
+  await defaultSetting('max_reactions_per_message', '10', 'integer', 'messages', 'Maximum emoji reactions per message');
   await defaultSetting('max_file_upload_mb', '25', 'integer', 'files', 'Maximum file upload size in MB');
   await defaultSetting('allow_image_uploads', 'true', 'boolean', 'files', 'Allow image file uploads');
   await defaultSetting('allow_video_uploads', 'true', 'boolean', 'files', 'Allow video file uploads');
   await defaultSetting('allow_document_uploads', 'true', 'boolean', 'files', 'Allow document file uploads');
-  await defaultSetting('max_voice_participants', '25', 'integer', 'voice', 'Maximum participants per voice channel');
+  await defaultSetting('allow_audio_uploads', 'true', 'boolean', 'files', 'Allow audio file uploads');
+  await defaultSetting('max_voice_participants', '0', 'integer', 'voice', 'Max participants per voice channel (0=unlimited)');
+  await defaultSetting('max_simultaneous_calls', '0', 'integer', 'voice', 'Max simultaneous voice calls (0=unlimited)');
+  await defaultSetting('audio_bitrate_kbps', '128', 'integer', 'voice', 'Audio bitrate in kbps');
+  await defaultSetting('video_bitrate_mbps', '2.5', 'string', 'voice', 'Video bitrate in Mbps');
+  await defaultSetting('screen_sharing_allowed', 'true', 'boolean', 'voice', 'Allow screen sharing in voice channels');
+  await defaultSetting('recording_allowed', 'false', 'boolean', 'voice', 'Allow call recording');
   await defaultSetting('password_min_length', '8', 'integer', 'security', 'Minimum password length');
-  await defaultSetting('max_login_attempts', '10', 'integer', 'security', 'Max failed login attempts before lockout');
+  await defaultSetting('max_login_attempts', '5', 'integer', 'security', 'Max failed login attempts before lockout');
   await defaultSetting('lockout_duration_minutes', '15', 'integer', 'security', 'Account lockout duration in minutes');
+  await defaultSetting('require_2fa', 'optional', 'string', 'security', 'Two-factor authentication (optional/required/disabled)');
+  await defaultSetting('ip_rate_limiting', '0', 'integer', 'security', 'IP rate limit requests/min (0=unlimited)');
   await defaultSetting('require_email_verification', 'false', 'boolean', 'security', 'Require email verification to login');
-  await defaultSetting('require_2fa', 'false', 'boolean', 'security', 'Require two-factor authentication');
   await defaultSetting('session_timeout_hours', '168', 'integer', 'security', 'Session timeout in hours (168=1 week)');
   await defaultSetting('maintenance_mode', 'false', 'boolean', 'system', 'Enable maintenance mode');
   await defaultSetting('registration_enabled', 'true', 'boolean', 'system', 'Allow new user registrations');
   await defaultSetting('slow_mode_default', '0', 'integer', 'messages', 'Default slow mode seconds (0=off)');
   await defaultSetting('spam_detection', 'medium', 'string', 'moderation', 'Spam detection sensitivity (low/medium/high)');
   await defaultSetting('auto_kick_spammers', 'false', 'boolean', 'moderation', 'Automatically kick detected spammers');
-  await defaultSetting('keyword_filter', '[]', 'json', 'moderation', 'Filtered keywords list (JSON array)');
+  await defaultSetting('auto_mute_profanity', 'false', 'boolean', 'moderation', 'Auto-mute messages containing profanity');
+  await defaultSetting('keyword_filter', '', 'string', 'moderation', 'Filtered keywords (one per line)');
 
   console.log('Migrations completed successfully');
 }
