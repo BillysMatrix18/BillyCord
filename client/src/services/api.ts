@@ -115,7 +115,7 @@ export const friendApi = {
   block: (userId: string) => api.post(`/friends/block/${userId}`),
 };
 
-// DMs
+// DMs & Group Chats
 export const dmApi = {
   getConversations: () => api.get('/dm/conversations'),
   createConversation: (participantIds: string[], isGroup?: boolean, name?: string) =>
@@ -124,6 +124,17 @@ export const dmApi = {
     api.get(`/dm/conversations/${conversationId}/messages`, { params: { before } }),
   sendMessage: (conversationId: string, content: string) =>
     api.post(`/dm/conversations/${conversationId}/messages`, { content }),
+  // Group chat management
+  updateConversation: (conversationId: string, data: { name?: string; icon_url?: string; description?: string }) =>
+    api.patch(`/dm/conversations/${conversationId}`, data),
+  addMember: (conversationId: string, userId: string) =>
+    api.post(`/dm/conversations/${conversationId}/members`, { userId }),
+  removeMember: (conversationId: string, memberId: string) =>
+    api.delete(`/dm/conversations/${conversationId}/members/${memberId}`),
+  leaveGroup: (conversationId: string) =>
+    api.post(`/dm/conversations/${conversationId}/leave`),
+  getMembers: (conversationId: string) =>
+    api.get(`/dm/conversations/${conversationId}/members`),
 };
 
 // Roles

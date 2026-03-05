@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { registerSchema, loginSchema } from '../utils/validation';
+import { logUserActivity, logSecurity } from '../services/logger';
 
 export async function register(req: Request, res: Response): Promise<void> {
   try {
@@ -37,6 +38,10 @@ export async function register(req: Request, res: Response): Promise<void> {
     const tokenPayload = { userId: user.id, email: user.email };
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
+
+    // Log registration
+    logUserActivity(user.id, 'register', { username, email }, req.ip, req.headers['user-agent'] as string);
+    logSecurity('account_created', user.id, { username, email }, req.ip, req.headers['user-agent'] as string);
 
     res.status(201).json({ user, accessToken, refreshToken });
   } catch (error) {
@@ -73,6 +78,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     const passwordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!passwordValid) {
+      logSecurity('login_failed', user.id, { identifier: loginIdentifier, reason: 'wrong_password' }, req.ip, req.headers['user-agent'] as string);
       res.status(401).json({ error: 'Invalid username/email or password' });
       return;
     }
@@ -97,6 +103,10 @@ export async function login(req: Request, res: Response): Promise<void> {
     );
     const userData = fullUser.rows[0] || user;
     userData.status = 'online';
+
+    // Log successful login
+    logUserActivity(userData.id, 'login', { identifier: loginIdentifier }, req.ip, req.headers['user-agent'] as string);
+    logSecurity('login_success', userData.id, { identifier: loginIdentifier }, req.ip, req.headers['user-agent'] as string);
 
     res.json({ user: userData, accessToken, refreshToken });
   } catch (error) {

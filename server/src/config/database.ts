@@ -1,19 +1,52 @@
 import path from 'path';
 import crypto from 'crypto';
+import fs from 'fs';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sqlite3 = require('sqlite3').verbose();
 
-// Database file path — defaults to project root billycord.db
-// Use process.cwd() so the DB location is stable regardless of how the server is launched
-const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'billycord.db');
+// External database path — stored OUTSIDE the project folder so data persists across updates.
+// On Windows: C:\Users\billy\OneDrive\Documents\BillyCord\Database\billycord.db
+// Fallback: project root (for Linux/CI environments)
+function resolveDbPath(): string {
+  if (process.env.DB_PATH) return process.env.DB_PATH;
+
+  // Try external Windows path first
+  const homeDir = process.env.USERPROFILE || process.env.HOME || '';
+  const externalDir = path.join(homeDir, 'OneDrive', 'Documents', 'BillyCord', 'Database');
+  const externalDb = path.join(externalDir, 'billycord.db');
+
+  // If on Windows (or external folder already exists), use external path
+  if (process.platform === 'win32' || fs.existsSync(externalDir)) {
+    try {
+      if (!fs.existsSync(externalDir)) {
+        fs.mkdirSync(externalDir, { recursive: true });
+        console.log('Created external database folder:', externalDir);
+      }
+      return externalDb;
+    } catch {
+      console.warn('Could not create external DB folder, falling back to project root');
+    }
+  }
+
+  return path.join(process.cwd(), 'billycord.db');
+}
+
+const DB_PATH = resolveDbPath();
+
+// Ensure parent directory exists
+const dbDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 
 const db = new sqlite3.Database(DB_PATH, (err: Error | null) => {
   if (err) {
     console.error('Failed to open database:', err.message);
     process.exit(1);
   }
-  console.log('SQLite database opened:', DB_PATH);
+  console.log('Database loaded from:', DB_PATH);
+  console.log('Database folder:', dbDir);
 });
 
 // Enable WAL mode for better concurrency and foreign key enforcement
@@ -145,6 +178,10 @@ export function generateUUID(): string {
 
 export function getDb() {
   return db;
+}
+
+export function getDbPath() {
+  return DB_PATH;
 }
 
 export default db;

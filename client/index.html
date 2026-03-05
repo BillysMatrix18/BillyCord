@@ -7,7 +7,11 @@
     <title>BillyCord</title>
   </head>
   <body>
-    <script>document.documentElement.setAttribute('data-theme',localStorage.getItem('theme')||'dark')</script>
+    <script>
+      document.documentElement.setAttribute('data-theme',localStorage.getItem('theme')||'dark');
+      document.documentElement.setAttribute('data-animations',localStorage.getItem('animationsEnabled')||'on');
+      document.documentElement.style.setProperty('--animation-speed',(localStorage.getItem('animationSpeed')||'300')+'ms');
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

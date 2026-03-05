@@ -221,6 +221,72 @@ CREATE TABLE IF NOT EXISTS admin_logs (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Message edit history (tracks ALL edits)
+CREATE TABLE IF NOT EXISTS message_history (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  message_id TEXT NOT NULL,
+  old_content TEXT NOT NULL,
+  new_content TEXT NOT NULL,
+  edited_by TEXT,
+  edited_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Deleted messages archive (messages are NEVER truly deleted)
+CREATE TABLE IF NOT EXISTS deleted_messages (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  message_id TEXT NOT NULL,
+  channel_id TEXT,
+  sender_id TEXT,
+  original_content TEXT NOT NULL,
+  deleted_by TEXT,
+  deleted_at TEXT DEFAULT (datetime('now')),
+  deletion_reason TEXT
+);
+
+-- User activity logs (login, logout, message_sent, etc.)
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  user_id TEXT,
+  action_type TEXT NOT NULL,
+  details TEXT DEFAULT '{}',
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Server activity logs (server changes)
+CREATE TABLE IF NOT EXISTS server_activity_logs (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  server_id TEXT,
+  action_type TEXT NOT NULL,
+  performed_by TEXT,
+  old_value TEXT,
+  new_value TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Error logs (ALL errors)
+CREATE TABLE IF NOT EXISTS error_logs (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  error_type TEXT NOT NULL,
+  error_message TEXT,
+  stack_trace TEXT,
+  user_id TEXT,
+  context TEXT DEFAULT '{}',
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- Security logs (security events)
+CREATE TABLE IF NOT EXISTS security_logs (
+  id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+  event_type TEXT NOT NULL,
+  user_id TEXT,
+  details TEXT DEFAULT '{}',
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
@@ -235,6 +301,14 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_server ON audit_logs(server_id);
 CREATE INDEX IF NOT EXISTS idx_reactions_message ON reactions(message_id);
 CREATE INDEX IF NOT EXISTS idx_invites_code ON invites(code);
 CREATE INDEX IF NOT EXISTS idx_user_preferences ON user_preferences(user_id, server_id);
+CREATE INDEX IF NOT EXISTS idx_message_history_msg ON message_history(message_id);
+CREATE INDEX IF NOT EXISTS idx_deleted_messages_msg ON deleted_messages(message_id);
+CREATE INDEX IF NOT EXISTS idx_user_activity_user ON user_activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_activity_created ON user_activity_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_server_activity_server ON server_activity_logs(server_id);
+CREATE INDEX IF NOT EXISTS idx_error_logs_created ON error_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_security_logs_user ON security_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_security_logs_created ON security_logs(created_at DESC);
 `;
 
 // Safe ALTER TABLE helper — ignores "duplicate column" errors
@@ -253,6 +327,14 @@ async function defaultSetting(key: string, value: string, dataType: string, cate
 export async function runMigrations() {
   console.log('Running database migrations...');
   await exec(migrations);
+
+  // Add deleted_at to messages (soft delete — never truly delete)
+  await safeAlter("ALTER TABLE messages ADD COLUMN deleted_at TEXT");
+
+  // Add group chat enhancements
+  await safeAlter("ALTER TABLE conversations ADD COLUMN icon_url TEXT");
+  await safeAlter("ALTER TABLE conversations ADD COLUMN owner_id TEXT");
+  await safeAlter("ALTER TABLE conversations ADD COLUMN description TEXT");
 
   // Add new user profile columns (safe — no-op if already exist)
   await safeAlter("ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'dark'");

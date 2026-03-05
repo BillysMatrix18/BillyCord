@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { query } from '../config/database';
+import { runLogExport } from '../services/logExporter';
+import { logAdminAction } from '../services/logger';
 
 const router = Router();
 
@@ -432,6 +434,92 @@ router.get('/preferences/:userId/:serverId', async (req: Request, res: Response)
     res.json(result.rows[0] || { collapsed_categories: '[]' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch preferences' });
+  }
+});
+
+// ── Comprehensive Logs ────────────────────────────────────────────
+
+router.get('/user-activity', async (req: Request, res: Response) => {
+  try {
+    const { userId, action } = req.query;
+    let sql = 'SELECT * FROM user_activity_logs WHERE 1=1';
+    const params: unknown[] = [];
+    let idx = 1;
+    if (userId) { sql += ` AND user_id = $${idx++}`; params.push(userId); }
+    if (action) { sql += ` AND action_type = $${idx++}`; params.push(action); }
+    sql += ' ORDER BY created_at DESC LIMIT 500';
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('User activity logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch user activity logs' });
+  }
+});
+
+router.get('/security-logs', async (req: Request, res: Response) => {
+  try {
+    const { eventType, userId } = req.query;
+    let sql = 'SELECT * FROM security_logs WHERE 1=1';
+    const params: unknown[] = [];
+    let idx = 1;
+    if (eventType) { sql += ` AND event_type = $${idx++}`; params.push(eventType); }
+    if (userId) { sql += ` AND user_id = $${idx++}`; params.push(userId); }
+    sql += ' ORDER BY created_at DESC LIMIT 500';
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Security logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch security logs' });
+  }
+});
+
+router.get('/error-logs', async (_req: Request, res: Response) => {
+  try {
+    const result = await query('SELECT * FROM error_logs ORDER BY created_at DESC LIMIT 200');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error logs error:', err);
+    res.status(500).json({ error: 'Failed to fetch error logs' });
+  }
+});
+
+router.get('/deleted-messages', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.query;
+    let sql = 'SELECT * FROM deleted_messages';
+    const params: unknown[] = [];
+    if (userId) { sql += ' WHERE deleted_by = $1'; params.push(userId); }
+    sql += ' ORDER BY deleted_at DESC LIMIT 200';
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Deleted messages error:', err);
+    res.status(500).json({ error: 'Failed to fetch deleted messages' });
+  }
+});
+
+router.get('/message-history/:messageId', async (req: Request, res: Response) => {
+  try {
+    const result = await query(
+      'SELECT * FROM message_history WHERE message_id = $1 ORDER BY edited_at DESC',
+      [req.params.messageId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Message history error:', err);
+    res.status(500).json({ error: 'Failed to fetch message history' });
+  }
+});
+
+// Trigger manual log export
+router.post('/export-logs', async (_req: Request, res: Response) => {
+  try {
+    await runLogExport();
+    logAdminAction('export_logs', 'system', 'manual');
+    res.json({ success: true, message: 'Logs exported successfully' });
+  } catch (err) {
+    console.error('Log export error:', err);
+    res.status(500).json({ error: 'Failed to export logs' });
   }
 });
 

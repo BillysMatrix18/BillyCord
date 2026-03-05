@@ -81,6 +81,9 @@ export interface Conversation {
   id: string;
   is_group: boolean;
   name: string | null;
+  icon_url: string | null;
+  owner_id: string | null;
+  description: string | null;
   participants: { id: string; username: string; avatar_url: string | null; status: string }[];
   last_message: { content: string; sender_id: string; created_at: string } | null;
   created_at: string;

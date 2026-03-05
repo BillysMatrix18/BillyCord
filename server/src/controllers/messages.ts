@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { query } from '../config/database';
 import { sanitizeHtml } from '../utils/validation';
+import { logMessageEdit, logMessageDelete } from '../services/logger';
 
 export async function getMessages(req: Request, res: Response): Promise<void> {
   try {
@@ -17,7 +18,7 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
         ) as reactions
       FROM messages m
       JOIN users u ON u.id = m.sender_id
-      WHERE m.channel_id = $1
+      WHERE m.channel_id = $1 AND m.deleted_at IS NULL
     `;
     const params: unknown[] = [channelId];
 
@@ -93,7 +94,7 @@ export async function updateMessage(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const existing = await query('SELECT sender_id FROM messages WHERE id = $1', [messageId]);
+    const existing = await query('SELECT sender_id, content FROM messages WHERE id = $1', [messageId]);
     if (existing.rows.length === 0) {
       res.status(404).json({ error: 'Message not found' });
       return;
@@ -104,6 +105,9 @@ export async function updateMessage(req: Request, res: Response): Promise<void> 
     }
 
     const sanitizedContent = sanitizeHtml(content);
+
+    // Log edit history before updating
+    logMessageEdit(messageId, existing.rows[0].content, sanitizedContent, userId);
 
     const result = await query(
       `UPDATE messages SET content = $1, edited = 1, updated_at = NOW()
@@ -124,7 +128,7 @@ export async function deleteMessage(req: Request, res: Response): Promise<void> 
     const userId = req.user!.userId;
 
     const existing = await query(
-      `SELECT m.sender_id, c.server_id FROM messages m
+      `SELECT m.sender_id, m.channel_id, m.content, c.server_id FROM messages m
        JOIN channels c ON c.id = m.channel_id
        WHERE m.id = $1`,
       [messageId]
@@ -145,7 +149,8 @@ export async function deleteMessage(req: Request, res: Response): Promise<void> 
       }
     }
 
-    await query('DELETE FROM messages WHERE id = $1', [messageId]);
+    // Soft-delete: archive to deleted_messages, mark as deleted (never truly remove)
+    logMessageDelete(messageId, msg.channel_id, msg.sender_id, msg.content, userId);
     res.json({ message: 'Message deleted' });
   } catch (error) {
     console.error('Delete message error:', error);

@@ -55,6 +55,8 @@
   --transition-fast: 150ms ease;
   --transition-normal: 200ms ease;
   --transition-slow: 300ms ease;
+
+  --animation-speed: 1;
 }
 
 [data-theme="light"] {
@@ -349,7 +351,7 @@ input, textarea {
   flex-direction: column;
   align-items: center;
   padding: 12px 0;
-  gap: 4px;
+  gap: 10px;
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -363,7 +365,7 @@ input, textarea {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-radius var(--transition-normal), background-color var(--transition-normal), color var(--transition-fast);
+  transition: border-radius 200ms ease, background-color 200ms ease, color 200ms ease;
   overflow: hidden;
   color: var(--text-primary);
   font-size: 18px;
@@ -390,7 +392,7 @@ input, textarea {
   height: 2px;
   background: var(--bg-quaternary);
   border-radius: 1px;
-  margin: 4px 0;
+  margin: 8px 0;
 }
 
 .server-icon.add-server {
@@ -418,8 +420,8 @@ input, textarea {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding-top: 4px;
+  gap: 6px;
+  padding-top: 6px;
 }
 
 .server-list-nav .nav-icon {
@@ -509,7 +511,7 @@ input, textarea {
 .channel-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 8px;
+  padding: 6px 8px;
 }
 
 .channel-category {
@@ -542,14 +544,14 @@ input, textarea {
 .channel-item {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 9px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
   color: var(--channel-icon);
   gap: 8px;
   font-size: 15px;
-  transition: background var(--transition-fast), color var(--transition-fast);
-  margin: 1px 0;
+  transition: background 200ms ease, color 200ms ease;
+  margin: 3px 0;
 }
 
 .channel-item:hover {
@@ -656,6 +658,7 @@ input, textarea {
   border-radius: var(--radius-sm);
   color: var(--interactive-normal);
   font-size: 18px;
+  transition: color var(--transition-normal), background var(--transition-normal);
 }
 
 .user-panel-buttons button:hover {
@@ -781,6 +784,7 @@ input, textarea {
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
+  transition: color var(--transition-normal), background var(--transition-normal);
 }
 
 .chat-header-right button:hover {
@@ -897,24 +901,24 @@ input, textarea {
 .messages-container {
   flex: 1;
   overflow-y: auto;
-  padding: 0 16px;
+  padding: 0 16px 8px;
   display: flex;
   flex-direction: column;
 }
 
 .messages-list {
   margin-top: auto;
-  padding-bottom: 8px;
+  padding-bottom: 12px;
 }
 
 .message {
-  padding: 2px 48px 2px 16px;
+  padding: 6px 48px 6px 20px;
   display: flex;
   gap: 16px;
   position: relative;
-  margin-top: 2px;
+  margin-top: 6px;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition: background 200ms ease;
 }
 
 .message:hover {
@@ -922,7 +926,7 @@ input, textarea {
 }
 
 .message-group-start {
-  margin-top: 17px;
+  margin-top: 22px;
 }
 
 .message .message-avatar {
@@ -1046,6 +1050,7 @@ input, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background var(--transition-normal), color var(--transition-normal);
 }
 
 .message-actions button:hover {
@@ -1116,7 +1121,7 @@ input, textarea {
   width: var(--member-list-width);
   background: var(--bg-secondary);
   overflow-y: auto;
-  padding: 8px;
+  padding: 14px 10px;
   flex-shrink: 0;
 }
 
@@ -1132,11 +1137,12 @@ input, textarea {
 .member-item {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 9px 10px;
   border-radius: var(--radius-md);
   cursor: pointer;
   gap: 12px;
-  transition: background var(--transition-fast);
+  margin: 3px 0;
+  transition: background 200ms ease;
 }
 
 .member-item:hover {
@@ -1422,6 +1428,7 @@ input, textarea {
   color: var(--interactive-normal);
   background: var(--bg-quaternary);
   font-size: 18px;
+  transition: color var(--transition-normal), background var(--transition-normal);
 }
 
 .voice-controls button:hover {
@@ -1983,7 +1990,7 @@ input, textarea {
   color: var(--text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  transition: background var(--transition-normal), color var(--transition-normal);
 }
 .context-menu-item:hover {
   background: var(--brand-color);
@@ -1995,6 +2002,106 @@ input, textarea {
 .context-menu-danger:hover {
   background: var(--red);
   color: #fff;
+}
+
+/* ── Animation System ── */
+
+/* Keyframes for the animation system */
+@keyframes messageFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes channelSwitchIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes modalFadeSlideIn {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Animations ON */
+[data-animations="on"] .message {
+  animation: messageFadeIn calc(300ms * var(--animation-speed)) ease both;
+}
+
+[data-animations="on"] .messages-container {
+  animation: channelSwitchIn calc(250ms * var(--animation-speed)) ease both;
+}
+
+[data-animations="on"] .channel-item {
+  transition: background calc(200ms * var(--animation-speed)) ease,
+              color calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .member-item {
+  transition: background calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .server-icon {
+  transition: border-radius calc(200ms * var(--animation-speed)) ease,
+              background-color calc(200ms * var(--animation-speed)) ease,
+              color calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .message {
+  transition: background calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .modal-overlay {
+  animation: fadeIn calc(200ms * var(--animation-speed)) ease both;
+}
+
+[data-animations="on"] .modal {
+  animation: modalFadeSlideIn calc(300ms * var(--animation-speed)) ease both;
+}
+
+[data-animations="on"] .status-selector-popup,
+[data-animations="on"] .context-menu {
+  animation: tooltipFadeIn calc(150ms * var(--animation-speed)) ease both;
+}
+
+[data-animations="on"] button {
+  transition: color calc(200ms * var(--animation-speed)) ease,
+              background calc(200ms * var(--animation-speed)) ease,
+              opacity calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .reaction-badge {
+  transition: background calc(200ms * var(--animation-speed)) ease,
+              border-color calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .theme-option {
+  transition: border-color calc(200ms * var(--animation-speed)) ease,
+              transform calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .settings-item {
+  transition: background calc(200ms * var(--animation-speed)) ease,
+              color calc(200ms * var(--animation-speed)) ease;
+}
+
+[data-animations="on"] .friend-item {
+  transition: background calc(200ms * var(--animation-speed)) ease;
+}
+
+/* Animations OFF – disable everything */
+[data-animations="off"],
+[data-animations="off"] *,
+[data-animations="off"] *::before,
+[data-animations="off"] *::after {
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
 }
 
 /* ── Responsive ── */

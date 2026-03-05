@@ -17,6 +17,7 @@ import { initializeSocket } from './services/socket';
 import { runMigrations } from './config/migrate';
 import { initRedis } from './config/redis';
 import { startDiscoveryBeacon, getLanIp } from './services/discovery';
+import { startLogExporter } from './services/logExporter';
 
 dotenv.config();
 
@@ -129,6 +130,9 @@ async function start() {
 
     // Start UDP discovery beacon so BillyCord.exe clients can find this server
     startDiscoveryBeacon(PORT);
+
+    // Start hourly log export to database folder (CSV + JSON)
+    startLogExporter();
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

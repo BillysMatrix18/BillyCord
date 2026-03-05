@@ -127,11 +127,16 @@ function createMainWindow() {
     width: 1280, height: 720, minWidth: 940, minHeight: 500,
     frame: true, show: false, backgroundColor: '#1a1a2e',
     title: 'BillyCord', icon: getAppIcon(),
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: false, contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+
+  // Remove the File/Edit/View/Window/Help menu bar completely
+  mainWindow.setMenuBarVisibility(false);
+  mainWindow.setMenu(null);
 
   mainWindow.loadURL(SERVER_URL);
 

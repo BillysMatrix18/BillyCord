@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { query, getClient } from '../config/database';
 import { sanitizeHtml } from '../utils/validation';
+import { logUserActivity } from '../services/logger';
 
 export async function getConversations(req: Request, res: Response): Promise<void> {
   try {
@@ -63,8 +64,8 @@ export async function createConversation(req: Request, res: Response): Promise<v
     await client.query('BEGIN');
 
     const convResult = await client.query(
-      `INSERT INTO conversations (is_group, name) VALUES ($1, $2) RETURNING *`,
-      [isGroup || false, name || null]
+      `INSERT INTO conversations (is_group, name, owner_id) VALUES ($1, $2, $3) RETURNING *`,
+      [isGroup || false, name || null, isGroup ? userId : null]
     );
     const conversationId = convResult.rows[0].id;
 
@@ -159,6 +160,134 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
     res.status(201).json({ message });
   } catch (error) {
     console.error('Send DM error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ── Group Chat Management ─────────────────────────────────────────
+
+export async function updateConversation(req: Request, res: Response): Promise<void> {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user!.userId;
+    const { name, icon_url, description } = req.body;
+
+    // Verify ownership
+    const conv = await query('SELECT owner_id, is_group FROM conversations WHERE id = $1', [conversationId]);
+    if (conv.rows.length === 0) { res.status(404).json({ error: 'Conversation not found' }); return; }
+    if (!conv.rows[0].is_group) { res.status(400).json({ error: 'Cannot edit non-group conversations' }); return; }
+    if (conv.rows[0].owner_id && conv.rows[0].owner_id !== userId) {
+      res.status(403).json({ error: 'Only the group owner can edit' }); return;
+    }
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+    if (name !== undefined) { fields.push(`name = $${idx++}`); values.push(name); }
+    if (icon_url !== undefined) { fields.push(`icon_url = $${idx++}`); values.push(icon_url); }
+    if (description !== undefined) { fields.push(`description = $${idx++}`); values.push(description); }
+
+    if (fields.length === 0) { res.status(400).json({ error: 'No fields to update' }); return; }
+
+    values.push(conversationId);
+    const result = await query(
+      `UPDATE conversations SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+    res.json({ conversation: result.rows[0] });
+  } catch (error) {
+    console.error('Update conversation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function addGroupMember(req: Request, res: Response): Promise<void> {
+  try {
+    const { conversationId } = req.params;
+    const { userId: targetId } = req.body;
+    const userId = req.user!.userId;
+
+    const conv = await query('SELECT owner_id, is_group FROM conversations WHERE id = $1', [conversationId]);
+    if (conv.rows.length === 0 || !conv.rows[0].is_group) {
+      res.status(400).json({ error: 'Invalid group' }); return;
+    }
+    if (conv.rows[0].owner_id && conv.rows[0].owner_id !== userId) {
+      res.status(403).json({ error: 'Only the group owner can add members' }); return;
+    }
+
+    await query(
+      `INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [conversationId, targetId]
+    );
+    logUserActivity(userId, 'group_member_added', { conversationId, targetId });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Add group member error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function removeGroupMember(req: Request, res: Response): Promise<void> {
+  try {
+    const { conversationId, memberId } = req.params;
+    const userId = req.user!.userId;
+
+    const conv = await query('SELECT owner_id FROM conversations WHERE id = $1', [conversationId]);
+    if (conv.rows.length === 0) { res.status(404).json({ error: 'Not found' }); return; }
+    if (conv.rows[0].owner_id && conv.rows[0].owner_id !== userId) {
+      res.status(403).json({ error: 'Only the group owner can remove members' }); return;
+    }
+
+    await query('DELETE FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [conversationId, memberId]);
+    logUserActivity(userId, 'group_member_removed', { conversationId, memberId });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Remove group member error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function leaveGroup(req: Request, res: Response): Promise<void> {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user!.userId;
+
+    await query('DELETE FROM conversation_members WHERE conversation_id = $1 AND user_id = $2', [conversationId, userId]);
+
+    // If owner leaves, transfer to next member or delete group
+    const conv = await query('SELECT owner_id FROM conversations WHERE id = $1', [conversationId]);
+    if (conv.rows[0]?.owner_id === userId) {
+      const nextMember = await query(
+        'SELECT user_id FROM conversation_members WHERE conversation_id = $1 LIMIT 1',
+        [conversationId]
+      );
+      if (nextMember.rows.length > 0) {
+        await query('UPDATE conversations SET owner_id = $1 WHERE id = $2', [nextMember.rows[0].user_id, conversationId]);
+      } else {
+        await query('DELETE FROM conversations WHERE id = $1', [conversationId]);
+      }
+    }
+
+    logUserActivity(userId, 'group_left', { conversationId });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Leave group error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function getGroupMembers(req: Request, res: Response): Promise<void> {
+  try {
+    const { conversationId } = req.params;
+    const result = await query(
+      `SELECT u.id, u.username, u.avatar_url, u.status
+       FROM conversation_members cm JOIN users u ON u.id = cm.user_id
+       WHERE cm.conversation_id = $1`,
+      [conversationId]
+    );
+    res.json({ members: result.rows });
+  } catch (error) {
+    console.error('Get group members error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
