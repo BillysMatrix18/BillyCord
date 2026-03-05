@@ -79,47 +79,68 @@ function startServer() {
     const serverEnv = {
       ...process.env,
       PORT: String(SERVER_PORT),
-      NODE_ENV: 'production',
+      NODE_ENV: 'development',
       ADMIN_SECRET,
     };
 
     const serverCwd = path.join(getProjectRoot(), 'server');
-    const isWin = process.platform === 'win32';
 
     sendLog('info', `Starting server from: ${entry.entry}`);
     sendLog('info', `Working directory: ${serverCwd}`);
     sendLog('info', `Mode: ${entry.useTsx ? 'TypeScript (tsx)' : 'Compiled JS'}`);
 
+    let resolved = false;
+    function resolveOnce(result) {
+      if (!resolved) { resolved = true; resolve(result); }
+    }
+
     try {
       if (entry.useTsx) {
-        // Run tsx watch with relative path from server cwd - keeps process alive
-        // Using relative path avoids Windows spaces-in-path issues entirely
+        // Use tsx (no watch) - the server's app.listen() keeps the process alive
+        // tsx watch spawns a child process internally which causes premature exit detection
         const tsxCli = path.join(serverCwd, 'node_modules', 'tsx', 'dist', 'cli.mjs');
         sendLog('info', `tsx CLI: ${tsxCli}`);
-        serverProcess = spawn(process.execPath, [tsxCli, 'watch', 'src/index.ts'], {
+
+        // Check tsx CLI exists
+        if (!fs.existsSync(tsxCli)) {
+          sendLog('error', `tsx CLI not found at: ${tsxCli}`);
+          resolveOnce({ success: false, error: 'tsx not installed in server/node_modules' });
+          return;
+        }
+
+        serverProcess = spawn(process.execPath, [tsxCli, 'src/index.ts'], {
           env: serverEnv,
           cwd: serverCwd,
-          stdio: ['pipe', 'pipe', 'pipe'],
+          stdio: ['ignore', 'pipe', 'pipe'],
           windowsHide: true,
         });
       } else {
         serverProcess = fork(entry.entry, [], {
           env: serverEnv,
           cwd: serverCwd,
-          stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+          stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
         });
       }
     } catch (err) {
       sendLog('error', `Failed to spawn server process: ${err.message}`);
-      resolve({ success: false, error: `Failed to spawn: ${err.message}` });
+      resolveOnce({ success: false, error: `Failed to spawn: ${err.message}` });
       return;
     }
 
-    serverRunning = true;
+    const pid = serverProcess.pid;
+    sendLog('info', `Server process spawned (PID: ${pid})`);
 
     serverProcess.stdout?.on('data', (data) => {
       const text = data.toString().trim();
-      if (text) sendLog('info', text);
+      if (!text) return;
+      sendLog('info', text);
+      // Detect when server is actually listening
+      if (text.includes('running on port') || text.includes('listening on') || text.includes(`port ${SERVER_PORT}`)) {
+        serverRunning = true;
+        mainWindow?.webContents.send('server:status', true);
+        sendLog('info', 'Server is online and listening!');
+        resolveOnce({ success: true });
+      }
     });
 
     serverProcess.stderr?.on('data', (data) => {
@@ -127,11 +148,15 @@ function startServer() {
       if (text) sendLog('error', text);
     });
 
-    serverProcess.on('exit', (code) => {
+    serverProcess.on('exit', (code, signal) => {
+      const wasRunning = serverRunning;
       serverRunning = false;
       serverProcess = null;
-      sendLog('warn', `Server process exited with code ${code}`);
+      sendLog('warn', `Server process exited (code: ${code}, signal: ${signal})`);
       mainWindow?.webContents.send('server:status', false);
+      if (!wasRunning) {
+        resolveOnce({ success: false, error: `Server exited before starting (code: ${code}, signal: ${signal})` });
+      }
     });
 
     serverProcess.on('error', (err) => {
@@ -139,18 +164,21 @@ function startServer() {
       serverProcess = null;
       sendLog('error', `Server process error: ${err.message}`);
       mainWindow?.webContents.send('server:status', false);
-      resolve({ success: false, error: `Process error: ${err.message}` });
+      resolveOnce({ success: false, error: `Process error: ${err.message}` });
     });
 
-    // Wait a moment for the server to initialize
+    // Fallback timeout - if no "running on port" detected in 15s, check if process is still alive
     setTimeout(() => {
-      if (serverRunning) {
+      if (serverProcess && !resolved) {
+        // Process is still alive but hasn't logged the listen message - mark as running anyway
+        serverRunning = true;
         mainWindow?.webContents.send('server:status', true);
-        resolve({ success: true });
-      } else {
-        resolve({ success: false, error: 'Server failed to start' });
+        sendLog('info', 'Server process is alive (timeout fallback)');
+        resolveOnce({ success: true });
+      } else if (!resolved) {
+        resolveOnce({ success: false, error: 'Server failed to start within 15 seconds' });
       }
-    }, 3000);
+    }, 15000);
   });
 }
 
