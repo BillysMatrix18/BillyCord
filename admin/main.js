@@ -84,20 +84,34 @@ function startServer() {
     };
 
     const serverCwd = path.join(getProjectRoot(), 'server');
+    const isWin = process.platform === 'win32';
 
-    if (entry.useTsx) {
-      const tsxBin = path.join(serverCwd, 'node_modules', '.bin', 'tsx');
-      serverProcess = spawn(tsxBin, [entry.entry], {
-        env: serverEnv,
-        cwd: serverCwd,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-    } else {
-      serverProcess = fork(entry.entry, [], {
-        env: serverEnv,
-        cwd: serverCwd,
-        stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
-      });
+    sendLog('info', `Starting server from: ${entry.entry}`);
+    sendLog('info', `Working directory: ${serverCwd}`);
+    sendLog('info', `Mode: ${entry.useTsx ? 'TypeScript (tsx)' : 'Compiled JS'}`);
+
+    try {
+      if (entry.useTsx) {
+        // Use npx tsx for reliability - avoids path issues with spaces on Windows
+        const npxCmd = isWin ? 'npx.cmd' : 'npx';
+        serverProcess = spawn(npxCmd, ['tsx', entry.entry], {
+          env: serverEnv,
+          cwd: serverCwd,
+          stdio: ['pipe', 'pipe', 'pipe'],
+          shell: isWin,
+          windowsHide: true,
+        });
+      } else {
+        serverProcess = fork(entry.entry, [], {
+          env: serverEnv,
+          cwd: serverCwd,
+          stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+        });
+      }
+    } catch (err) {
+      sendLog('error', `Failed to spawn server process: ${err.message}`);
+      resolve({ success: false, error: `Failed to spawn: ${err.message}` });
+      return;
     }
 
     serverRunning = true;
@@ -124,6 +138,7 @@ function startServer() {
       serverProcess = null;
       sendLog('error', `Server process error: ${err.message}`);
       mainWindow?.webContents.send('server:status', false);
+      resolve({ success: false, error: `Process error: ${err.message}` });
     });
 
     // Wait a moment for the server to initialize
@@ -141,12 +156,27 @@ function startServer() {
 function stopServer() {
   if (!serverProcess) return { success: false, error: 'Server is not running' };
 
-  serverProcess.kill('SIGTERM');
-  setTimeout(() => {
-    if (serverProcess && !serverProcess.killed) {
-      serverProcess.kill('SIGKILL');
+  const pid = serverProcess.pid;
+  sendLog('warn', `Stopping server (PID: ${pid})...`);
+
+  try {
+    if (process.platform === 'win32' && pid) {
+      // On Windows, kill the entire process tree to ensure child processes are cleaned up
+      spawn('taskkill', ['/pid', String(pid), '/f', '/t'], { shell: true, windowsHide: true });
+    } else {
+      serverProcess.kill('SIGTERM');
+      // Force kill after 5 seconds if still alive
+      const proc = serverProcess;
+      setTimeout(() => {
+        try {
+          if (proc && !proc.killed) proc.kill('SIGKILL');
+        } catch (_) { /* already dead */ }
+      }, 5000);
     }
-  }, 5000);
+  } catch (err) {
+    sendLog('error', `Error stopping server: ${err.message}`);
+  }
+
   serverProcess = null;
   serverRunning = false;
   mainWindow?.webContents.send('server:status', false);
