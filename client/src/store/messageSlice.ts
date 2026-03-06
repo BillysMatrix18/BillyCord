@@ -26,7 +26,7 @@ export const fetchMessages = createAsyncThunk(
 
 export const sendMessage = createAsyncThunk(
   'messages/send',
-  async ({ channelId, content }: { channelId: string; content: string }) => {
+  async ({ channelId, content }: { channelId: string; content: string; tempId?: string }) => {
     const response = await messageApi.send(channelId, content);
     return response.data.message;
   }
@@ -41,10 +41,30 @@ const messageSlice = createSlice({
       state.hasMore = true;
     },
     addMessage(state, action: PayloadAction<Message>) {
-      // Avoid duplicates
+      // Avoid duplicates (also skip if this is our own optimistic message already shown)
       if (!state.messages.find(m => m.id === action.payload.id)) {
-        state.messages.push(action.payload);
+        // Check if there's an optimistic version to replace
+        const optimisticIdx = state.messages.findIndex(
+          m => m.id.startsWith('optimistic-') && m.content === action.payload.content && m.sender_id === action.payload.sender_id
+        );
+        if (optimisticIdx !== -1) {
+          state.messages[optimisticIdx] = action.payload;
+        } else {
+          state.messages.push(action.payload);
+        }
       }
+    },
+    addOptimisticMessage(state, action: PayloadAction<Message>) {
+      state.messages.push(action.payload);
+    },
+    replaceOptimisticMessage(state, action: PayloadAction<{ tempId: string; message: Message }>) {
+      const idx = state.messages.findIndex(m => m.id === action.payload.tempId);
+      if (idx !== -1) {
+        state.messages[idx] = action.payload.message;
+      }
+    },
+    removeOptimisticMessage(state, action: PayloadAction<string>) {
+      state.messages = state.messages.filter(m => m.id !== action.payload);
     },
     updateMessage(state, action: PayloadAction<Message>) {
       const index = state.messages.findIndex(m => m.id === action.payload.id);
@@ -107,8 +127,24 @@ const messageSlice = createSlice({
         }
       })
       .addCase(sendMessage.fulfilled, (state, action) => {
+        // Replace optimistic message with server response, or add if not found
+        const tempId = action.meta.arg.tempId;
+        if (tempId) {
+          const idx = state.messages.findIndex(m => m.id === tempId);
+          if (idx !== -1) {
+            state.messages[idx] = action.payload;
+            return;
+          }
+        }
         if (!state.messages.find(m => m.id === action.payload.id)) {
           state.messages.push(action.payload);
+        }
+      })
+      .addCase(sendMessage.rejected, (state, action) => {
+        // Remove optimistic message on failure
+        const tempId = action.meta.arg.tempId;
+        if (tempId) {
+          state.messages = state.messages.filter(m => m.id !== tempId);
         }
       });
   },
@@ -117,6 +153,6 @@ const messageSlice = createSlice({
 export const {
   clearMessages, addMessage, updateMessage, removeMessage,
   addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage,
-  setMessagePinned,
+  setMessagePinned, addOptimisticMessage, replaceOptimisticMessage, removeOptimisticMessage,
 } = messageSlice.actions;
 export default messageSlice.reducer;

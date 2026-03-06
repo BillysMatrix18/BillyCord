@@ -42,7 +42,26 @@ export const sendFriendRequest = createAsyncThunk(
 const friendSlice = createSlice({
   name: 'friends',
   initialState,
-  reducers: {},
+  reducers: {
+    addIncomingRequest: (state, action) => {
+      // Avoid duplicates
+      const exists = state.pendingIncoming.some(r => r.id === action.payload.id);
+      if (!exists) {
+        state.pendingIncoming.unshift(action.payload);
+      }
+    },
+    removeRequest: (state, action) => {
+      const requestId = action.payload;
+      state.pendingIncoming = state.pendingIncoming.filter(r => r.id !== requestId);
+      state.pendingOutgoing = state.pendingOutgoing.filter(r => r.id !== requestId);
+    },
+    addFriend: (state, action) => {
+      const exists = state.friends.some(f => f.friend_id === action.payload.friend_id);
+      if (!exists) {
+        state.friends.unshift(action.payload);
+      }
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchFriends.pending, (state) => { state.loading = true; })
@@ -57,4 +76,5 @@ const friendSlice = createSlice({
   },
 });
 
+export const { addIncomingRequest, removeRequest, addFriend } = friendSlice.actions;
 export default friendSlice.reducer;

@@ -291,6 +291,9 @@ CREATE TABLE IF NOT EXISTS security_logs (
 CREATE INDEX IF NOT EXISTS idx_messages_channel_id ON messages(channel_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_channel_time ON messages(channel_id, created_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_conv_members_user ON conversation_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_conv_members_conv ON conversation_members(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_server_members_user_id ON server_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_server_members_server_id ON server_members(server_id);
 CREATE INDEX IF NOT EXISTS idx_channels_server_id ON channels(server_id);

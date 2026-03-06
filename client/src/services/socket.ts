@@ -21,10 +21,15 @@ export function connectSocket(token: string): Socket {
 
   socket = io(serverOrigin, {
     auth: { token },
+    // Prefer WebSocket for lowest latency; fall back to polling if blocked
     transports: ['websocket', 'polling'],
+    // Faster reconnection for better perceived reliability
     reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: 10,
+    reconnectionDelay: 500,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 20,
+    // Reduced timeout for faster failure detection
+    timeout: 10000,
   });
 
   socket.on('connect', () => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback, KeyboardEvent } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
-import { fetchMessages, sendMessage, clearMessages, setMessagePinned } from '../../store/messageSlice';
+import { fetchMessages, sendMessage, clearMessages, setMessagePinned, addOptimisticMessage } from '../../store/messageSlice';
 import { toggleMemberList, togglePinnedMessages } from '../../store/uiSlice';
 import { getSocket } from '../../services/socket';
 import { messageApi } from '../../services/api';
@@ -85,9 +85,35 @@ export default function ChatArea() {
     }, 2000);
   };
 
+  const { user } = useAppSelector((state) => state.auth);
+
   const handleSend = () => {
     if (!messageText.trim() || !channelId) return;
-    dispatch(sendMessage({ channelId, content: messageText })).then((result) => {
+    const content = messageText;
+    const tempId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+    // Optimistic: show message instantly before server responds
+    if (user) {
+      dispatch(addOptimisticMessage({
+        id: tempId,
+        channel_id: channelId,
+        sender_id: user.id,
+        sender_name: user.username,
+        sender_avatar: user.avatar_url,
+        content,
+        attachments: [],
+        edited: false,
+        pinned: false,
+        reactions: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+    }
+
+    setMessageText('');
+    setIsTyping(false);
+
+    dispatch(sendMessage({ channelId, content, tempId })).then((result) => {
       if (sendMessage.fulfilled.match(result)) {
         const socket = getSocket();
         if (socket) {
@@ -96,8 +122,6 @@ export default function ChatArea() {
         }
       }
     });
-    setMessageText('');
-    setIsTyping(false);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {

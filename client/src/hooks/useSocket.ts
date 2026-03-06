@@ -6,6 +6,7 @@ import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUs
 import { updateMemberStatus } from '../store/serverSlice';
 import { addDmMessage, incrementConversationUnread, fetchConversations } from '../store/dmSlice';
 import { setAnnouncement } from '../store/uiSlice';
+import { addIncomingRequest, removeRequest, addFriend } from '../store/friendSlice';
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
@@ -62,6 +63,29 @@ export function useSocket() {
       dispatch(incrementConversationUnread(conversationId));
       // Re-fetch conversations to update sidebar order & last_message
       dispatch(fetchConversations());
+    });
+
+    // Friend request events
+    socket.on('friend:request-received', (data: { id: string; user_id: string; username: string; avatar_url: string | null; created_at: string }) => {
+      dispatch(addIncomingRequest(data));
+    });
+
+    socket.on('friend:request-accepted', (data: { requestId: string; friend_id: string; friend_username: string; friend_avatar: string | null; friend_status: string }) => {
+      dispatch(removeRequest(data.requestId));
+      dispatch(addFriend({
+        id: data.requestId,
+        friend_id: data.friend_id,
+        friend_username: data.friend_username,
+        friend_avatar: data.friend_avatar,
+        friend_status: data.friend_status,
+        status: 'accepted',
+        created_at: new Date().toISOString(),
+      }));
+      dispatch(fetchConversations());
+    });
+
+    socket.on('friend:request-declined', (data: { requestId: string }) => {
+      dispatch(removeRequest(data.requestId));
     });
 
     // Admin announcements

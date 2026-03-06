@@ -18,8 +18,18 @@ export function initializeSocket(httpServer: HttpServer): Server {
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    pingTimeout: 60000,
-    pingInterval: 25000,
+    // Compression: reduces payload size for faster transmission over long distances
+    perMessageDeflate: {
+      threshold: 256, // only compress messages larger than 256 bytes
+      zlibDeflateOptions: { level: 6 },
+    },
+    // Connection optimization
+    pingTimeout: 30000,
+    pingInterval: 15000,
+    // Prefer WebSocket, skip polling upgrade delay
+    transports: ['websocket', 'polling'],
+    // Allow larger payloads for file attachments
+    maxHttpBufferSize: 1e7,
   });
 
   // Authentication middleware

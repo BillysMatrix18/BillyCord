@@ -53,10 +53,26 @@ export async function sendFriendRequest(req: Request, res: Response): Promise<vo
       return;
     }
 
-    await query(
-      `INSERT INTO friends (requester_id, receiver_id, status) VALUES ($1, $2, 'pending')`,
+    const insertResult = await query(
+      `INSERT INTO friends (requester_id, receiver_id, status) VALUES ($1, $2, 'pending') RETURNING id, created_at`,
       [userId, targetId]
     );
+
+    // Get sender info for the real-time notification
+    const senderResult = await query('SELECT username, avatar_url FROM users WHERE id = $1', [userId]);
+    const sender = senderResult.rows[0];
+
+    // Emit socket event to the target user for real-time notification
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${targetId}`).emit('friend:request-received', {
+        id: insertResult.rows[0].id,
+        user_id: userId,
+        username: sender.username,
+        avatar_url: sender.avatar_url,
+        created_at: insertResult.rows[0].created_at,
+      });
+    }
 
     res.status(201).json({ message: 'Friend request sent' });
   } catch (error) {
@@ -127,8 +143,42 @@ export async function respondToFriendRequest(req: Request, res: Response): Promi
         }
       }
 
+      // Notify the original requester that their request was accepted
+      const io = req.app.get('io');
+      if (io) {
+        const acceptorResult = await query('SELECT username, avatar_url, status FROM users WHERE id = $1', [userId]);
+        const acceptor = acceptorResult.rows[0];
+        io.to(`user:${requesterId}`).emit('friend:request-accepted', {
+          requestId,
+          friend_id: userId,
+          friend_username: acceptor.username,
+          friend_avatar: acceptor.avatar_url,
+          friend_status: acceptor.status,
+          conversationId,
+        });
+        // Also notify the acceptor to refresh their friend list
+        const requesterResult = await query('SELECT username, avatar_url, status FROM users WHERE id = $1', [requesterId]);
+        const requester = requesterResult.rows[0];
+        io.to(`user:${userId}`).emit('friend:request-accepted', {
+          requestId,
+          friend_id: requesterId,
+          friend_username: requester.username,
+          friend_avatar: requester.avatar_url,
+          friend_status: requester.status,
+          conversationId,
+        });
+      }
+
       res.json({ message: 'Friend request accepted', conversationId });
     } else {
+      // Notify the original requester that their request was declined
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`user:${request.rows[0].requester_id}`).emit('friend:request-declined', {
+          requestId,
+        });
+      }
+
       await query('DELETE FROM friends WHERE id = $1', [requestId]);
       res.json({ message: 'Friend request declined' });
     }

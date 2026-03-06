@@ -66,27 +66,16 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
 
     const sanitizedContent = sanitizeHtml(content);
 
-    const result = await query(
-      `INSERT INTO messages (channel_id, sender_id, content, attachments)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [channelId, userId, sanitizedContent, JSON.stringify(attachments || [])]
-    );
-
-    // Fetch sender info
-    const userResult = await query(
-      'SELECT username, avatar_url FROM users WHERE id = $1',
-      [userId]
-    );
-
-    // Increment unread for all other server members
-    const channelResult = await query('SELECT server_id FROM channels WHERE id = $1', [channelId]);
-    if (channelResult.rows.length > 0) {
-      await query(
-        `UPDATE server_members SET unread_count = unread_count + 1 WHERE server_id = $1 AND user_id != $2`,
-        [channelResult.rows[0].server_id, userId]
-      );
-    }
+    // Run insert and sender lookup in parallel for faster response
+    const [result, userResult] = await Promise.all([
+      query(
+        `INSERT INTO messages (channel_id, sender_id, content, attachments)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [channelId, userId, sanitizedContent, JSON.stringify(attachments || [])]
+      ),
+      query('SELECT username, avatar_url FROM users WHERE id = $1', [userId]),
+    ]);
 
     const message = {
       ...result.rows[0],
@@ -95,7 +84,20 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       reactions: [],
     };
 
+    // Respond immediately — don't block on unread count update
     res.status(201).json({ message });
+
+    // Fire-and-forget: increment unread for other server members (non-blocking)
+    query('SELECT server_id FROM channels WHERE id = $1', [channelId])
+      .then((channelResult) => {
+        if (channelResult.rows.length > 0) {
+          return query(
+            `UPDATE server_members SET unread_count = unread_count + 1 WHERE server_id = $1 AND user_id != $2`,
+            [channelResult.rows[0].server_id, userId]
+          );
+        }
+      })
+      .catch((err) => console.error('Unread count update error:', err));
   } catch (error) {
     console.error('Create message error:', error);
     res.status(500).json({ error: 'Internal server error' });
