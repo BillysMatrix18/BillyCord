@@ -273,7 +273,7 @@ router.patch('/users/:userId', async (req: Request, res: Response) => {
       return;
     }
 
-    logAdminAction('user_edited', { userId, changes: Object.keys(req.body).filter(k => allowedFields.includes(k)) });
+    logAdminAction('user_edited', 'user', userId, { changes: Object.keys(req.body).filter(k => allowedFields.includes(k)) });
     res.json({ user: result.rows[0] });
   } catch (err) {
     console.error('Admin edit user error:', err);
