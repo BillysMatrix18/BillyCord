@@ -42,11 +42,24 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
 export async function createMessage(req: Request, res: Response): Promise<void> {
   try {
     const { channelId } = req.params;
-    const { content, attachments } = req.body;
+    const { content } = req.body;
     const userId = req.user!.userId;
 
-    if (!content || content.trim().length === 0) {
-      res.status(400).json({ error: 'Message content is required' });
+    // Build attachments from uploaded files
+    const uploadedFiles = (req.files as Express.Multer.File[]) || [];
+    const fileAttachments = uploadedFiles.map(f => ({
+      url: `/uploads/${f.filename}`,
+      name: f.originalname,
+      size: f.size,
+      type: f.mimetype,
+    }));
+    // Also accept pre-existing attachment URLs from body
+    const bodyAttachments = req.body.attachments ? (typeof req.body.attachments === 'string' ? JSON.parse(req.body.attachments) : req.body.attachments) : [];
+    const attachments = [...fileAttachments, ...bodyAttachments];
+
+    // Allow empty content only if there are file attachments
+    if ((!content || content.trim().length === 0) && attachments.length === 0) {
+      res.status(400).json({ error: 'Message content or file attachment is required' });
       return;
     }
 
@@ -64,7 +77,7 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const sanitizedContent = sanitizeHtml(content);
+    const sanitizedContent = content ? sanitizeHtml(content) : '';
 
     // Run insert and sender lookup in parallel for faster response
     const [result, userResult] = await Promise.all([
@@ -72,7 +85,7 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
         `INSERT INTO messages (channel_id, sender_id, content, attachments)
          VALUES ($1, $2, $3, $4)
          RETURNING *`,
-        [channelId, userId, sanitizedContent, JSON.stringify(attachments || [])]
+        [channelId, userId, sanitizedContent, JSON.stringify(attachments)]
       ),
       query('SELECT username, avatar_url FROM users WHERE id = $1', [userId]),
     ]);

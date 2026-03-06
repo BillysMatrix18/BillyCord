@@ -22,6 +22,9 @@ export default function ChatArea() {
   const [isTyping, setIsTyping] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
   const [pinnedLoading, setPinnedLoading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPinned = useCallback(async () => {
     if (!channelId) return;
@@ -43,7 +46,6 @@ export default function ChatArea() {
     try {
       await messageApi.unpin(messageId);
       setPinnedMessages(prev => prev.filter(m => m.id !== messageId));
-      // Also update the message in the main message list
       dispatch(setMessagePinned({ messageId, pinned: false }));
     } catch (err) {
       console.error('Failed to unpin message:', err);
@@ -87,12 +89,32 @@ export default function ChatArea() {
 
   const { user } = useAppSelector((state) => state.auth);
 
-  const handleSend = () => {
-    if (!messageText.trim() || !channelId) return;
-    const content = messageText;
-    const tempId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setPendingFiles(prev => [...prev, ...files]);
+    }
+    // Reset input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
-    // Optimistic: show message instantly before server responds
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleSend = async () => {
+    if ((!messageText.trim() && pendingFiles.length === 0) || !channelId) return;
+    const content = messageText;
+    const filesToSend = [...pendingFiles];
+
+    // Optimistic: show message instantly (text only for now)
+    const tempId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     if (user) {
       dispatch(addOptimisticMessage({
         id: tempId,
@@ -101,7 +123,7 @@ export default function ChatArea() {
         sender_name: user.username,
         sender_avatar: user.avatar_url,
         content,
-        attachments: [],
+        attachments: filesToSend.map(f => f.name),
         edited: false,
         pinned: false,
         reactions: [],
@@ -111,17 +133,37 @@ export default function ChatArea() {
     }
 
     setMessageText('');
+    setPendingFiles([]);
     setIsTyping(false);
 
-    dispatch(sendMessage({ channelId, content, tempId })).then((result) => {
-      if (sendMessage.fulfilled.match(result)) {
-        const socket = getSocket();
-        if (socket) {
-          socket.emit('message:send', { channelId, message: result.payload });
-          socket.emit('typing:stop', { channelId });
+    try {
+      let result;
+      if (filesToSend.length > 0) {
+        setUploading(true);
+        result = await messageApi.sendWithFiles(channelId, content, filesToSend);
+        setUploading(false);
+      } else {
+        const action = await dispatch(sendMessage({ channelId, content, tempId }));
+        if (sendMessage.fulfilled.match(action)) {
+          result = { data: { message: action.payload } };
         }
       }
-    });
+
+      if (result?.data?.message) {
+        const socket = getSocket();
+        if (socket) {
+          socket.emit('message:send', { channelId, message: result.data.message });
+          socket.emit('typing:stop', { channelId });
+        }
+        // Replace optimistic message if we used file upload path
+        if (filesToSend.length > 0) {
+          dispatch(addOptimisticMessage(result.data.message)); // will replace via addMessage logic
+        }
+      }
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      setUploading(false);
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -230,9 +272,58 @@ export default function ChatArea() {
         </div>
       )}
 
+      {/* File preview bar */}
+      {pendingFiles.length > 0 && (
+        <div style={{
+          display: 'flex', gap: 8, padding: '8px 16px', background: 'var(--bg-secondary)',
+          borderTop: '1px solid var(--bg-quaternary)', flexWrap: 'wrap', alignItems: 'center',
+        }}>
+          {pendingFiles.map((file, i) => {
+            const isImage = file.type.startsWith('image/');
+            return (
+              <div key={i} style={{
+                position: 'relative', background: 'var(--bg-tertiary)', borderRadius: 8,
+                padding: isImage ? 0 : '8px 12px', display: 'flex', alignItems: 'center', gap: 8,
+                maxWidth: 200, overflow: 'hidden',
+              }}>
+                {isImage ? (
+                  <img src={URL.createObjectURL(file)} alt={file.name}
+                    style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8 }} />
+                ) : (
+                  <>
+                    <span style={{ fontSize: 20 }}>📄</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatFileSize(file.size)}</div>
+                    </div>
+                  </>
+                )}
+                <button onClick={() => removePendingFile(i)} style={{
+                  position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)',
+                  border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+                }}>
+                  <IconX size={12} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="message-input-container">
         <div className="message-input-wrapper">
-          <button title="Attach file"><IconPlus size={20} /></button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleFileSelect}
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar"
+          />
+          <button title="Attach file" onClick={() => fileInputRef.current?.click()}>
+            <IconPlus size={20} />
+          </button>
           <textarea
             className="message-input"
             placeholder={`Message #${currentChannel?.name || 'channel'}`}
@@ -241,8 +332,10 @@ export default function ChatArea() {
             onKeyDown={handleKeyDown}
             rows={1}
           />
-          <button onClick={handleSend} title="Send" style={{ opacity: messageText.trim() ? 1 : 0.3 }}>
-            <IconSend size={20} />
+          <button onClick={handleSend} title="Send"
+            disabled={uploading}
+            style={{ opacity: (messageText.trim() || pendingFiles.length > 0) ? 1 : 0.3 }}>
+            {uploading ? <div className="loading-spinner" style={{ width: 20, height: 20 }} /> : <IconSend size={20} />}
           </button>
         </div>
       </div>

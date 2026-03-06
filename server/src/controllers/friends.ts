@@ -252,6 +252,47 @@ export async function getPendingRequests(req: Request, res: Response): Promise<v
   }
 }
 
+export async function getFriendshipStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const { userId: targetId } = req.params;
+    const userId = req.user!.userId;
+
+    if (targetId === userId) {
+      res.json({ status: 'self' });
+      return;
+    }
+
+    const result = await query(
+      `SELECT * FROM friends
+       WHERE (requester_id = $1 AND receiver_id = $2) OR (requester_id = $2 AND receiver_id = $1)`,
+      [userId, targetId]
+    );
+
+    if (result.rows.length === 0) {
+      res.json({ status: 'none' });
+      return;
+    }
+
+    const row = result.rows[0];
+    if (row.status === 'accepted') {
+      res.json({ status: 'friends' });
+    } else if (row.status === 'blocked') {
+      res.json({ status: 'blocked' });
+    } else if (row.status === 'pending') {
+      if (row.requester_id === userId) {
+        res.json({ status: 'pending_sent' });
+      } else {
+        res.json({ status: 'pending_received', requestId: row.id });
+      }
+    } else {
+      res.json({ status: 'none' });
+    }
+  } catch (error) {
+    console.error('Get friendship status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 export async function removeFriend(req: Request, res: Response): Promise<void> {
   try {
     const { friendId } = req.params;

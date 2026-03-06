@@ -259,6 +259,42 @@
     .btn-danger:hover { background: var(--red); color: #fff; }
     .uptime { font-size: 13px; color: var(--text-secondary); }
 
+    /* User Edit Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal {
+      background: var(--bg-secondary); border: 1px solid var(--border);
+      border-radius: 12px; padding: 28px; width: 480px; max-height: 80vh; overflow-y: auto;
+    }
+    .modal h2 { font-size: 18px; margin-bottom: 20px; }
+    .modal .form-group { margin-bottom: 14px; }
+    .modal label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .modal input, .modal textarea, .modal select {
+      width: 100%; padding: 8px 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--bg-primary);
+      color: var(--text-primary); font-size: 14px; outline: none; font-family: inherit;
+    }
+    .modal input:focus, .modal textarea:focus, .modal select:focus { border-color: var(--accent); }
+    .modal textarea { min-height: 60px; resize: vertical; }
+    .modal .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+    .modal .btn-primary {
+      padding: 8px 20px; border-radius: 6px; border: none;
+      background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; font-size: 13px;
+    }
+    .modal .btn-primary:hover { background: var(--accent-hover); }
+    .modal .btn-cancel {
+      padding: 8px 20px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-secondary); font-weight: 600; cursor: pointer; font-size: 13px;
+    }
+    .modal .btn-cancel:hover { color: var(--text-primary); }
+    .modal .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal .color-preview {
+      width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+      display: inline-block; vertical-align: middle; margin-left: 8px;
+    }
+
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -684,6 +720,55 @@
   </div>
 </div>
 
+<!-- User Edit Modal -->
+<div class="modal-overlay" id="user-edit-modal" style="display:none" onclick="if(event.target===this)closeEditUser()">
+  <div class="modal">
+    <h2 id="edit-user-title">Edit User</h2>
+    <input type="hidden" id="edit-user-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="edit-username" placeholder="Username">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="text" id="edit-email" placeholder="Email">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Bio</label>
+      <textarea id="edit-bio" placeholder="User bio..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Status</label>
+        <select id="edit-status">
+          <option value="online">Online</option>
+          <option value="idle">Idle</option>
+          <option value="dnd">Do Not Disturb</option>
+          <option value="offline">Offline</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Profile Color</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="text" id="edit-profile-color" placeholder="#3B82F6" style="flex:1">
+          <div class="color-preview" id="edit-color-preview"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Avatar URL</label>
+      <input type="text" id="edit-avatar-url" placeholder="https://... or /uploads/...">
+    </div>
+    <div id="edit-user-status" style="font-size:13px;margin-top:8px;display:none"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditUser()">Cancel</button>
+      <button class="btn-primary" onclick="saveEditUser()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const { ipcRenderer } = require('electron');
 
@@ -848,20 +933,81 @@
   }
 
   // ── Users ──
+  let usersCache = [];
   function fetchUsers() {
     apiFetch('/api/admin/users').then(users => {
+      usersCache = users;
       document.getElementById('users-body').innerHTML = users.map(u => `<tr>
         <td><strong>${esc(u.username)}</strong></td><td>${esc(u.email)}</td>
         <td><span class="badge ${u.status||'offline'}">${u.status||'offline'}</span></td>
         <td>${esc(u.custom_status||'—')}</td><td>${fmtDate(u.created_at)}</td>
         <td>${fmtDate(u.last_seen)}</td>
-        <td><button class="btn-danger" onclick="deleteUser('${u.id}','${esc(u.username)}')">Delete</button></td></tr>`).join('');
+        <td style="display:flex;gap:4px">
+          <button class="btn-sm" onclick="openEditUser('${u.id}')">Edit</button>
+          <button class="btn-danger" onclick="deleteUser('${u.id}','${esc(u.username)}')">Delete</button>
+        </td></tr>`).join('');
     }).catch(()=>{});
   }
   function deleteUser(id, name) {
     if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
     apiDelete(`/api/admin/users/${id}`).then(() => { addLogLine('warn',`Deleted user: ${name}`); fetchUsers(); fetchStats(); })
       .catch(e => addLogLine('error',`Failed: ${e.message}`));
+  }
+
+  function openEditUser(userId) {
+    const u = usersCache.find(x => x.id === userId);
+    if (!u) return;
+    document.getElementById('edit-user-id').value = u.id;
+    document.getElementById('edit-user-title').textContent = `Edit User: ${u.username}`;
+    document.getElementById('edit-username').value = u.username || '';
+    document.getElementById('edit-email').value = u.email || '';
+    document.getElementById('edit-bio').value = u.bio || '';
+    document.getElementById('edit-status').value = u.status || 'offline';
+    document.getElementById('edit-profile-color').value = u.profile_color || '#3B82F6';
+    document.getElementById('edit-avatar-url').value = u.avatar_url || '';
+    document.getElementById('edit-color-preview').style.background = u.profile_color || '#3B82F6';
+    document.getElementById('edit-user-status').style.display = 'none';
+    document.getElementById('user-edit-modal').style.display = 'flex';
+    // Live color preview
+    document.getElementById('edit-profile-color').oninput = function() {
+      document.getElementById('edit-color-preview').style.background = this.value;
+    };
+  }
+
+  function closeEditUser() {
+    document.getElementById('user-edit-modal').style.display = 'none';
+  }
+
+  function saveEditUser() {
+    const userId = document.getElementById('edit-user-id').value;
+    const data = {
+      username: document.getElementById('edit-username').value,
+      email: document.getElementById('edit-email').value,
+      bio: document.getElementById('edit-bio').value,
+      status: document.getElementById('edit-status').value,
+      profile_color: document.getElementById('edit-profile-color').value,
+      avatar_url: document.getElementById('edit-avatar-url').value,
+    };
+    const statusEl = document.getElementById('edit-user-status');
+    fetch(`http://localhost:${serverPort}/api/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
+      body: JSON.stringify(data),
+    }).then(r => {
+      if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Failed'); });
+      return r.json();
+    }).then(() => {
+      statusEl.textContent = 'User updated successfully!';
+      statusEl.style.color = 'var(--green)';
+      statusEl.style.display = 'block';
+      addLogLine('info', `Updated user: ${data.username}`);
+      fetchUsers();
+      setTimeout(closeEditUser, 1500);
+    }).catch(e => {
+      statusEl.textContent = e.message || 'Failed to update user';
+      statusEl.style.color = 'var(--red)';
+      statusEl.style.display = 'block';
+    });
   }
 
   // ── Servers ──

@@ -175,6 +175,48 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
           />
         )}
 
+        {/* Attachments */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+            {(message.attachments as unknown[]).map((att, i) => {
+              const a = typeof att === 'string' ? { url: att, name: att, type: '', size: 0 } : att as { url: string; name: string; type: string; size: number };
+              const isImage = a.type?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(a.url || a.name);
+              const isVideo = a.type?.startsWith('video/') || /\.(mp4|webm)$/i.test(a.url || a.name);
+              const isAudio = a.type?.startsWith('audio/') || /\.(mp3|wav|ogg|m4a)$/i.test(a.url || a.name);
+              const url = a.url || a.name;
+
+              if (isImage) return (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', maxWidth: 400, borderRadius: 8, overflow: 'hidden' }}>
+                  <img src={url} alt={a.name} style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, display: 'block' }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                </a>
+              );
+              if (isVideo) return (
+                <video key={i} controls style={{ maxWidth: 400, maxHeight: 300, borderRadius: 8 }}><source src={url} /></video>
+              );
+              if (isAudio) return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 8 }}>
+                  <span style={{ fontSize: 20 }}>🎵</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name}</div>
+                    <audio controls style={{ width: '100%', height: 32, marginTop: 4 }}><source src={url} /></audio>
+                  </div>
+                </div>
+              );
+              return (
+                <a key={i} href={url} target="_blank" rel="noopener noreferrer" download
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 8, textDecoration: 'none', color: 'var(--text-link)', fontSize: 13 }}>
+                  <span style={{ fontSize: 20 }}>📄</span>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{a.name}</div>
+                    {a.size > 0 && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{a.size < 1024 ? `${a.size} B` : a.size < 1048576 ? `${(a.size / 1024).toFixed(1)} KB` : `${(a.size / 1048576).toFixed(1)} MB`}</div>}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        )}
+
         {Object.keys(groupedReactions).length > 0 && (
           <div className="message-reactions">
             {Object.values(groupedReactions).map((reaction) => (

@@ -239,6 +239,48 @@ router.post('/users/:userId/reset-password', async (req: Request, res: Response)
   }
 });
 
+// Edit user profile (admin)
+router.patch('/users/:userId', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const allowedFields = ['username', 'email', 'bio', 'avatar_url', 'status', 'custom_status', 'profile_color', 'theme'];
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    let idx = 1;
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = $${idx}`);
+        values.push(req.body[field]);
+        idx++;
+      }
+    }
+
+    if (updates.length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
+      return;
+    }
+
+    values.push(userId);
+    const result = await query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}
+       RETURNING id, username, email, avatar_url, bio, status, custom_status, profile_color, theme, created_at, last_seen`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    logAdminAction('user_edited', { userId, changes: Object.keys(req.body).filter(k => allowedFields.includes(k)) });
+    res.json({ user: result.rows[0] });
+  } catch (err) {
+    console.error('Admin edit user error:', err);
+    res.status(500).json({ error: 'Failed to edit user' });
+  }
+});
+
 // ── Server Management ──────────────────────────────────────────────
 
 router.get('/servers', async (_req: Request, res: Response) => {

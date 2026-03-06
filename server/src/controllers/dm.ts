@@ -124,8 +124,18 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
     const { content, attachments } = req.body;
     const userId = req.user!.userId;
 
-    if (!content || content.trim().length === 0) {
-      res.status(400).json({ error: 'Message content is required' });
+    // Build file attachments from multer uploads
+    const uploadedFiles = (req.files as Express.Multer.File[]) || [];
+    const fileAttachments = uploadedFiles.map(f => ({
+      url: `/uploads/${f.filename}`,
+      name: f.originalname,
+      size: f.size,
+      type: f.mimetype,
+    }));
+    const allAttachments = [...(attachments || []), ...fileAttachments];
+
+    if ((!content || content.trim().length === 0) && allAttachments.length === 0) {
+      res.status(400).json({ error: 'Message content or attachment is required' });
       return;
     }
 
@@ -139,12 +149,12 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const sanitizedContent = sanitizeHtml(content);
+    const sanitizedContent = content ? sanitizeHtml(content) : '';
 
     const result = await query(
       `INSERT INTO direct_messages (conversation_id, sender_id, content, attachments)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [conversationId, userId, sanitizedContent, JSON.stringify(attachments || [])]
+      [conversationId, userId, sanitizedContent, JSON.stringify(allAttachments)]
     );
 
     const userResult = await query(

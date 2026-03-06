@@ -66,12 +66,24 @@ app.use('/api/admin', adminRoutes);
 
 // Health check — used by ConnectionScreen and Admin Dashboard
 app.get('/api/health', (_req, res) => {
+  const mem = process.memoryUsage();
+  const totalMem = require('os').totalmem();
+  const freeMem = require('os').freemem();
+  const memUsagePercent = Math.round(((totalMem - freeMem) / totalMem) * 100);
+
   res.json({
-    status: 'ok',
+    status: memUsagePercent > 90 ? 'degraded' : 'ok',
     serverName: 'BillyCord',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     version: '1.0.0',
+    memory: {
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
+      rss: Math.round(mem.rss / 1024 / 1024),
+      systemPercent: memUsagePercent,
+    },
+    connections: io?.engine?.clientsCount || 0,
   });
 });
 
@@ -191,6 +203,19 @@ function gracefulShutdown(signal: string) {
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Memory watchdog – log warnings if memory usage gets high
+setInterval(() => {
+  const mem = process.memoryUsage();
+  const heapMB = Math.round(mem.heapUsed / 1024 / 1024);
+  if (heapMB > 512) {
+    console.warn(`Memory warning: Heap usage ${heapMB}MB (> 512MB threshold)`);
+    if (global.gc) {
+      console.log('Running garbage collection...');
+      global.gc();
+    }
+  }
+}, 60000);
 
 // Catch unhandled errors so the server doesn't silently crash
 process.on('uncaughtException', (err) => {

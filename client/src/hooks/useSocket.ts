@@ -60,7 +60,12 @@ export function useSocket() {
 
     socket.on('dm:new', ({ conversationId, message }) => {
       dispatch(addDmMessage(message));
-      dispatch(incrementConversationUnread(conversationId));
+      // Only increment unread if NOT currently viewing this conversation
+      const currentPath = window.location.pathname;
+      const isViewingConversation = currentPath.includes(`/@me/${conversationId}`);
+      if (!isViewingConversation) {
+        dispatch(incrementConversationUnread(conversationId));
+      }
       // Re-fetch conversations to update sidebar order & last_message
       dispatch(fetchConversations());
     });

@@ -103,6 +103,14 @@ export const messageApi = {
     api.get(`/channels/${channelId}/messages`, { params: { before, limit: 50 } }),
   send: (channelId: string, content: string, attachments?: string[]) =>
     api.post(`/channels/${channelId}/messages`, { content, attachments }),
+  sendWithFiles: (channelId: string, content: string, files: File[]) => {
+    const formData = new FormData();
+    formData.append('content', content);
+    files.forEach(f => formData.append('files', f));
+    return api.post(`/channels/${channelId}/messages`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   update: (messageId: string, content: string) =>
     api.patch(`/messages/${messageId}`, { content }),
   delete: (messageId: string) => api.delete(`/messages/${messageId}`),
@@ -119,6 +127,7 @@ export const messageApi = {
 export const friendApi = {
   getAll: () => api.get('/friends'),
   getPending: () => api.get('/friends/pending'),
+  getStatus: (userId: string) => api.get(`/friends/status/${userId}`),
   sendRequest: (username: string) => api.post('/friends/request', { username }),
   respond: (requestId: string, action: 'accept' | 'decline') =>
     api.post(`/friends/respond/${requestId}`, { action }),
@@ -135,6 +144,14 @@ export const dmApi = {
     api.get(`/dm/conversations/${conversationId}/messages`, { params: { before } }),
   sendMessage: (conversationId: string, content: string) =>
     api.post(`/dm/conversations/${conversationId}/messages`, { content }),
+  sendWithFiles: (conversationId: string, content: string, files: File[]) => {
+    const formData = new FormData();
+    formData.append('content', content);
+    files.forEach(f => formData.append('files', f));
+    return api.post(`/dm/conversations/${conversationId}/messages`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   // Group chat management
   updateConversation: (conversationId: string, data: { name?: string; icon_url?: string; description?: string }) =>
     api.patch(`/dm/conversations/${conversationId}`, data),

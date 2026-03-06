@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
+import { upload, enforceFileSize } from '../middleware/upload';
 import {
   getConversations, createConversation, getDirectMessages, sendDirectMessage,
   updateConversation, addGroupMember, removeGroupMember, leaveGroup, getGroupMembers,
@@ -11,7 +12,7 @@ const router = Router();
 router.get('/conversations', authenticate, getConversations);
 router.post('/conversations', authenticate, createConversation);
 router.get('/conversations/:conversationId/messages', authenticate, getDirectMessages);
-router.post('/conversations/:conversationId/messages', authenticate, sendDirectMessage);
+router.post('/conversations/:conversationId/messages', authenticate, upload.array('files', 10), enforceFileSize, sendDirectMessage);
 
 // Mark conversation as read
 router.post('/conversations/:conversationId/read', authenticate, markConversationRead);
