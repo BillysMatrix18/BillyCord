@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppDispatch';
-import { friendApi, dmApi } from '../../services/api';
+import { friendApi, dmApi, authApi } from '../../services/api';
 import { IconX, IconMessage, IconUser, IconShield } from './Icons';
 
 interface UserProfileModalProps {
@@ -16,14 +16,33 @@ interface UserProfileModalProps {
 
 type FriendshipStatus = 'none' | 'friends' | 'pending_sent' | 'pending_received' | 'blocked' | 'self';
 
+interface FullProfile {
+  bio: string | null;
+  pronouns: string | null;
+  profile_color: string | null;
+  banner_url: string | null;
+  status: string;
+  custom_status: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
 export default function UserProfileModal({ userId, username, avatarUrl, bio, status, profileColor, onClose }: UserProfileModalProps) {
   const navigate = useNavigate();
   const { user: currentUser } = useAppSelector((state) => state.auth);
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>('none');
+  const [profile, setProfile] = useState<FullProfile | null>(null);
 
   const isSelf = currentUser?.id === userId;
+
+  // Fetch full user profile for bio, pronouns, color
+  useEffect(() => {
+    authApi.getUserProfile(userId).then(res => {
+      setProfile(res.data.user);
+    }).catch(() => {});
+  }, [userId]);
 
   useEffect(() => {
     if (!isSelf) {
@@ -71,7 +90,17 @@ export default function UserProfileModal({ userId, username, avatarUrl, bio, sta
     setLoading(false);
   };
 
-  const statusColor = status === 'online' ? 'var(--green)' : status === 'idle' ? 'var(--yellow)' : status === 'dnd' ? 'var(--red)' : 'var(--text-muted)';
+  // Use profile data if available, fallback to props
+  const displayBio = profile?.bio || bio;
+  const displayColor = profile?.profile_color || profileColor || 'var(--brand-color)';
+  const displayStatus = profile?.status || status || 'offline';
+  const displayPronouns = profile?.pronouns;
+  const displayCustomStatus = profile?.custom_status;
+  const displayAvatar = profile?.avatar_url || avatarUrl;
+  const displayBanner = profile?.banner_url;
+  const createdAt = profile?.created_at;
+
+  const statusColor = displayStatus === 'online' ? 'var(--green)' : displayStatus === 'idle' ? 'var(--yellow)' : displayStatus === 'dnd' ? 'var(--red)' : 'var(--text-muted)';
 
   const renderFriendButton = () => {
     switch (friendshipStatus) {
@@ -108,16 +137,23 @@ export default function UserProfileModal({ userId, username, avatarUrl, bio, sta
     }
   };
 
+  const formatJoinDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  };
+
   return (
     <>
       <div className="profile-modal-overlay" onClick={onClose} />
       <div className="profile-modal animate-fade-in">
-        <div className="profile-modal-banner" style={{ background: profileColor || 'var(--brand-color)' }} />
+        <div className="profile-modal-banner" style={{
+          background: displayBanner ? `url(${displayBanner}) center/cover` : displayColor,
+        }} />
         <button className="profile-modal-close" onClick={onClose}><IconX size={18} /></button>
 
         <div className="profile-modal-avatar">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={username} />
+          {displayAvatar ? (
+            <img src={displayAvatar} alt={username} />
           ) : (
             <div className="profile-modal-avatar-fallback">
               {username[0]?.toUpperCase() || '?'}
@@ -128,12 +164,27 @@ export default function UserProfileModal({ userId, username, avatarUrl, bio, sta
 
         <div className="profile-modal-body">
           <h2 className="profile-modal-username">{username}</h2>
-          <span className="profile-modal-status" style={{ textTransform: 'capitalize' }}>{status || 'offline'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="profile-modal-status" style={{ textTransform: 'capitalize' }}>{displayStatus}</span>
+            {displayPronouns && (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{displayPronouns}</span>
+            )}
+          </div>
+          {displayCustomStatus && (
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>{displayCustomStatus}</div>
+          )}
 
-          {bio && (
+          {displayBio && (
             <div className="profile-modal-section">
               <h3>About Me</h3>
-              <p>{bio}</p>
+              <p>{displayBio}</p>
+            </div>
+          )}
+
+          {createdAt && (
+            <div className="profile-modal-section">
+              <h3>Member Since</h3>
+              <p style={{ fontSize: 13 }}>{formatJoinDate(createdAt)}</p>
             </div>
           )}
 

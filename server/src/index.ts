@@ -217,12 +217,28 @@ setInterval(() => {
   }
 }, 60000);
 
+// Log errors to database for admin visibility
+async function logErrorToDb(type: string, message: string, stack?: string) {
+  try {
+    const { query: dbQuery } = require('./config/database');
+    await dbQuery(
+      `INSERT INTO error_logs (error_type, error_message, stack_trace, context, created_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [type, message, stack || '', JSON.stringify({ pid: process.pid, uptime: process.uptime() })]
+    );
+  } catch { /* don't crash logging errors */ }
+}
+
 // Catch unhandled errors so the server doesn't silently crash
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception (server staying up):', err);
+  logErrorToDb('uncaughtException', err.message, err.stack);
 });
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled promise rejection (server staying up):', reason);
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  const stack = reason instanceof Error ? reason.stack : undefined;
+  logErrorToDb('unhandledRejection', msg, stack);
 });
 
 start();

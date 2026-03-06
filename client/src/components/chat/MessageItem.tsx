@@ -6,6 +6,7 @@ import { getSocket } from '../../services/socket';
 import { Message } from '../../types';
 import { IconSmile, IconEdit, IconPin, IconTrash } from '../common/Icons';
 import UserProfileModal from '../common/UserProfileModal';
+import ImageModal from '../common/ImageModal';
 
 interface MessageItemProps {
   message: Message;
@@ -25,6 +26,7 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
+  const [imageModalSrc, setImageModalSrc] = useState<string | null>(null);
 
   const handleDelete = async () => {
     try {
@@ -186,10 +188,10 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
               const url = a.url || a.name;
 
               if (isImage) return (
-                <a key={i} href={url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', maxWidth: 400, borderRadius: 8, overflow: 'hidden' }}>
+                <div key={i} onClick={() => setImageModalSrc(url)} style={{ display: 'block', maxWidth: 400, borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}>
                   <img src={url} alt={a.name} style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, display: 'block' }}
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                </a>
+                </div>
               );
               if (isVideo) return (
                 <video key={i} controls style={{ maxWidth: 400, maxHeight: 300, borderRadius: 8 }}><source src={url} /></video>
@@ -329,6 +331,11 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
           status={undefined}
           onClose={() => setShowProfile(false)}
         />
+      )}
+
+      {/* Image viewer modal */}
+      {imageModalSrc && (
+        <ImageModal src={imageModalSrc} onClose={() => setImageModalSrc(null)} />
       )}
     </div>
   );

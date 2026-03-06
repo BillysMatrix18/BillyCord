@@ -879,11 +879,39 @@
   // ── Refresh ──
   function refreshAll() { if (!serverOnline) return; fetchStats(); fetchUsers(); fetchServers(); fetchActivity(); fetchSettings(); }
   function autoRefresh() {
-    if (!serverOnline) return;
-    fetchStats();
-    const a = document.querySelector('.tab.active')?.dataset.tab;
-    if (a === 'users') fetchUsers();
-    if (a === 'servers') fetchServers();
+    // Always try to ping the server - don't gate on serverOnline
+    // so we can recover from temporary disconnects
+    checkHealth();
+    if (serverOnline) {
+      fetchStats();
+      const a = document.querySelector('.tab.active')?.dataset.tab;
+      if (a === 'users') fetchUsers();
+      if (a === 'servers') fetchServers();
+    }
+  }
+
+  function checkHealth() {
+    fetch(`http://localhost:${serverPort}/api/health`, {
+      signal: AbortSignal.timeout(5000),
+    }).then(r => {
+      if (r.ok) {
+        if (!serverOnline) {
+          serverOnline = true;
+          updateServerStatus(true);
+          addLogLine('info', 'Server connection restored');
+          refreshAll();
+        }
+      } else {
+        serverOnline = false;
+        updateServerStatus(false);
+      }
+    }).catch(() => {
+      if (serverOnline) {
+        serverOnline = false;
+        updateServerStatus(false);
+        addLogLine('warn', 'Lost connection to server');
+      }
+    });
   }
 
   // ── Network Info ──

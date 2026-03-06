@@ -71,6 +71,8 @@ export default function DmSidebar() {
           const status = conv.is_group ? undefined : conv.participants?.[0]?.status;
           const unread = conv.unread_count || 0;
 
+          const avatarUrl = conv.is_group ? conv.icon_url : conv.participants?.[0]?.avatar_url;
+
           return (
             <div
               key={conv.id}
@@ -82,8 +84,13 @@ export default function DmSidebar() {
                 width: 32, height: 32, borderRadius: 'var(--radius-full)', background: 'var(--brand-color)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 13, fontWeight: 600, color: '#fff', flexShrink: 0, position: 'relative',
+                overflow: 'hidden',
               }}>
-                {displayName[0]?.toUpperCase() || '?'}
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  displayName[0]?.toUpperCase() || '?'
+                )}
                 {status && <div className={`member-status-dot ${status}`} />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

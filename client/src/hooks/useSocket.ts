@@ -4,7 +4,9 @@ import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import { useAppDispatch, useAppSelector } from './useAppDispatch';
 import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage, setMessagePinned } from '../store/messageSlice';
 import { updateMemberStatus } from '../store/serverSlice';
-import { addDmMessage, incrementConversationUnread, fetchConversations } from '../store/dmSlice';
+import { addDmMessage, incrementConversationUnread, clearConversationUnread, fetchConversations } from '../store/dmSlice';
+import { dmApi } from '../services/api';
+import { notify, requestNotificationPermission } from '../services/notifications';
 import { setAnnouncement } from '../store/uiSlice';
 import { addIncomingRequest, removeRequest, addFriend } from '../store/friendSlice';
 
@@ -21,6 +23,7 @@ export function useSocket() {
 
     const socket = connectSocket(token);
     socketRef.current = socket;
+    requestNotificationPermission();
 
     socket.on('message:new', (message) => {
       dispatch(addMessage(message));
@@ -65,6 +68,12 @@ export function useSocket() {
       const isViewingConversation = currentPath.includes(`/@me/${conversationId}`);
       if (!isViewingConversation) {
         dispatch(incrementConversationUnread(conversationId));
+        notify(`New message`, message.content || 'Sent an attachment');
+      } else {
+        // If viewing the conversation, immediately clear the server-side unread
+        // so when fetchConversations re-fetches, the count stays 0
+        dispatch(clearConversationUnread(conversationId));
+        dmApi.markRead(conversationId).catch(() => {});
       }
       // Re-fetch conversations to update sidebar order & last_message
       dispatch(fetchConversations());
@@ -73,6 +82,7 @@ export function useSocket() {
     // Friend request events
     socket.on('friend:request-received', (data: { id: string; user_id: string; username: string; avatar_url: string | null; created_at: string }) => {
       dispatch(addIncomingRequest(data));
+      notify('Friend Request', `${data.username} sent you a friend request`);
     });
 
     socket.on('friend:request-accepted', (data: { requestId: string; friend_id: string; friend_username: string; friend_avatar: string | null; friend_status: string }) => {

@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, KeyboardEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchDmMessages, clearDmMessages } from '../../store/dmSlice';
 import { dmApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
 import { IconPlus, IconSend, IconX } from '../common/Icons';
 import UserProfileModal from '../common/UserProfileModal';
+import ImageModal from '../common/ImageModal';
 
 export default function DmChatArea() {
   const { conversationId } = useParams();
+  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { messages, conversations } = useAppSelector((state) => state.dm);
   const { user } = useAppSelector((state) => state.auth);
@@ -18,6 +20,7 @@ export default function DmChatArea() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageModalSrc, setImageModalSrc] = useState<string | null>(null);
 
   const conversation = conversations.find(c => c.id === conversationId);
   const displayName = conversation?.is_group
@@ -127,7 +130,7 @@ export default function DmChatArea() {
           const isVideo = att.type?.startsWith('video/');
           const isAudio = att.type?.startsWith('audio/');
           if (isImage) {
-            return <a key={i} href={att.url} target="_blank" rel="noreferrer"><img src={att.url} alt={att.name} style={{ maxWidth: 300, maxHeight: 200, borderRadius: 8 }} /></a>;
+            return <div key={i} onClick={() => setImageModalSrc(att.url || '')} style={{ cursor: 'pointer' }}><img src={att.url} alt={att.name} style={{ maxWidth: 300, maxHeight: 200, borderRadius: 8 }} /></div>;
           }
           if (isVideo) {
             return <video key={i} src={att.url} controls style={{ maxWidth: 300, borderRadius: 8 }} />;
@@ -151,6 +154,12 @@ export default function DmChatArea() {
         <div className="chat-header-left">
           <span style={{ fontSize: 20, color: 'var(--channel-icon)' }}>@</span>
           <span className="channel-name">{displayName}</span>
+        </div>
+        <div className="chat-header-right">
+          <button onClick={() => navigate('/channels/@me')} title="Close DM"
+            style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}>
+            <IconX size={20} />
+          </button>
         </div>
       </div>
 
@@ -264,6 +273,10 @@ export default function DmChatArea() {
           avatarUrl={profileUser.avatar}
           onClose={() => setProfileUser(null)}
         />
+      )}
+
+      {imageModalSrc && (
+        <ImageModal src={imageModalSrc} onClose={() => setImageModalSrc(null)} />
       )}
     </div>
   );

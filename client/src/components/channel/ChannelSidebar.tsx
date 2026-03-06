@@ -11,6 +11,7 @@ import {
   IconHash, IconVolume, IconChevronDown, IconSettings, IconMic, IconMicOff,
   IconHeadphones, IconHeadphonesOff, IconPhoneOff,
 } from '../common/Icons';
+import ServerSettingsModal from '../server/ServerSettingsModal';
 
 const STATUS_OPTIONS = [
   { value: 'online', label: 'Online', color: 'var(--green)', desc: 'Ready to chat' },
@@ -28,6 +29,7 @@ export default function ChannelSidebar() {
   const { user } = useAppSelector((state) => state.auth);
   const { currentVoiceChannel, voiceUsers, isMuted, isDeafened, joinVoiceChannel, leaveVoiceChannel, toggleMute, toggleDeafen } = useVoice();
   const [showStatus, setShowStatus] = useState(false);
+  const [showServerSettings, setShowServerSettings] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem('collapsedCategories');
@@ -87,7 +89,7 @@ export default function ChannelSidebar() {
 
   return (
     <div className="channel-sidebar">
-      <div className="server-header">
+      <div className="server-header" onClick={() => setShowServerSettings(true)} style={{ cursor: 'pointer' }}>
         <span>{currentServer?.name || 'Loading...'}</span>
         <IconChevronDown size={16} />
       </div>
@@ -217,6 +219,10 @@ export default function ChannelSidebar() {
           </div>
         )}
       </div>
+
+      {showServerSettings && serverId && (
+        <ServerSettingsModal serverId={serverId} onClose={() => setShowServerSettings(false)} />
+      )}
     </div>
   );
 }
