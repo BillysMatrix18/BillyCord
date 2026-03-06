@@ -89,7 +89,7 @@ function showManualIpEntry(discoveryPromise) {
     const ipWindow = new BrowserWindow({
       width: 500, height: 420, frame: false,
       resizable: false, alwaysOnTop: true, backgroundColor: '#1a1a2e',
-      webPreferences: { nodeIntegration: false, contextIsolation: false },
+      webPreferences: { nodeIntegration: true, contextIsolation: false },
     });
 
     const html = `<!DOCTYPE html><html><head><style>
@@ -135,7 +135,15 @@ function showManualIpEntry(discoveryPromise) {
         </div>
       </div>
       <script>
-        const {ipcRenderer} = require('electron');
+        console.log('[IPEntry] Script loaded');
+        let ipcRenderer;
+        try {
+          ipcRenderer = require('electron').ipcRenderer;
+          console.log('[IPEntry] ipcRenderer loaded successfully');
+        } catch (err) {
+          console.error('[IPEntry] Failed to load ipcRenderer:', err);
+        }
+
         const input = document.getElementById('ip');
         const errorEl = document.getElementById('error');
         const statusEl = document.getElementById('status');
@@ -147,10 +155,17 @@ function showManualIpEntry(discoveryPromise) {
         input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connectBtn.click(); });
 
         cancelBtn.addEventListener('click', () => {
-          ipcRenderer.send('manual-ip-cancel');
+          console.log('[IPEntry] Quit button clicked');
+          if (ipcRenderer) {
+            ipcRenderer.send('manual-ip-cancel');
+          } else {
+            console.error('[IPEntry] ipcRenderer not available for cancel');
+            window.close();
+          }
         });
 
         connectBtn.addEventListener('click', () => {
+          console.log('[IPEntry] Connect button clicked');
           let addr = input.value.trim();
           if (!addr) { errorEl.textContent = 'Please enter a server address.'; return; }
 
@@ -162,26 +177,36 @@ function showManualIpEntry(discoveryPromise) {
           errorEl.textContent = '';
           statusEl.textContent = 'Connecting...';
           connectBtn.disabled = true;
+          console.log('[IPEntry] Sending connect for address:', addr);
 
-          ipcRenderer.send('manual-ip-connect', addr);
-        });
-
-        ipcRenderer.on('manual-ip-error', (_e, msg) => {
-          statusEl.textContent = '';
-          errorEl.textContent = msg;
-          connectBtn.disabled = false;
-        });
-
-        // If auto-discovery finds a server, auto-fill the input
-        ipcRenderer.on('manual-ip-discovered', (_e, addr) => {
-          if (!input.value.trim()) {
-            input.value = addr;
-            discoveredEl.textContent = 'Server found on your network! Click Connect.';
-            discoveredEl.style.display = 'block';
-            input.style.borderColor = '#22c55e';
-            setTimeout(() => { input.style.borderColor = ''; }, 2000);
+          if (ipcRenderer) {
+            ipcRenderer.send('manual-ip-connect', addr);
+          } else {
+            console.error('[IPEntry] ipcRenderer not available for connect');
+            errorEl.textContent = 'Internal error: IPC not available. Please restart the app.';
+            connectBtn.disabled = false;
           }
         });
+
+        if (ipcRenderer) {
+          ipcRenderer.on('manual-ip-error', (_e, msg) => {
+            console.log('[IPEntry] Received error:', msg);
+            statusEl.textContent = '';
+            errorEl.textContent = msg;
+            connectBtn.disabled = false;
+          });
+
+          ipcRenderer.on('manual-ip-discovered', (_e, addr) => {
+            console.log('[IPEntry] Server discovered:', addr);
+            if (!input.value.trim()) {
+              input.value = addr;
+              discoveredEl.textContent = 'Server found on your network! Click Connect.';
+              discoveredEl.style.display = 'block';
+              input.style.borderColor = '#22c55e';
+              setTimeout(() => { input.style.borderColor = ''; }, 2000);
+            }
+          });
+        }
       </script>
     </body></html>`;
 
