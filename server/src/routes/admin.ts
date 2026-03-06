@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { query } from '../config/database';
+import { query, getDbPath } from '../config/database';
 import { runLogExport } from '../services/logExporter';
 import { logAdminAction } from '../services/logger';
 import { reloadSettings } from '../services/settingsCache';
@@ -278,10 +278,12 @@ router.get('/settings', async (_req: Request, res: Response) => {
       settings: result.rows,
       runtime: {
         port: parseInt(process.env.PORT || '3001'),
+        environment: process.env.NODE_ENV || 'development',
         nodeEnv: process.env.NODE_ENV || 'development',
         databaseConnected: true,
         redisEnabled: !!process.env.REDIS_URL,
       },
+      dbPath: getDbPath(),
     });
   } catch (err) {
     console.error('Admin settings error:', err);

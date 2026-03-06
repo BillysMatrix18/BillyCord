@@ -124,12 +124,38 @@
 
     .info-banner {
       background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
-      padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      padding: 20px 24px; margin-bottom: 24px;
     }
-    .info-banner .ip-item { display: flex; flex-direction: column; gap: 2px; }
-    .info-banner .ip-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }
-    .info-banner .ip-value { font-size: 14px; font-weight: 600; color: var(--accent); font-family: monospace; }
-    .info-banner .sep { width: 1px; height: 32px; background: var(--border); }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .info-grid .ip-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: var(--bg-primary); border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .ip-item-left { display: flex; flex-direction: column; gap: 2px; }
+    .info-banner .ip-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .info-banner .ip-value { font-size: 14px; font-weight: 600; color: var(--accent); font-family: 'Cascadia Code', 'Consolas', monospace; }
+    .copy-btn {
+      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg-tertiary); color: var(--text-muted); font-size: 11px; cursor: pointer;
+      transition: all 0.15s; font-weight: 600;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .copy-btn.copied { border-color: var(--green); color: var(--green); }
+    .info-share-box {
+      background: linear-gradient(135deg, #3b82f610, #3b82f605); border: 1px solid #3b82f630;
+      border-radius: 8px; padding: 14px 18px; display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 12px;
+    }
+    .info-share-box .share-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; }
+    .info-share-box .share-value { font-size: 18px; font-weight: 700; color: var(--accent); font-family: 'Cascadia Code', 'Consolas', monospace; }
+    .info-tips { display: flex; gap: 16px; }
+    .info-tip {
+      flex: 1; padding: 10px 14px; background: var(--bg-primary); border-radius: 8px;
+      border: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); line-height: 1.5;
+    }
+    .info-tip strong { color: var(--text-primary); display: block; margin-bottom: 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .info-banner .sep { display: none; }
 
     .table-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
@@ -300,13 +326,34 @@
 
       <div class="section-title">Network Info</div>
       <div class="info-banner">
-        <div class="ip-item"><span class="ip-label">LAN Address</span><span class="ip-value" id="ip-lan">--</span></div>
-        <div class="sep"></div>
-        <div class="ip-item"><span class="ip-label">Public IP</span><span class="ip-value" id="ip-public">--</span></div>
-        <div class="sep"></div>
-        <div class="ip-item"><span class="ip-label">Port</span><span class="ip-value" id="ip-port">3001</span></div>
-        <div class="sep"></div>
-        <div class="ip-item"><span class="ip-label">Friends Connect To</span><span class="ip-value" id="ip-share">--</span></div>
+        <div class="info-share-box">
+          <div>
+            <div class="share-label">&#127760; Friends Connect To (Far Away)</div>
+            <div class="share-value" id="ip-share">--</div>
+          </div>
+          <button class="copy-btn" onclick="copyText('ip-share')">Copy</button>
+        </div>
+        <div class="info-grid">
+          <div class="ip-item">
+            <div class="ip-item-left"><span class="ip-label">LAN Address</span><span class="ip-value" id="ip-lan">--</span></div>
+            <button class="copy-btn" onclick="copyText('ip-lan')">Copy</button>
+          </div>
+          <div class="ip-item">
+            <div class="ip-item-left"><span class="ip-label">Public IP</span><span class="ip-value" id="ip-public">--</span></div>
+            <button class="copy-btn" onclick="copyText('ip-public')">Copy</button>
+          </div>
+          <div class="ip-item">
+            <div class="ip-item-left"><span class="ip-label">Port</span><span class="ip-value" id="ip-port">3001</span></div>
+          </div>
+          <div class="ip-item">
+            <div class="ip-item-left"><span class="ip-label">LAN Connect (Same WiFi)</span><span class="ip-value" id="ip-lan-full">--</span></div>
+            <button class="copy-btn" onclick="copyText('ip-lan-full')">Copy</button>
+          </div>
+        </div>
+        <div class="info-tips">
+          <div class="info-tip"><strong>&#128279; Friends on your WiFi</strong>Share the <b>LAN Address</b> — works when on the same local network.</div>
+          <div class="info-tip"><strong>&#127760; Friends far away</strong>Share the <b>Public IP</b> address — requires port forwarding on your router (port <span id="ip-port-tip">3001</span>).</div>
+        </div>
       </div>
 
       <div class="section-title">Overview</div>
@@ -374,6 +421,9 @@
         <div class="settings-tab" onclick="switchSettingsTab('security')">Security</div>
         <div class="settings-tab" onclick="switchSettingsTab('moderation')">Moderation</div>
         <div class="settings-tab" onclick="switchSettingsTab('system')">System</div>
+        <div class="settings-tab" onclick="switchSettingsTab('database')">Database</div>
+        <div class="settings-tab" onclick="switchSettingsTab('notifications')">Notifications</div>
+        <div class="settings-tab" onclick="switchSettingsTab('advanced')">Advanced</div>
       </div>
 
       <!-- User Limits -->
@@ -535,8 +585,99 @@
           <label class="toggle-switch"><input type="checkbox" data-key="maintenance_mode"><span class="toggle-slider"></span></label>
         </div>
         <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Maintenance Message</div><div class="setting-desc">Custom message shown to users during maintenance</div></div>
+          <input type="text" data-key="maintenance_message" value="Server is under maintenance. Please try again later." style="width:300px">
+        </div>
+        <div class="setting-row">
           <div class="setting-info"><div class="setting-label">Registration Enabled</div><div class="setting-desc">Allow new user registrations</div></div>
           <label class="toggle-switch"><input type="checkbox" data-key="registration_enabled" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Enable Debug Mode</div><div class="setting-desc">Enable verbose debug logging for troubleshooting</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="debug_mode"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Enable Message Editing</div><div class="setting-desc">Allow users to edit their sent messages</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_message_editing" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Enable Message Reactions</div><div class="setting-desc">Allow users to react with emoji on messages</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_message_reactions" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Enable Server Invites</div><div class="setting-desc">Allow users to create and share server invite links</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_server_invites" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Enable Group DMs</div><div class="setting-desc">Allow users to create group direct message conversations</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-key="allow_group_dms" checked><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Database & Storage -->
+      <div class="settings-section" id="settings-database">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Database Location</div><div class="setting-desc">Path to the SQLite database file (read-only)</div></div>
+          <span style="font-family:monospace;font-size:12px;color:var(--text-secondary);max-width:350px;word-break:break-all" id="db-path">Loading...</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Backup Database</div><div class="setting-desc">Create a backup copy of the database right now</div></div>
+          <button class="btn-sm" onclick="backupDatabase()" id="backup-btn">Backup Now</button>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Auto-Backup Frequency</div><div class="setting-desc">How often to automatically create database backups</div></div>
+          <select data-key="auto_backup_frequency"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="off">Off</option></select>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Backup Retention</div><div class="setting-desc">Number of backup copies to keep before rotating</div></div>
+          <input type="number" data-key="backup_retention_count" min="1" max="100" value="10">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Export All Data</div><div class="setting-desc">Trigger a manual log export (CSV + JSON) to the database folder</div></div>
+          <button class="btn-sm" onclick="exportLogs()" id="export-btn">Export Now</button>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="settings-section" id="settings-notifications">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Send System Announcement</div><div class="setting-desc">Send a message to ALL users via BillyBot DM</div></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="announce-input-settings" placeholder="Type announcement message..." style="width:250px">
+            <button class="btn-sm" onclick="sendAnnouncementFromSettings()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Send</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Password Expiry (Days)</div><div class="setting-desc">Force password reset after N days (0 = never)</div></div>
+          <input type="number" data-key="password_expiry_days" min="0" value="0">
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Max Message History (Days)</div><div class="setting-desc">Maximum days of message history to display (0 = unlimited)</div></div>
+          <input type="number" data-key="max_message_history_days" min="0" value="0">
+        </div>
+      </div>
+
+      <!-- Advanced -->
+      <div class="settings-section" id="settings-advanced">
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Server Port</div><div class="setting-desc">Current server port (read-only, change via PORT env variable)</div></div>
+          <span style="font-family:monospace;font-size:16px;font-weight:600;color:var(--accent)" id="server-port-display">3001</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Environment</div><div class="setting-desc">Current server environment mode</div></div>
+          <span style="font-size:14px;font-weight:600;color:var(--accent)" id="server-env-display">development</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Server Uptime</div><div class="setting-desc">How long the server has been running</div></div>
+          <span style="font-size:14px;font-weight:600;color:var(--green)" id="server-uptime-display">--</span>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><div class="setting-label">Server Version</div><div class="setting-desc">Current BillyCord server version</div></div>
+          <span style="font-size:14px;font-weight:600;color:var(--text-secondary)">1.0.0</span>
+        </div>
+        <div class="setting-row" style="border-color:var(--red)30;background:#dc262608">
+          <div class="setting-info"><div class="setting-label" style="color:var(--red)">Reset All Settings</div><div class="setting-desc">Reset all server settings to their default values</div></div>
+          <button class="btn-sm" onclick="confirmResetDefaults()" style="border-color:var(--red);color:var(--red)">Reset to Defaults</button>
         </div>
       </div>
     </div>
@@ -664,9 +805,26 @@
   async function loadNetworkInfo() {
     const ips = await ipcRenderer.invoke('admin:getIps');
     document.getElementById('ip-lan').textContent = ips.lan;
-    document.getElementById('ip-public').textContent = ips.public;
+    document.getElementById('ip-public').textContent = ips.public || 'Fetching...';
     document.getElementById('ip-port').textContent = ips.port;
-    document.getElementById('ip-share').textContent = `${ips.lan}:${ips.port}`;
+    document.getElementById('ip-share').textContent = `${ips.public || ips.lan}:${ips.port}`;
+    document.getElementById('ip-lan-full').textContent = `${ips.lan}:${ips.port}`;
+    document.getElementById('ip-port-tip').textContent = ips.port;
+  }
+
+  // ── Copy to clipboard ──
+  function copyText(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    const text = el.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = el.closest('.ip-item, .info-share-box')?.querySelector('.copy-btn');
+      if (btn) {
+        btn.textContent = 'Copied!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      }
+    });
   }
 
   // ── Stats ──
@@ -746,7 +904,26 @@
           el.value = s.setting_value;
         }
       });
+      // Populate runtime info on Advanced tab
+      if (data.runtime) {
+        const envEl = document.getElementById('server-env-display');
+        if (envEl) envEl.textContent = data.runtime.environment || 'development';
+        const portEl = document.getElementById('server-port-display');
+        if (portEl) portEl.textContent = data.runtime.port || serverPort;
+      }
+      if (data.dbPath) {
+        const dbEl = document.getElementById('db-path');
+        if (dbEl) dbEl.textContent = data.dbPath;
+      }
     }).catch(e => { console.error('Failed to load settings:', e); });
+    // Update uptime from stats
+    apiFetch('/api/admin/stats').then(d => {
+      if (d.uptime) {
+        const s = Math.floor(d.uptime), h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+        const el = document.getElementById('server-uptime-display');
+        if (el) el.textContent = `${h}h ${m}m ${s%60}s`;
+      }
+    }).catch(()=>{});
   }
 
   function switchSettingsTab(name) {
@@ -777,12 +954,12 @@
     statusEl.style.display = 'none';
 
     apiPost('/api/admin/settings', { settings }).then(r => {
-      statusEl.textContent = 'Settings saved successfully!';
+      statusEl.textContent = '\u2705 Settings saved successfully!';
       statusEl.className = 'save-status success';
-      setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 3000);
+      setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 4000);
       addLogLine('info', `Settings saved (${r.updated} values updated)`);
     }).catch(e => {
-      statusEl.textContent = 'Failed to save settings: ' + e.message;
+      statusEl.textContent = '\u274C Failed to save: ' + e.message;
       statusEl.className = 'save-status error';
       addLogLine('error', 'Failed to save settings: ' + e.message);
     });
@@ -803,6 +980,11 @@
       require_email_verification: 'false', maintenance_mode: 'false', registration_enabled: 'true',
       spam_detection: 'medium', auto_kick_spammers: 'false', auto_mute_profanity: 'false',
       keyword_filter: '',
+      maintenance_message: 'Server is under maintenance. Please try again later.',
+      debug_mode: 'false', allow_message_editing: 'true', allow_message_reactions: 'true',
+      allow_server_invites: 'true', allow_group_dms: 'true',
+      auto_backup_frequency: 'daily', backup_retention_count: '10',
+      password_expiry_days: '0', max_message_history_days: '0',
     };
     Object.entries(defaults).forEach(([key, val]) => {
       const el = document.querySelector(`[data-key="${key}"]`);
@@ -817,6 +999,52 @@
       setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 3000);
       addLogLine('info', 'All settings reset to defaults');
     }).catch(e => addLogLine('error', 'Failed to reset: ' + e.message));
+  }
+
+  function confirmResetDefaults() {
+    if (confirm('Are you sure you want to reset ALL settings to their default values? This cannot be undone.')) {
+      resetDefaults();
+    }
+  }
+
+  // ── Database actions ──
+  function backupDatabase() {
+    const btn = document.getElementById('backup-btn');
+    btn.textContent = 'Backing up...'; btn.disabled = true;
+    apiPost('/api/admin/export-logs', {}).then(() => {
+      btn.textContent = 'Done!'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)';
+      addLogLine('info', 'Database backup/export completed');
+      setTimeout(() => { btn.textContent = 'Backup Now'; btn.disabled = false; btn.style.borderColor = ''; btn.style.color = ''; }, 3000);
+    }).catch(e => {
+      btn.textContent = 'Failed'; btn.style.color = 'var(--red)';
+      addLogLine('error', 'Backup failed: ' + e.message);
+      setTimeout(() => { btn.textContent = 'Backup Now'; btn.disabled = false; btn.style.color = ''; }, 3000);
+    });
+  }
+
+  function exportLogs() {
+    const btn = document.getElementById('export-btn');
+    btn.textContent = 'Exporting...'; btn.disabled = true;
+    apiPost('/api/admin/export-logs', {}).then(() => {
+      btn.textContent = 'Exported!'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)';
+      addLogLine('info', 'Logs exported successfully');
+      setTimeout(() => { btn.textContent = 'Export Now'; btn.disabled = false; btn.style.borderColor = ''; btn.style.color = ''; }, 3000);
+    }).catch(e => {
+      btn.textContent = 'Failed'; btn.style.color = 'var(--red)';
+      addLogLine('error', 'Export failed: ' + e.message);
+      setTimeout(() => { btn.textContent = 'Export Now'; btn.disabled = false; btn.style.color = ''; }, 3000);
+    });
+  }
+
+  // ── Announce (from settings tab) ──
+  function sendAnnouncementFromSettings() {
+    const input = document.getElementById('announce-input-settings');
+    const msg = input.value.trim(); if (!msg) return;
+    apiPost('/api/admin/announce',{message:msg}).then(()=>{
+      addLogLine('info',`Announcement sent: "${msg}"`); input.value='';
+      input.style.borderColor='var(--green)';
+      setTimeout(()=>{ input.style.borderColor=''; },2000);
+    }).catch(e=>addLogLine('error',`Failed: ${e.message}`));
   }
 
   // ── Announce ──

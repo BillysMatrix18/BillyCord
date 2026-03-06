@@ -33,21 +33,31 @@ function validateAddress(input: string): string | null {
 }
 
 async function testConnection(address: string): Promise<{ ok: boolean; error?: string }> {
+  const url = `http://${address}/api/health`;
+  console.log('[ConnectionScreen] Testing connection to:', url);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch(`http://${address}/api/health`, {
+    const response = await fetch(url, {
       signal: controller.signal,
+      mode: 'cors',
     });
     clearTimeout(timeoutId);
+    console.log('[ConnectionScreen] Response status:', response.status);
     if (response.ok) {
+      const data = await response.json().catch(() => null);
+      console.log('[ConnectionScreen] Connection successful:', data);
       return { ok: true };
     }
-    return { ok: false, error: 'Server responded but returned an error.' };
+    return { ok: false, error: `Server responded with status ${response.status}. Check if the address is correct.` };
   } catch (err: unknown) {
     clearTimeout(timeoutId);
+    console.error('[ConnectionScreen] Connection failed:', err);
     if (err instanceof DOMException && err.name === 'AbortError') {
-      return { ok: false, error: 'Server not responding. Connection timed out after 10 seconds.' };
+      return { ok: false, error: 'Connection timed out after 10 seconds. Server not responding.' };
+    }
+    if (err instanceof TypeError && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError'))) {
+      return { ok: false, error: 'Network error. Make sure the server is running and the IP address is correct.' };
     }
     return { ok: false, error: 'Could not connect to server. Check your address and try again.' };
   }
@@ -64,22 +74,29 @@ export default function ConnectionScreen({ onConnected }: ConnectionScreenProps)
   const [error, setError] = useState('');
 
   const handleConnect = async () => {
+    console.log('[ConnectionScreen] Connect button clicked');
     const trimmed = address.trim();
+    console.log('[ConnectionScreen] Address:', trimmed);
+
     const validationError = validateAddress(trimmed);
     if (validationError) {
+      console.log('[ConnectionScreen] Validation failed:', validationError);
       setError(validationError);
       return;
     }
 
     setError('');
     setIsConnecting(true);
+    console.log('[ConnectionScreen] Testing connection to:', trimmed);
 
     const result = await testConnection(trimmed);
 
     if (result.ok) {
+      console.log('[ConnectionScreen] Connection successful, saving address');
       saveServerAddress(trimmed);
       onConnected(trimmed);
     } else {
+      console.log('[ConnectionScreen] Connection failed:', result.error);
       setError(result.error || 'Could not connect to server.');
       setIsConnecting(false);
     }
