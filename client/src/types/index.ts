@@ -7,7 +7,7 @@ export interface User {
   bio: string | null;
   status: 'online' | 'idle' | 'dnd' | 'offline';
   custom_status: string | null;
-  theme: 'dark' | 'light' | 'super' | 'glass';
+  theme: 'dark' | 'light' | 'super' | 'glass' | 'midnight' | 'sunset' | 'forest' | 'sakura';
   pronouns: string | null;
   location: string | null;
   birthday: string | null;

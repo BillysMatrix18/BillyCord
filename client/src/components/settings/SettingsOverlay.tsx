@@ -1,15 +1,16 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { toggleSettings, setThemeWithSync } from '../../store/uiSlice';
 import { updateProfile, logout } from '../../store/authSlice';
 import { authApi } from '../../services/api';
+import { getSocket } from '../../services/socket';
 import { clearServerAddress } from '../common/ConnectionScreen';
 import {
   IconUser, IconPalette, IconBell, IconShield, IconKeyboard, IconLogout,
   IconX, IconCamera, IconTrashAccount, IconLock, IconSun, IconMoon,
 } from '../common/Icons';
 
-type SettingsTab = 'account' | 'profile' | 'appearance' | 'animations' | 'notifications' | 'privacy' | 'voice' | 'accessibility' | 'keybinds' | 'about';
+type SettingsTab = 'account' | 'profile' | 'appearance' | 'animations' | 'notifications' | 'privacy' | 'voice' | 'accessibility' | 'keybinds' | 'devmode' | 'about';
 
 export default function SettingsOverlay() {
   const dispatch = useAppDispatch();
@@ -56,6 +57,61 @@ export default function SettingsOverlay() {
   const [reduceMotion, setReduceMotion] = useState(() => localStorage.getItem('reduceMotion') === 'true');
   const [textScale, setTextScale] = useState(() => localStorage.getItem('textScale') || '100');
   const [focusIndicators, setFocusIndicators] = useState(() => localStorage.getItem('focusIndicators') !== 'false');
+
+  // Dev Mode state
+  const [devModeEnabled, setDevModeEnabled] = useState(() => localStorage.getItem('devMode') === 'true');
+  const [ping, setPing] = useState<number | null>(null);
+  const [pingHistory, setPingHistory] = useState<number[]>([]);
+  const [connectionQuality, setConnectionQuality] = useState<'Excellent' | 'Good' | 'Fair' | 'Weak' | 'Disconnected'>('Good');
+  const [socketTransport, setSocketTransport] = useState<string>('unknown');
+  const [socketConnected, setSocketConnected] = useState(false);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const measurePing = useCallback(() => {
+    const socket = getSocket();
+    if (!socket?.connected) {
+      setSocketConnected(false);
+      setConnectionQuality('Disconnected');
+      setPing(null);
+      return;
+    }
+    setSocketConnected(true);
+    setSocketTransport(socket.io?.engine?.transport?.name || 'unknown');
+    const start = Date.now();
+    socket.volatile.emit('ping:measure', {}, () => {
+      const latency = Date.now() - start;
+      setPing(latency);
+      setPingHistory(prev => [...prev.slice(-29), latency]);
+      if (latency < 80) setConnectionQuality('Excellent');
+      else if (latency < 150) setConnectionQuality('Good');
+      else if (latency < 300) setConnectionQuality('Fair');
+      else setConnectionQuality('Weak');
+    });
+    // Fallback: if no ack in 3s, use socket.io built-in
+    setTimeout(() => {
+      setPing(prev => prev ?? -1);
+    }, 3000);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'devmode' || devModeEnabled) {
+      measurePing();
+      pingIntervalRef.current = setInterval(measurePing, 3000);
+      return () => { if (pingIntervalRef.current) clearInterval(pingIntervalRef.current); };
+    }
+  }, [activeTab, devModeEnabled, measurePing]);
+
+  const handleDevModeToggle = (val: boolean) => {
+    setDevModeEnabled(val);
+    localStorage.setItem('devMode', String(val));
+  };
+
+  const avgPing = pingHistory.length > 0 ? Math.round(pingHistory.reduce((a, b) => a + b, 0) / pingHistory.length) : null;
+  const maxPing = pingHistory.length > 0 ? Math.max(...pingHistory) : null;
+  const minPing = pingHistory.length > 0 ? Math.min(...pingHistory) : null;
+  const jitter = pingHistory.length > 1 ? Math.round(Math.sqrt(pingHistory.reduce((sum, p) => sum + Math.pow(p - (avgPing || 0), 2), 0) / pingHistory.length)) : null;
+
+  const qualityColor = connectionQuality === 'Excellent' ? '#48bb78' : connectionQuality === 'Good' ? '#68d391' : connectionQuality === 'Fair' ? '#ecc94b' : connectionQuality === 'Weak' ? '#fc5c65' : '#6d6f78';
 
   const handleSaveProfile = () => {
     const updates: Record<string, string> = {};
@@ -202,6 +258,7 @@ export default function SettingsOverlay() {
     { id: 'voice', label: 'Voice & Video', icon: <IconBell size={16} /> },
     { id: 'accessibility', label: 'Accessibility', icon: <IconShield size={16} /> },
     { id: 'keybinds', label: 'Keybinds', icon: <IconKeyboard size={16} /> },
+    { id: 'devmode', label: 'Dev Mode', icon: <IconKeyboard size={16} /> },
     { id: 'about', label: 'About', icon: <IconUser size={16} /> },
   ];
 
@@ -387,6 +444,34 @@ export default function SettingsOverlay() {
                 <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #0A1A2E, #16213E, rgba(10,132,255,0.3), #0F0F1E)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 'var(--radius-md)' }} />
                 <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'glass' ? '#0A84FF' : 'var(--text-secondary)' }}>
                   Liquid Glass
+                </div>
+              </div>
+              <div className={`theme-option ${theme === 'midnight' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('midnight'))}
+                style={theme === 'midnight' ? { borderColor: '#4299e1' } : {}}>
+                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #060812, #0d1530, #4299e1, #9f7aea)' }} />
+                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'midnight' ? '#4299e1' : 'var(--text-secondary)' }}>
+                  Midnight Aurora
+                </div>
+              </div>
+              <div className={`theme-option ${theme === 'sunset' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('sunset'))}
+                style={theme === 'sunset' ? { borderColor: '#f97316' } : {}}>
+                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #180e13, #3a1525, #f97316, #ec4899)' }} />
+                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'sunset' ? '#f97316' : 'var(--text-secondary)' }}>
+                  Sunset Blaze
+                </div>
+              </div>
+              <div className={`theme-option ${theme === 'forest' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('forest'))}
+                style={theme === 'forest' ? { borderColor: '#38a169' } : {}}>
+                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #0a130e, #163020, #38a169, #2b6cb0)' }} />
+                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'forest' ? '#38a169' : 'var(--text-secondary)' }}>
+                  Enchanted Forest
+                </div>
+              </div>
+              <div className={`theme-option ${theme === 'sakura' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('sakura'))}
+                style={theme === 'sakura' ? { borderColor: '#ec4899' } : {}}>
+                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #140e1a, #2a1035, #ec4899, #a78bfa)' }} />
+                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'sakura' ? '#ec4899' : 'var(--text-secondary)' }}>
+                  Sakura Blossom
                 </div>
               </div>
             </div>
@@ -660,13 +745,118 @@ export default function SettingsOverlay() {
           </div>
         )}
 
+        {activeTab === 'devmode' && (
+          <div className="animate-fade-in">
+            <h2>Dev Mode</h2>
+            <div className="settings-card">
+              <div className="settings-toggle-row">
+                <div>
+                  <div className="toggle-label">Enable Dev Mode</div>
+                  <div className="toggle-desc">Show network stats overlay and connection diagnostics</div>
+                </div>
+                <label className="switch-toggle">
+                  <input type="checkbox" checked={devModeEnabled} onChange={e => handleDevModeToggle(e.target.checked)} />
+                  <span className="switch-slider" />
+                </label>
+              </div>
+            </div>
+
+            <div className="settings-card" style={{ marginTop: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: socketConnected ? '#48bb78' : '#fc5c65', display: 'inline-block', boxShadow: socketConnected ? '0 0 8px #48bb78' : '0 0 8px #fc5c65' }} />
+                Connection Status
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: 16, textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: qualityColor, fontFamily: 'monospace' }}>
+                    {ping !== null ? `${ping}ms` : '---'}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Current Ping</div>
+                </div>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: 16, textAlign: 'center' }}>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: qualityColor }}>
+                    {connectionQuality}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Connection Quality</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginTop: 12 }}>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{avgPing !== null ? `${avgPing}ms` : '---'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Avg</div>
+                </div>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{minPing !== null ? `${minPing}ms` : '---'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Min</div>
+                </div>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{maxPing !== null ? `${maxPing}ms` : '---'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Max</div>
+                </div>
+                <div style={{ background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'monospace' }}>{jitter !== null ? `${jitter}ms` : '---'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Jitter</div>
+                </div>
+              </div>
+
+              {/* Ping graph */}
+              {pingHistory.length > 1 && (
+                <div style={{ marginTop: 16, background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>Ping History</div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 60 }}>
+                    {pingHistory.map((p, i) => {
+                      const maxVal = Math.max(...pingHistory, 100);
+                      const height = Math.max((p / maxVal) * 100, 3);
+                      const barColor = p < 80 ? '#48bb78' : p < 150 ? '#68d391' : p < 300 ? '#ecc94b' : '#fc5c65';
+                      return (
+                        <div key={i} title={`${p}ms`} style={{
+                          flex: 1, height: `${height}%`, background: barColor,
+                          borderRadius: '2px 2px 0 0', transition: 'height 0.3s ease',
+                          minWidth: 3,
+                        }} />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="settings-card" style={{ marginTop: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 12 }}>Network Details</h3>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 2 }}>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Transport:</strong> {socketTransport}</div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Connected:</strong> {socketConnected ? 'Yes' : 'No'}</div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Server:</strong> {localStorage.getItem('serverAddress') || window.location.origin}</div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Protocol:</strong> Socket.IO / WebSocket</div>
+                <div><strong style={{ color: 'var(--text-primary)' }}>Samples:</strong> {pingHistory.length}/30</div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, padding: 12, background: qualityColor + '15', borderRadius: 'var(--radius-md)', border: `1px solid ${qualityColor}30`, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: qualityColor + '25', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                {connectionQuality === 'Excellent' ? '🚀' : connectionQuality === 'Good' ? '✅' : connectionQuality === 'Fair' ? '⚠️' : connectionQuality === 'Weak' ? '🐌' : '❌'}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, color: qualityColor, fontSize: 15 }}>
+                  {connectionQuality === 'Excellent' ? 'Excellent Connection' : connectionQuality === 'Good' ? 'Good Connection' : connectionQuality === 'Fair' ? 'Fair Connection – May experience delays' : connectionQuality === 'Weak' ? 'Weak Connection – High latency detected' : 'Disconnected – No server connection'}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {connectionQuality === 'Excellent' ? 'Messages should deliver instantly.' : connectionQuality === 'Good' ? 'Messages should deliver quickly.' : connectionQuality === 'Fair' ? 'Friends may notice a slight delay seeing your messages.' : connectionQuality === 'Weak' ? 'Friends will experience significant delays. Consider checking your internet.' : 'Check your internet connection and server status.'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'about' && (
           <div className="animate-fade-in">
             <h2>About</h2>
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.3</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.4</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -688,8 +878,19 @@ export default function SettingsOverlay() {
                 <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.3</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.4</strong>
                     <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>Fixed cross-category channel drag-and-drop</li>
+                      <li>Added active server indicator (pill highlight)</li>
+                      <li>Added Dev Mode with ping, network stats, and connection quality</li>
+                      <li>Added upload syncing indicator on media messages</li>
+                      <li>Added 4 new themes: Midnight Aurora, Sunset Blaze, Enchanted Forest, Sakura Blossom</li>
+                      <li>Video and audio file upload support (.mp4, .wav, etc.)</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.3</strong>
                     <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                       <li>Fixed channel creation (spaces auto-convert to hyphens)</li>
                       <li>Fixed message corruption (apostrophes and quotes no longer garbled)</li>

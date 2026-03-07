@@ -164,6 +164,45 @@ export default function ChannelSidebar() {
     }
   }, []);
 
+  // Handle drop on a category header itself (move channel into that category)
+  const handleCategoryDrop = useCallback(async (e: React.DragEvent, categoryId: string) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragOverId(null);
+
+    if (!dragId || !serverId || !dragType) {
+      handleDragEnd();
+      return;
+    }
+
+    const draggedChannel = channels.find(c => c.id === dragId);
+    if (!draggedChannel || draggedChannel.category_id === categoryId) {
+      handleDragEnd();
+      return;
+    }
+
+    // Optimistic update: move channel into new category at position 0
+    const updatedChannels = channels.map(ch =>
+      ch.id === dragId ? { ...ch, category_id: categoryId, position: 0 } : ch
+    );
+    dispatch(setChannels(updatedChannels));
+    handleDragEnd();
+
+    // Persist category change to server
+    try {
+      await channelApi.update(serverId, dragId, { category_id: categoryId });
+      const socket = getSocket();
+      if (socket) socket.emit('channel:reorder', { serverId });
+    } catch (error) {
+      console.error('Failed to move channel to category:', error);
+      dispatch(fetchServer(serverId)).then((result) => {
+        if (fetchServer.fulfilled.match(result)) {
+          dispatch(setChannels(result.payload.channels));
+        }
+      });
+    }
+  }, [dragId, dragType, serverId, channels, dispatch, handleDragEnd]);
+
   const handleDrop = useCallback(async (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     dragCounter.current = 0;
@@ -174,38 +213,55 @@ export default function ChannelSidebar() {
       return;
     }
 
-    // Get the list of channels of the same type
-    const list = dragType === 'voice' ? [...voiceChannels] : [...textChannels];
-    const dragIndex = list.findIndex(c => c.id === dragId);
-    let targetIndex = list.findIndex(c => c.id === targetId);
-
-    if (dragIndex === -1 || targetIndex === -1) {
+    const draggedChannel = channels.find(c => c.id === dragId);
+    const targetChannel = channels.find(c => c.id === targetId);
+    if (!draggedChannel || !targetChannel) {
       handleDragEnd();
       return;
     }
 
-    // Determine drop position based on mouse position
+    // Determine drop position
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
     const dropBelow = e.clientY >= midY;
 
-    // Move the dragged channel to the target position
-    const [moved] = list.splice(dragIndex, 1);
-    // Adjust target index: if dropping below, insert after the target
-    if (dropBelow) {
-      // After splice, if drag was before target, targetIndex shifted down by 1
-      const adjustedTarget = dragIndex < targetIndex ? targetIndex : targetIndex + 1;
-      list.splice(adjustedTarget, 0, moved);
+    // Check if we're moving across categories
+    const targetCategoryId = targetChannel.category_id;
+    const movingCategory = draggedChannel.category_id !== targetCategoryId;
+
+    // Get channels in the TARGET category (or uncategorized/voice group)
+    let list: Channel[];
+    if (dragType === 'voice') {
+      list = [...voiceChannels];
     } else {
-      const adjustedTarget = dragIndex < targetIndex ? targetIndex : targetIndex;
-      list.splice(adjustedTarget, 0, moved);
+      list = targetCategoryId
+        ? channels.filter(c => c.type === 'text' && c.category_id === targetCategoryId)
+        : channels.filter(c => c.type === 'text' && !c.category_id);
     }
 
-    // Build order payload
-    const order = list.map((ch, i) => ({ id: ch.id, position: i }));
+    // Remove dragged channel from the list if it's already there
+    const filteredList = list.filter(c => c.id !== dragId);
 
-    // Optimistic update: update channels in Redux immediately
+    // Find target index in the filtered list
+    const targetIndex = filteredList.findIndex(c => c.id === targetId);
+    if (targetIndex === -1) {
+      handleDragEnd();
+      return;
+    }
+
+    // Insert at the right position
+    const insertIndex = dropBelow ? targetIndex + 1 : targetIndex;
+    const movedChannel = { ...draggedChannel, category_id: targetCategoryId };
+    filteredList.splice(insertIndex, 0, movedChannel);
+
+    // Build order payload for channels in this group
+    const order = filteredList.map((ch, i) => ({ id: ch.id, position: i }));
+
+    // Optimistic update
     const updatedChannels = channels.map(ch => {
+      if (ch.id === dragId) {
+        return { ...ch, category_id: targetCategoryId, position: order.find(o => o.id === ch.id)?.position ?? ch.position };
+      }
       const reordered = order.find(o => o.id === ch.id);
       return reordered ? { ...ch, position: reordered.position } : ch;
     });
@@ -216,13 +272,15 @@ export default function ChannelSidebar() {
 
     // Persist to server
     try {
+      // If category changed, update the channel's category first
+      if (movingCategory) {
+        await channelApi.update(serverId, dragId, { category_id: targetCategoryId || null });
+      }
       await channelApi.reorder(serverId, order);
-      // Notify other clients
       const socket = getSocket();
       if (socket) socket.emit('channel:reorder', { serverId });
     } catch (error) {
       console.error('Failed to reorder channels:', error);
-      // Refetch on error to restore correct order
       dispatch(fetchServer(serverId)).then((result) => {
         if (fetchServer.fulfilled.match(result)) {
           dispatch(setChannels(result.payload.channels));
@@ -277,7 +335,10 @@ export default function ChannelSidebar() {
 
         {categorized.map(cat => (
           <div key={cat.id}>
-            <div className="channel-category" onClick={() => toggleCategory(cat.id)}>
+            <div className="channel-category" onClick={() => toggleCategory(cat.id)}
+              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+              onDrop={(e) => handleCategoryDrop(e, cat.id)}
+            >
               <span style={{
                 display: 'flex', transition: 'transform 0.2s',
                 transform: collapsedCategories.has(cat.id) ? 'rotate(-90deg)' : 'rotate(0deg)',

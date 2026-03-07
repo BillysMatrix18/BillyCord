@@ -119,6 +119,7 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
   }, {} as Record<string, { emoji: string; users: string[]; count: number }>) || {};
 
   const isAuthor = user?.id === message.sender_id;
+  const isOptimistic = message.id.startsWith('optimistic-');
 
   const renderContent = (content: string) => {
     return content
@@ -129,7 +130,8 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
   };
 
   return (
-    <div className={`message ${showHeader ? 'message-group-start' : ''}`} onContextMenu={handleContextMenu}>
+    <div className={`message ${showHeader ? 'message-group-start' : ''}`} onContextMenu={handleContextMenu}
+      style={isOptimistic ? { opacity: 0.7 } : undefined}>
       {showHeader ? (
         <div className="message-avatar clickable" onClick={() => setShowProfile(true)}>
           {message.sender_avatar ? (
@@ -216,6 +218,18 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
                 </a>
               );
             })}
+          </div>
+        )}
+
+        {/* Upload syncing indicator for optimistic messages */}
+        {isOptimistic && message.attachments && message.attachments.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginTop: 6,
+            padding: '6px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)',
+            fontSize: 12, color: 'var(--text-muted)', width: 'fit-content',
+          }}>
+            <div className="loading-spinner" style={{ width: 14, height: 14 }} />
+            <span>Uploading and syncing...</span>
           </div>
         )}
 

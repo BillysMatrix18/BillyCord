@@ -258,6 +258,11 @@ export function initializeSocket(httpServer: HttpServer): Server {
       io.to(`server:${serverId}`).emit('server:member-joined', { userId, username });
     }));
 
+    // Ping measurement for dev mode
+    socket.on('ping:measure', safe((_data: unknown, callback: unknown) => {
+      if (typeof callback === 'function') callback();
+    }));
+
     // Channel reorder
     socket.on('channel:reorder', safe((data: unknown) => {
       const { serverId } = data as { serverId: string };
