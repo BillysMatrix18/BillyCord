@@ -342,7 +342,7 @@ export async function getMembers(req: Request, res: Response): Promise<void> {
     const { serverId } = req.params;
 
     const result = await query(
-      `SELECT u.id, u.username, u.avatar_url, u.status, u.custom_status, sm.nickname, sm.joined_at
+      `SELECT u.id, u.username, u.avatar_url, u.status, u.custom_status, u.badges, sm.nickname, sm.joined_at
        FROM server_members sm
        JOIN users u ON u.id = sm.user_id
        WHERE sm.server_id = $1

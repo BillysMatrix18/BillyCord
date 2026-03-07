@@ -95,7 +95,7 @@ export async function getDirectMessages(req: Request, res: Response): Promise<vo
     const msgLimit = Math.min(parseInt(limit as string, 10) || 50, 100);
 
     let sql = `
-      SELECT dm.*, u.username as sender_name, u.avatar_url as sender_avatar,
+      SELECT dm.*, u.username as sender_name, u.avatar_url as sender_avatar, u.badges as sender_badges,
         (SELECT json_group_array(json_object('emoji', r.emoji, 'user_id', r.user_id, 'username', ru.username))
          FROM dm_reactions r JOIN users ru ON ru.id = r.user_id
          WHERE r.message_id = dm.id) as reactions
@@ -161,7 +161,7 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
     );
 
     const userResult = await query(
-      'SELECT username, avatar_url FROM users WHERE id = $1',
+      'SELECT username, avatar_url, badges FROM users WHERE id = $1',
       [userId]
     );
 
@@ -175,6 +175,7 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
       ...result.rows[0],
       sender_name: userResult.rows[0].username,
       sender_avatar: userResult.rows[0].avatar_url,
+      sender_badges: userResult.rows[0].badges,
     };
 
     res.status(201).json({ message });
@@ -333,8 +334,8 @@ export async function editDirectMessage(req: Request, res: Response): Promise<vo
       [sanitizeHtml(content), messageId]
     );
 
-    const userResult = await query('SELECT username, avatar_url FROM users WHERE id = $1', [userId]);
-    const message = { ...result.rows[0], sender_name: userResult.rows[0].username, sender_avatar: userResult.rows[0].avatar_url };
+    const userResult = await query('SELECT username, avatar_url, badges FROM users WHERE id = $1', [userId]);
+    const message = { ...result.rows[0], sender_name: userResult.rows[0].username, sender_avatar: userResult.rows[0].avatar_url, sender_badges: userResult.rows[0].badges };
     res.json({ message });
   } catch (error) {
     console.error('Edit DM error:', error);

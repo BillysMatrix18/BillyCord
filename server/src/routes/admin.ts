@@ -217,7 +217,8 @@ router.post('/users/:userId/ban', async (req: Request, res: Response) => {
 
 router.post('/users/:userId/unban', async (req: Request, res: Response) => {
   try {
-    await query("UPDATE users SET custom_status = NULL WHERE id = $1", [req.params.userId]);
+    await query("UPDATE users SET status = 'offline', custom_status = NULL WHERE id = $1", [req.params.userId]);
+    logAdminAction('user_unbanned', 'user', req.params.userId, {});
     res.json({ success: true });
   } catch (err) {
     console.error('Admin unban error:', err);
@@ -335,16 +336,35 @@ router.get('/users/:userId/details', async (req: Request, res: Response) => {
       loginHistory = logins.rows;
     } catch (_e) { /* table may not exist */ }
 
-    // Recent messages (last 20)
-    const recentMsgs = await query(
-      `SELECT m.id, m.content, m.created_at, c.name as channel_name, s.name as server_name
-       FROM messages m
-       LEFT JOIN channels c ON m.channel_id = c.id
-       LEFT JOIN servers s ON c.server_id = s.id
-       WHERE m.sender_id = $1
-       ORDER BY m.created_at DESC LIMIT 20`,
-      [userId]
-    );
+    // Recent messages (last 20 from both channels and DMs)
+    let recentMsgs;
+    try {
+      recentMsgs = await query(
+        `SELECT id, content, created_at, channel_name, server_name FROM (
+          SELECT m.id, m.content, m.created_at, c.name as channel_name, s.name as server_name
+          FROM messages m
+          LEFT JOIN channels c ON m.channel_id = c.id
+          LEFT JOIN servers s ON c.server_id = s.id
+          WHERE m.sender_id = $1
+          UNION ALL
+          SELECT dm.id, dm.content, dm.created_at, 'DM' as channel_name, NULL as server_name
+          FROM direct_messages dm
+          WHERE dm.sender_id = $1
+        ) combined ORDER BY created_at DESC LIMIT 20`,
+        [userId]
+      );
+    } catch (_e) {
+      // Fallback if direct_messages doesn't exist
+      recentMsgs = await query(
+        `SELECT m.id, m.content, m.created_at, c.name as channel_name, s.name as server_name
+         FROM messages m
+         LEFT JOIN channels c ON m.channel_id = c.id
+         LEFT JOIN servers s ON c.server_id = s.id
+         WHERE m.sender_id = $1
+         ORDER BY m.created_at DESC LIMIT 20`,
+        [userId]
+      );
+    }
 
     res.json({
       ...user,
@@ -414,30 +434,36 @@ router.post('/users/:userId/suspend', async (req: Request, res: Response) => {
   }
 });
 
-// Give badge
+// Set user badges (accepts array of badge names, replaces all)
 router.post('/users/:userId/badge', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const { badge } = req.body;
-    if (!badge) { res.status(400).json({ error: 'Badge is required' }); return; }
+    const { badges, badge } = req.body;
 
     // Ensure column exists
     try { await query("ALTER TABLE users ADD COLUMN badges TEXT DEFAULT ''"); } catch (_e) { /* exists */ }
 
-    const user = await query("SELECT badges FROM users WHERE id = $1", [userId]);
-    if (user.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
-
-    const existing = user.rows[0].badges || '';
-    const badgeList = existing ? existing.split(',').map((b: string) => b.trim()).filter(Boolean) : [];
-    if (!badgeList.includes(badge)) badgeList.push(badge);
-    const newBadges = badgeList.join(',');
+    // Support both new array format and legacy single badge
+    let newBadges: string;
+    if (Array.isArray(badges)) {
+      newBadges = badges.filter(Boolean).join(',');
+    } else if (badge) {
+      // Legacy: append single badge
+      const user = await query("SELECT badges FROM users WHERE id = $1", [userId]);
+      if (user.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
+      const existing = (user.rows[0].badges || '').split(',').map((b: string) => b.trim()).filter(Boolean);
+      if (!existing.includes(badge)) existing.push(badge);
+      newBadges = existing.join(',');
+    } else {
+      newBadges = '';
+    }
 
     await query("UPDATE users SET badges = $1 WHERE id = $2", [newBadges, userId]);
-    logAdminAction('badge_given', 'user', userId, { badge });
+    logAdminAction('badges_updated', 'user', userId, { badges: newBadges });
     res.json({ success: true, badges: newBadges });
   } catch (err) {
     console.error('Admin badge error:', err);
-    res.status(500).json({ error: 'Failed to give badge' });
+    res.status(500).json({ error: 'Failed to update badges' });
   }
 });
 

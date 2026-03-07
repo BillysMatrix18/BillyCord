@@ -17,6 +17,26 @@ interface MessageItemProps {
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
+const BADGE_COLORS: Record<string, string> = {
+  Admin: '#e74c3c', Moderator: '#3498db', Verified: '#2ecc71', VIP: '#f1c40f',
+  'Beta Tester': '#9b59b6', Developer: '#e67e22', Supporter: '#1abc9c', OG: '#fd79a8',
+};
+
+function renderBadges(badges?: string) {
+  if (!badges) return null;
+  const list = badges.split(',').map(b => b.trim()).filter(Boolean);
+  if (list.length === 0) return null;
+  return (
+    <>
+      {list.map(b => (
+        <span key={b} className="user-badge-tag" style={{ color: BADGE_COLORS[b] || '#8b95a5', borderColor: BADGE_COLORS[b] || '#8b95a5' }}>
+          {b}
+        </span>
+      ))}
+    </>
+  );
+}
+
 export default function MessageItem({ message, showHeader, formatTime, onReply }: MessageItemProps) {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
@@ -152,6 +172,7 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
         {showHeader && (
           <div className="message-header">
             <span className="author clickable" onClick={() => setShowProfile(true)}>{message.sender_name}</span>
+            {renderBadges(message.sender_badges)}
             <span className="timestamp">{formatTime(message.created_at)}</span>
           </div>
         )}

@@ -4,7 +4,7 @@
  */
 module.exports = {
   appId: 'com.billycord.app',
-  productName: 'BillyCord',
+  productName: 'BillyCord 0.1.1',
   copyright: 'Copyright © 2024 BillyCord',
 
   directories: {
@@ -35,7 +35,7 @@ module.exports = {
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: 'BillyCord',
+    shortcutName: 'BillyCord 0.1.1',
     deleteAppDataOnUninstall: false,
     runAfterFinish: true,
   },

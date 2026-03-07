@@ -105,10 +105,23 @@ const clientBuildPath = candidatePaths.find(p => {
 
 if (clientBuildPath) {
   console.log('Serving client build from:', clientBuildPath);
-  app.use(express.static(clientBuildPath, { maxAge: '1d' }));
+  app.use(express.static(clientBuildPath, {
+    maxAge: '7d',
+    setHeaders: (res, filePath) => {
+      // Never cache HTML – always serve fresh on app open
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+      }
+    },
+  }));
 
-  // SPA fallback: any non-API route serves index.html
+  // SPA fallback: any non-API route serves index.html (never cached)
   app.get('*', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     res.sendFile(path.join(clientBuildPath, 'index.html'));
   });
 } else {

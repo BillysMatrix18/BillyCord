@@ -252,6 +252,10 @@
     .action-status { font-size: 12px; padding: 6px 12px; border-radius: 6px; margin-top: 8px; display: none; }
     .action-status.success { display: block; background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
     .action-status.error { display: block; background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+    .badge-check { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: background 150ms; }
+    .badge-check:hover { background: rgba(255,255,255,0.05); }
+    .badge-check input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .badge-label { font-weight: 600; font-size: 13px; }
   </style>
 </head>
 <body>
@@ -710,22 +714,19 @@
 
     <!-- Tab 4: Fun -->
     <div class="modal-tab-content" id="mtab-fun">
-      <div class="fun-row">
-        <label>Give Badge</label>
-        <select id="fun-badge-select">
-          <option value="">Select badge...</option>
-          <option value="Admin">Admin</option>
-          <option value="Moderator">Moderator</option>
-          <option value="Verified">Verified</option>
-          <option value="VIP">VIP</option>
-          <option value="Beta Tester">Beta Tester</option>
-          <option value="Developer">Developer</option>
-        </select>
-        <button class="btn-sm" onclick="actionGiveBadge()">Give</button>
-      </div>
-      <div class="fun-row">
-        <label>Current Badges</label>
-        <div id="fun-current-badges" style="flex:1;font-size:13px;color:var(--text-secondary)">None</div>
+      <div style="margin-bottom:16px">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--text-primary)">User Badges</label>
+        <div id="fun-badge-checkboxes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:10px">
+          <label class="badge-check"><input type="checkbox" value="Admin" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#e74c3c">Admin</span></label>
+          <label class="badge-check"><input type="checkbox" value="Moderator" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#3498db">Moderator</span></label>
+          <label class="badge-check"><input type="checkbox" value="Verified" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#2ecc71">Verified</span></label>
+          <label class="badge-check"><input type="checkbox" value="VIP" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#f1c40f">VIP</span></label>
+          <label class="badge-check"><input type="checkbox" value="Beta Tester" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#9b59b6">Beta Tester</span></label>
+          <label class="badge-check"><input type="checkbox" value="Developer" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#e67e22">Developer</span></label>
+          <label class="badge-check"><input type="checkbox" value="Supporter" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#1abc9c">Supporter</span></label>
+          <label class="badge-check"><input type="checkbox" value="OG" onchange="actionUpdateBadges()"> <span class="badge-label" style="color:#fd79a8">OG</span></label>
+        </div>
+        <div id="fun-current-badges" style="font-size:12px;color:var(--text-muted)">No badges applied</div>
       </div>
       <div class="fun-row">
         <label>Custom Title</label>
@@ -1010,8 +1011,12 @@
         serversEl.innerHTML = '<span style="color:var(--text-muted)">No servers</span>';
       }
 
-      // Fun tab: populate current badges, title, notes, color
-      document.getElementById('fun-current-badges').textContent = details.badges || 'None';
+      // Fun tab: populate badge checkboxes
+      const userBadges = (details.badges || '').split(',').map(b => b.trim()).filter(Boolean);
+      document.querySelectorAll('#fun-badge-checkboxes input[type="checkbox"]').forEach(cb => {
+        cb.checked = userBadges.includes(cb.value);
+      });
+      document.getElementById('fun-current-badges').textContent = userBadges.length > 0 ? userBadges.join(', ') : 'No badges applied';
       document.getElementById('fun-title').value = details.title || '';
       document.getElementById('fun-admin-notes').value = details.admin_notes || '';
       document.getElementById('fun-profile-color').value = details.profile_color || '#3B82F6';
@@ -1032,11 +1037,15 @@
       // History tab: login history
       const loginBody = document.getElementById('ud-login-history');
       if (details.loginHistory && details.loginHistory.length > 0) {
-        loginBody.innerHTML = details.loginHistory.map(l => `<tr>
-          <td style="white-space:nowrap">${fmtTime(l.created_at)}</td>
-          <td>${esc(l.ip_address || l.details || '--')}</td>
-          <td>${esc(l.action_type || l.details || '--')}</td>
-        </tr>`).join('');
+        loginBody.innerHTML = details.loginHistory.map(l => {
+          let detailStr = '--';
+          try { const d = typeof l.details === 'string' ? JSON.parse(l.details) : l.details; detailStr = d.identifier || d.reason || l.user_agent || '--'; } catch(_e) { detailStr = l.user_agent || '--'; }
+          return `<tr>
+            <td style="white-space:nowrap">${fmtTime(l.created_at)}</td>
+            <td>${esc(l.ip_address || '--')}</td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(detailStr)}">${esc(detailStr)}</td>
+          </tr>`;
+        }).join('');
       } else {
         loginBody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-muted)">No login history available</td></tr>';
       }
@@ -1105,6 +1114,7 @@
         await apiPost(`/api/admin/users/${userId}/unban`, {});
         showActionFeedback('action-feedback', 'User unbanned', false);
         document.getElementById('action-ban-label').textContent = 'Ban User';
+        if (u) u.custom_status = null;
         addLogLine('info', `Unbanned user ${userId}`); fetchUsers();
       } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
     } else {
@@ -1114,6 +1124,7 @@
         await apiPost(`/api/admin/users/${userId}/ban`, { reason });
         showActionFeedback('action-feedback', 'User banned', false);
         document.getElementById('action-ban-label').textContent = 'Unban User';
+        if (u) u.custom_status = `BANNED: ${reason || 'No reason'}`;
         addLogLine('warn', `Banned user ${userId}: ${reason}`); fetchUsers();
       } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
     }
@@ -1127,7 +1138,10 @@
       await apiPost(`/api/admin/users/${userId}/mute`, { muted: !isMuted });
       showActionFeedback('action-feedback', isMuted ? 'User unmuted' : 'User muted', false);
       document.getElementById('action-mute-label').textContent = isMuted ? 'Mute User' : 'Unmute User';
-      addLogLine('info', `${isMuted ? 'Unmuted' : 'Muted'} user ${userId}`); fetchUsers();
+      addLogLine('info', `${isMuted ? 'Unmuted' : 'Muted'} user ${userId}`);
+      // Update local cache immediately so next toggle works correctly
+      if (u) u.custom_status = isMuted ? null : 'MUTED: User has been muted by admin';
+      fetchUsers();
     } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
   }
 
@@ -1157,15 +1171,16 @@
   }
 
   // ── Fun Tab Functions ──
-  async function actionGiveBadge() {
+  async function actionUpdateBadges() {
     const userId = getEditUserId();
-    const badge = document.getElementById('fun-badge-select').value;
-    if (!badge) { showActionFeedback('fun-feedback', 'Please select a badge', true); return; }
+    const checked = [];
+    document.querySelectorAll('#fun-badge-checkboxes input[type="checkbox"]:checked').forEach(cb => checked.push(cb.value));
     try {
-      const r = await apiPost(`/api/admin/users/${userId}/badge`, { badge });
-      document.getElementById('fun-current-badges').textContent = r.badges || badge;
-      showActionFeedback('fun-feedback', `Badge "${badge}" given!`, false);
-      addLogLine('info', `Gave badge "${badge}" to user ${userId}`);
+      const r = await apiPost(`/api/admin/users/${userId}/badge`, { badges: checked });
+      document.getElementById('fun-current-badges').textContent = checked.length > 0 ? checked.join(', ') : 'No badges applied';
+      showActionFeedback('fun-feedback', checked.length > 0 ? `Badges updated: ${checked.join(', ')}` : 'All badges removed', false);
+      addLogLine('info', `Updated badges for user ${userId}: ${checked.join(', ') || 'none'}`);
+      fetchUsers();
     } catch (e) { showActionFeedback('fun-feedback', 'Failed: ' + e.message, true); }
   }
 

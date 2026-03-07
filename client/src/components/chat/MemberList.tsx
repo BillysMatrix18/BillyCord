@@ -3,6 +3,11 @@ import { useAppSelector } from '../../hooks/useAppDispatch';
 import { ServerMember } from '../../types';
 import UserProfileModal from '../common/UserProfileModal';
 
+const BADGE_COLORS: Record<string, string> = {
+  Admin: '#e74c3c', Moderator: '#3498db', Verified: '#2ecc71', VIP: '#f1c40f',
+  'Beta Tester': '#9b59b6', Developer: '#e67e22', Supporter: '#1abc9c', OG: '#fd79a8',
+};
+
 export default function MemberList() {
   const { members } = useAppSelector((state) => state.servers);
   const [selectedMember, setSelectedMember] = useState<ServerMember | null>(null);
@@ -25,7 +30,12 @@ export default function MemberList() {
         )}
         <div className={`member-status-dot ${member.status}`} />
       </div>
-      <span className="member-name">{member.nickname || member.username}</span>
+      <div className="member-name-badges">
+        <span className="member-name">{member.nickname || member.username}</span>
+        {member.badges && member.badges.split(',').filter(Boolean).map(b => (
+          <span key={b} className="user-badge-tag" style={{ color: BADGE_COLORS[b.trim()] || '#8b95a5', borderColor: BADGE_COLORS[b.trim()] || '#8b95a5' }}>{b.trim()}</span>
+        ))}
+      </div>
     </div>
   );
 

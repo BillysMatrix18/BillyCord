@@ -1,6 +1,6 @@
 {
   "name": "billycord-admin",
-  "version": "1.0.0",
+  "version": "0.1.1",
   "productName": "BillyCord Admin",
   "description": "BillyCord Admin Dashboard - Monitor and control your BillyCord server",
   "main": "main.js",

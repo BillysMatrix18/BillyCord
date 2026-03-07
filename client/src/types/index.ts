@@ -53,6 +53,7 @@ export interface Message {
   sender_id: string;
   sender_name: string;
   sender_avatar: string | null;
+  sender_badges?: string;
   content: string;
   attachments: string[];
   edited: boolean;
@@ -97,6 +98,7 @@ export interface DirectMessage {
   sender_id: string;
   sender_name: string;
   sender_avatar: string | null;
+  sender_badges?: string;
   content: string;
   attachments: string[];
   edited: boolean | number;
@@ -121,6 +123,7 @@ export interface ServerMember {
   avatar_url: string | null;
   status: string;
   custom_status: string | null;
+  badges?: string;
   nickname: string | null;
   joined_at: string;
   role_ids: string[];

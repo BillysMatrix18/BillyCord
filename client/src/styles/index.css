@@ -1052,6 +1052,19 @@ input, textarea {
   font-size: 12px;
   color: var(--text-muted);
 }
+.user-badge-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid;
+  opacity: 0.9;
+  vertical-align: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+}
 .message-content {
   color: var(--text-primary);
   font-size: 15px;
@@ -1263,6 +1276,13 @@ input, textarea {
 .member-status-dot.dnd { background: var(--red); }
 .member-status-dot.offline { background: var(--text-muted); }
 
+.member-name-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
 .member-item .member-name {
   font-size: 15px;
   font-weight: 500;
@@ -1274,6 +1294,10 @@ input, textarea {
 }
 .member-item:hover .member-name {
   color: var(--interactive-hover);
+}
+.member-name-badges .user-badge-tag {
+  font-size: 8px;
+  padding: 0 3px;
 }
 
 /* ═══════════════════════════════════════

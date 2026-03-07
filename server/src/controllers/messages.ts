@@ -11,7 +11,7 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
     const messageLimit = Math.min(parseInt(limit as string, 10) || 50, 100);
 
     let sql = `
-      SELECT m.*, u.username as sender_name, u.avatar_url as sender_avatar,
+      SELECT m.*, u.username as sender_name, u.avatar_url as sender_avatar, u.badges as sender_badges,
         COALESCE(
           NULLIF(
             (SELECT json_group_array(json_object('emoji', r.emoji, 'user_id', r.user_id, 'username', ru.username))
@@ -90,13 +90,14 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
          RETURNING *`,
         [channelId, userId, sanitizedContent, JSON.stringify(attachments)]
       ),
-      query('SELECT username, avatar_url FROM users WHERE id = $1', [userId]),
+      query('SELECT username, avatar_url, badges FROM users WHERE id = $1', [userId]),
     ]);
 
     const message = {
       ...result.rows[0],
       sender_name: userResult.rows[0].username,
       sender_avatar: userResult.rows[0].avatar_url,
+      sender_badges: userResult.rows[0].badges || '',
       reactions: [],
     };
 
@@ -332,7 +333,7 @@ export async function getPinnedMessages(req: Request, res: Response): Promise<vo
     const { channelId } = req.params;
 
     const result = await query(
-      `SELECT m.*, u.username as sender_name, u.avatar_url as sender_avatar
+      `SELECT m.*, u.username as sender_name, u.avatar_url as sender_avatar, u.badges as sender_badges
        FROM messages m
        JOIN users u ON u.id = m.sender_id
        WHERE m.channel_id = $1 AND m.pinned = 1

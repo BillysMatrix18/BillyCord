@@ -835,7 +835,7 @@ export default function SettingsOverlay() {
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.9</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Version 0.1.1</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -857,17 +857,28 @@ export default function SettingsOverlay() {
                 <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.9</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.1</strong>
                     <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>Fixed app loading stale cached version on startup</li>
+                      <li>Fixed status bubble visibility on message avatars</li>
+                      <li>Added right-click context menu with edit and react</li>
+                      <li>Server settings: icon upload, role permissions, role assignment</li>
+                      <li>Admin panel: comprehensive user management modal with 5 tabs</li>
+                      <li>Admin panel: badge system with checkboxes displayed next to usernames</li>
+                      <li>Admin panel: fixed mute/unmute, ban/unban, and other actions</li>
+                      <li>Admin panel: enhanced logging with error and security log fetching</li>
+                      <li>Added rich micro-animations and hover effects (togglable)</li>
+                      <li>Fixed friends table queries and admin database schema</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.9</strong>
                     <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                       <li>Fixed message editing keybinds (Escape/Enter) for image-only messages</li>
                       <li>Fixed message reactions not displaying or updating properly</li>
                       <li>Fixed server list active indicator (home icon no longer stuck active)</li>
-                      <li>Fixed auto-updater not detecting new versions</li>
                       <li>Added channel unread notifications with badge counts</li>
-                      <li>Added floating Dev Mode overlay (visible while messaging)</li>
-                      <li>Fixed status bubble rendering in front of avatar</li>
-                      <li>Removed Midnight Aurora, Sunset Blaze, and Enchanted Forest themes</li>
                       <li>Redesigned admin panel with modern dashboard layout</li>
                     </ul>
                   </div>
