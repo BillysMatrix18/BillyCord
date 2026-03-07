@@ -111,12 +111,13 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
     setContextMenu(null);
   }, [message, onReply]);
 
-  const groupedReactions = message.reactions?.reduce((acc, r) => {
+  const validReactions = (message.reactions || []).filter(r => r && r.emoji);
+  const groupedReactions = validReactions.reduce((acc, r) => {
     if (!acc[r.emoji]) acc[r.emoji] = { emoji: r.emoji, users: [], count: 0 };
     acc[r.emoji].users.push(r.username);
     acc[r.emoji].count++;
     return acc;
-  }, {} as Record<string, { emoji: string; users: string[]; count: number }>) || {};
+  }, {} as Record<string, { emoji: string; users: string[]; count: number }>);
 
   const isAuthor = user?.id === message.sender_id;
   const isOptimistic = message.id.startsWith('optimistic-');
@@ -240,7 +241,7 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
                 key={reaction.emoji}
                 className="reaction-badge"
                 onClick={() => {
-                  const hasReacted = message.reactions.some(r => r.emoji === reaction.emoji && r.user_id === user?.id);
+                  const hasReacted = validReactions.some(r => r.emoji === reaction.emoji && r.user_id === user?.id);
                   hasReacted ? handleRemoveReaction(reaction.emoji) : handleReaction(reaction.emoji);
                 }}
                 title={reaction.users.join(', ')}

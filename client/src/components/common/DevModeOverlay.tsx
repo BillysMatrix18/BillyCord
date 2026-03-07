@@ -15,7 +15,7 @@ export default function DevModeOverlay() {
 
   const measurePing = useCallback(() => {
     const socket = getSocket();
-    if (!socket?.connected) {
+    if (!socket || !socket.connected) {
       setSocketConnected(false);
       setConnectionQuality('Disconnected');
       setPing(null);
@@ -24,7 +24,12 @@ export default function DevModeOverlay() {
     setSocketConnected(true);
     setSocketTransport(socket.io?.engine?.transport?.name || 'unknown');
     const start = Date.now();
-    socket.volatile.emit('ping:measure', {}, () => {
+    const timeoutId = setTimeout(() => {
+      // If callback hasn't fired in 5s, mark as weak but still connected
+      setPing(prev => prev === null ? -1 : prev);
+    }, 5000);
+    socket.emit('ping:measure', {}, () => {
+      clearTimeout(timeoutId);
       const latency = Date.now() - start;
       setPing(latency);
       setPingHistory(prev => [...prev.slice(-29), latency]);
@@ -33,8 +38,34 @@ export default function DevModeOverlay() {
       else if (latency < 300) setConnectionQuality('Fair');
       else setConnectionQuality('Weak');
     });
-    setTimeout(() => { setPing(prev => prev ?? -1); }, 3000);
   }, []);
+
+  // Track socket connection state via events
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const onConnect = () => {
+      setSocketConnected(true);
+      measurePing();
+    };
+    const onDisconnect = () => {
+      setSocketConnected(false);
+      setConnectionQuality('Disconnected');
+      setPing(null);
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+
+    // Set initial state
+    setSocketConnected(socket.connected);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+    };
+  }, [measurePing]);
 
   useEffect(() => {
     measurePing();

@@ -13,9 +13,12 @@ export async function getMessages(req: Request, res: Response): Promise<void> {
     let sql = `
       SELECT m.*, u.username as sender_name, u.avatar_url as sender_avatar,
         COALESCE(
-          (SELECT json_group_array(json_object('emoji', r.emoji, 'user_id', r.user_id, 'username', ru.username))
-           FROM reactions r JOIN users ru ON ru.id = r.user_id
-           WHERE r.message_id = m.id), '[]'
+          NULLIF(
+            (SELECT json_group_array(json_object('emoji', r.emoji, 'user_id', r.user_id, 'username', ru.username))
+             FROM reactions r JOIN users ru ON ru.id = r.user_id
+             WHERE r.message_id = m.id),
+            '[null]'
+          ), '[]'
         ) as reactions
       FROM messages m
       JOIN users u ON u.id = m.sender_id
@@ -123,19 +126,14 @@ export async function updateMessage(req: Request, res: Response): Promise<void> 
     const { content } = req.body;
     const userId = req.user!.userId;
 
-    if (!content || content.trim().length === 0) {
-      res.status(400).json({ error: 'Message content is required' });
-      return;
-    }
-
-    // Enforce max message length on edits too
+    // Enforce max message length on edits
     const maxLen = getSettingInt('max_message_length', 2000);
-    if (content.length > maxLen) {
+    if (content && content.length > maxLen) {
       res.status(400).json({ error: `Message too long (max ${maxLen} characters)` });
       return;
     }
 
-    const existing = await query('SELECT sender_id, content FROM messages WHERE id = $1', [messageId]);
+    const existing = await query('SELECT sender_id, content, attachments FROM messages WHERE id = $1', [messageId]);
     if (existing.rows.length === 0) {
       res.status(404).json({ error: 'Message not found' });
       return;
@@ -145,7 +143,22 @@ export async function updateMessage(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const sanitizedContent = sanitizeHtml(content);
+    // Allow empty content only if message has attachments
+    const hasAttachments = (() => {
+      try {
+        const att = typeof existing.rows[0].attachments === 'string'
+          ? JSON.parse(existing.rows[0].attachments)
+          : existing.rows[0].attachments;
+        return Array.isArray(att) && att.length > 0;
+      } catch { return false; }
+    })();
+
+    if ((!content || content.trim().length === 0) && !hasAttachments) {
+      res.status(400).json({ error: 'Message content is required' });
+      return;
+    }
+
+    const sanitizedContent = content ? sanitizeHtml(content) : '';
 
     // Log edit history before updating
     logMessageEdit(messageId, existing.rows[0].content, sanitizedContent, userId);

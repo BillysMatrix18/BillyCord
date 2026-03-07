@@ -87,6 +87,8 @@ const messageSlice = createSlice({
       const msg = state.messages.find(m => m.id === action.payload.messageId);
       if (msg) {
         if (!msg.reactions) msg.reactions = [];
+        // Filter out any null entries from json_group_array
+        msg.reactions = msg.reactions.filter(r => r && r.emoji);
         // Avoid duplicate reactions
         const exists = msg.reactions.some(r => r.emoji === action.payload.emoji && r.user_id === action.payload.userId);
         if (!exists) {
@@ -102,6 +104,7 @@ const messageSlice = createSlice({
       const msg = state.messages.find(m => m.id === action.payload.messageId);
       if (msg) {
         if (!msg.reactions) msg.reactions = [];
+        msg.reactions = msg.reactions.filter(r => r && r.emoji);
         msg.reactions = msg.reactions.filter(
           r => !(r.emoji === action.payload.emoji && r.user_id === action.payload.userId)
         );
