@@ -353,6 +353,21 @@ export async function runMigrations() {
   await safeAlter("ALTER TABLE conversation_members ADD COLUMN unread_count INTEGER DEFAULT 0");
   await safeAlter("ALTER TABLE server_members ADD COLUMN unread_count INTEGER DEFAULT 0");
 
+  // DM message editing, pinning support
+  await safeAlter("ALTER TABLE direct_messages ADD COLUMN edited INTEGER DEFAULT 0");
+  await safeAlter("ALTER TABLE direct_messages ADD COLUMN pinned INTEGER DEFAULT 0");
+  await safeAlter("ALTER TABLE direct_messages ADD COLUMN updated_at TEXT");
+
+  // DM reactions table
+  await exec(`CREATE TABLE IF NOT EXISTS dm_reactions (
+    id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+    message_id TEXT NOT NULL REFERENCES direct_messages(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    emoji TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(message_id, user_id, emoji)
+  )`);
+
   // Insert default server settings
   await defaultSetting('max_users', '10000', 'integer', 'users', 'Maximum total users allowed');
   await defaultSetting('max_friends_per_user', '5000', 'integer', 'users', 'Maximum friends per user');

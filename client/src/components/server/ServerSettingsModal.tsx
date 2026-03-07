@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchServer, fetchServers } from '../../store/serverSlice';
@@ -326,7 +327,7 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
     border: 'none',
   });
 
-  return (
+  return createPortal(
     <>
       <div style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9000,
@@ -700,7 +701,8 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
           </>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

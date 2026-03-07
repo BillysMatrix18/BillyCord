@@ -4,9 +4,11 @@ import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchDmMessages, clearDmMessages } from '../../store/dmSlice';
 import { dmApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
-import { IconPlus, IconSend, IconX } from '../common/Icons';
+import { IconPlus, IconSend, IconX, IconSmile, IconEdit, IconPin, IconTrash } from '../common/Icons';
 import UserProfileModal from '../common/UserProfileModal';
 import ImageModal from '../common/ImageModal';
+
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '👎', '🎉'];
 
 export default function DmChatArea() {
   const { conversationId } = useParams();
@@ -21,6 +23,9 @@ export default function DmChatArea() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageModalSrc, setImageModalSrc] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [reactingId, setReactingId] = useState<string | null>(null);
 
   const conversation = conversations.find(c => c.id === conversationId);
   const displayName = conversation?.is_group
@@ -93,6 +98,63 @@ export default function DmChatArea() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  const handleEdit = async (messageId: string) => {
+    if (!editContent.trim() || !conversationId) return;
+    try {
+      await dmApi.editMessage(messageId, editContent);
+      setEditingId(null);
+      setEditContent('');
+      dispatch(fetchDmMessages({ conversationId }));
+    } catch (error) {
+      console.error('Failed to edit message:', error);
+    }
+  };
+
+  const handleDelete = async (messageId: string) => {
+    if (!conversationId) return;
+    try {
+      await dmApi.deleteMessage(messageId);
+      dispatch(fetchDmMessages({ conversationId }));
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+    }
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    if (!conversationId) return;
+    try {
+      await dmApi.addReaction(messageId, emoji);
+      setReactingId(null);
+      dispatch(fetchDmMessages({ conversationId }));
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+    }
+  };
+
+  const handleRemoveReaction = async (messageId: string, emoji: string) => {
+    if (!conversationId) return;
+    try {
+      await dmApi.removeReaction(messageId, emoji);
+      dispatch(fetchDmMessages({ conversationId }));
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+    }
+  };
+
+  const handlePin = async (messageId: string, isPinned: boolean) => {
+    if (!conversationId) return;
+    try {
+      if (isPinned) {
+        await dmApi.unpinMessage(messageId);
+      } else {
+        await dmApi.pinMessage(messageId);
+      }
+      dispatch(fetchDmMessages({ conversationId }));
+    } catch (error) {
+      console.error('Failed to toggle pin:', error);
+    }
+  };
+
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -108,6 +170,36 @@ export default function DmChatArea() {
     const curr = messages[index];
     if (prev.sender_id !== curr.sender_id) return true;
     return new Date(curr.created_at).getTime() - new Date(prev.created_at).getTime() > 5 * 60 * 1000;
+  };
+
+  const renderContent = (content: string) => {
+    if (!content) return null;
+    // Simple markdown: bold, italic, code, strikethrough
+    let html = content
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code style="background:var(--bg-tertiary);padding:1px 4px;border-radius:3px;font-size:0.9em">$1</code>')
+      .replace(/~~(.+?)~~/g, '<del>$1</del>');
+    return <span dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+
+  const getGroupedReactions = (reactions: unknown): { emoji: string; users: { user_id: string; username: string }[] }[] => {
+    let parsed: Array<{ emoji: string; user_id: string; username: string }> = [];
+    if (typeof reactions === 'string') {
+      try {
+        const arr = JSON.parse(reactions);
+        if (Array.isArray(arr) && arr.length > 0 && arr[0]?.emoji) parsed = arr;
+      } catch { /* ignore */ }
+    } else if (Array.isArray(reactions)) {
+      parsed = reactions.filter(r => r?.emoji);
+    }
+    const grouped = new Map<string, { user_id: string; username: string }[]>();
+    for (const r of parsed) {
+      if (!grouped.has(r.emoji)) grouped.set(r.emoji, []);
+      grouped.get(r.emoji)!.push({ user_id: r.user_id, username: r.username });
+    }
+    return Array.from(grouped.entries()).map(([emoji, users]) => ({ emoji, users }));
   };
 
   const renderAttachments = (attachments: unknown) => {
@@ -165,35 +257,126 @@ export default function DmChatArea() {
 
       <div className="messages-container">
         <div className="messages-list">
-          {messages.map((msg, index) => (
-            <div key={msg.id} className={`message ${shouldShowHeader(index) ? 'message-group-start' : ''}`}>
-              {shouldShowHeader(index) ? (
-                <div
-                  className="message-avatar clickable"
-                  onClick={() => setProfileUser({ id: msg.sender_id, name: msg.sender_name, avatar: msg.sender_avatar })}
-                >
-                  {msg.sender_avatar ? <img src={msg.sender_avatar} alt="" /> : msg.sender_name?.[0]?.toUpperCase() || '?'}
+          {messages.map((msg, index) => {
+            const isOwn = msg.sender_id === user?.id;
+            const isPinned = msg.pinned === true || msg.pinned === 1;
+            const isEdited = msg.edited === true || msg.edited === 1;
+            const groupedReactions = getGroupedReactions(msg.reactions);
+
+            return (
+              <div key={msg.id} className={`message ${shouldShowHeader(index) ? 'message-group-start' : ''}`}
+                style={{ position: 'relative', borderLeft: isPinned ? '2px solid var(--accent)' : undefined,
+                  paddingLeft: isPinned ? 6 : undefined }}>
+                {shouldShowHeader(index) ? (
+                  <div
+                    className="message-avatar clickable"
+                    onClick={() => setProfileUser({ id: msg.sender_id, name: msg.sender_name, avatar: msg.sender_avatar })}
+                  >
+                    {msg.sender_avatar ? <img src={msg.sender_avatar} alt="" /> : msg.sender_name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                ) : (
+                  <div style={{ width: 40, flexShrink: 0 }} />
+                )}
+                <div className="message-body" style={{ flex: 1 }}>
+                  {shouldShowHeader(index) && (
+                    <div className="message-header">
+                      <span
+                        className="author clickable"
+                        onClick={() => setProfileUser({ id: msg.sender_id, name: msg.sender_name, avatar: msg.sender_avatar })}
+                      >
+                        {msg.sender_name}
+                      </span>
+                      <span className="timestamp">{formatTime(msg.created_at)}</span>
+                    </div>
+                  )}
+                  {editingId === msg.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEdit(msg.id); }
+                          if (e.key === 'Escape') { setEditingId(null); setEditContent(''); }
+                        }}
+                        style={{
+                          background: 'var(--bg-tertiary)', color: 'var(--text-primary)',
+                          border: '1px solid var(--accent)', borderRadius: 4,
+                          padding: '6px 8px', fontSize: 14, resize: 'none', fontFamily: 'inherit',
+                        }}
+                        rows={2}
+                        autoFocus
+                      />
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        Enter to save &middot; Escape to cancel
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="message-content">
+                      {renderContent(msg.content)}
+                      {isEdited && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>(edited)</span>}
+                    </div>
+                  )}
+                  {renderAttachments(msg.attachments)}
+
+                  {/* Reactions */}
+                  {groupedReactions.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                      {groupedReactions.map(({ emoji, users }) => {
+                        const didReact = users.some(u => u.user_id === user?.id);
+                        return (
+                          <button key={emoji}
+                            onClick={() => didReact ? handleRemoveReaction(msg.id, emoji) : handleReaction(msg.id, emoji)}
+                            title={users.map(u => u.username).join(', ')}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              padding: '2px 6px', borderRadius: 4, fontSize: 13, cursor: 'pointer',
+                              background: didReact ? 'rgba(88,101,242,0.3)' : 'var(--bg-tertiary)',
+                              border: didReact ? '1px solid var(--accent)' : '1px solid transparent',
+                              color: 'var(--text-primary)',
+                            }}>
+                            <span>{emoji}</span>
+                            <span style={{ fontSize: 11 }}>{users.length}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div style={{ width: 40, flexShrink: 0 }} />
-              )}
-              <div className="message-body">
-                {shouldShowHeader(index) && (
-                  <div className="message-header">
-                    <span
-                      className="author clickable"
-                      onClick={() => setProfileUser({ id: msg.sender_id, name: msg.sender_name, avatar: msg.sender_avatar })}
-                    >
-                      {msg.sender_name}
-                    </span>
-                    <span className="timestamp">{formatTime(msg.created_at)}</span>
+
+                {/* Message actions toolbar */}
+                <div className="message-actions">
+                  <button title="Add Reaction" onClick={() => setReactingId(reactingId === msg.id ? null : msg.id)}
+                    style={actionBtnStyle}><IconSmile size={16} /></button>
+                  {isOwn && <button title="Edit" onClick={() => { setEditingId(msg.id); setEditContent(msg.content); }}
+                    style={actionBtnStyle}><IconEdit size={16} /></button>}
+                  <button title={isPinned ? 'Unpin' : 'Pin'} onClick={() => handlePin(msg.id, isPinned)}
+                    style={{ ...actionBtnStyle, color: isPinned ? 'var(--accent)' : undefined }}><IconPin size={16} /></button>
+                  {isOwn && <button title="Delete" onClick={() => handleDelete(msg.id)}
+                    style={{ ...actionBtnStyle, color: '#ed4245' }}><IconTrash size={16} /></button>}
+                </div>
+
+                {/* Quick reaction picker */}
+                {reactingId === msg.id && (
+                  <div style={{
+                    position: 'absolute', top: -40, right: 8,
+                    display: 'flex', gap: 2, background: 'var(--bg-floating)',
+                    border: '1px solid var(--border)', borderRadius: 8, padding: '4px 6px',
+                    zIndex: 10,
+                  }}>
+                    {QUICK_REACTIONS.map(emoji => (
+                      <button key={emoji} onClick={() => handleReaction(msg.id, emoji)}
+                        style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer',
+                          padding: '2px 4px', borderRadius: 4 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-tertiary)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'none')}>
+                        {emoji}
+                      </button>
+                    ))}
                   </div>
                 )}
-                <div className="message-content">{msg.content}</div>
-                {renderAttachments(msg.attachments)}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <div ref={messagesEndRef} />
       </div>
@@ -281,3 +464,9 @@ export default function DmChatArea() {
     </div>
   );
 }
+
+const actionBtnStyle: React.CSSProperties = {
+  background: 'none', border: 'none', color: 'var(--text-muted)',
+  cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex',
+  alignItems: 'center',
+};

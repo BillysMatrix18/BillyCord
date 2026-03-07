@@ -153,6 +153,19 @@ export const dmApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  // DM message management
+  editMessage: (messageId: string, content: string) =>
+    api.patch(`/dm/messages/${messageId}`, { content }),
+  deleteMessage: (messageId: string) =>
+    api.delete(`/dm/messages/${messageId}`),
+  addReaction: (messageId: string, emoji: string) =>
+    api.post(`/dm/messages/${messageId}/reactions`, { emoji }),
+  removeReaction: (messageId: string, emoji: string) =>
+    api.delete(`/dm/messages/${messageId}/reactions/${emoji}`),
+  pinMessage: (messageId: string) =>
+    api.post(`/dm/messages/${messageId}/pin`),
+  unpinMessage: (messageId: string) =>
+    api.delete(`/dm/messages/${messageId}/pin`),
   // Group chat management
   updateConversation: (conversationId: string, data: { name?: string; icon_url?: string; description?: string }) =>
     api.patch(`/dm/conversations/${conversationId}`, data),

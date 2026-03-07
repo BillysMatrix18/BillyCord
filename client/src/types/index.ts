@@ -99,6 +99,9 @@ export interface DirectMessage {
   sender_avatar: string | null;
   content: string;
   attachments: string[];
+  edited: boolean | number;
+  pinned: boolean | number;
+  reactions: Array<{ emoji: string; user_id: string; username: string }>;
   created_at: string;
 }
 

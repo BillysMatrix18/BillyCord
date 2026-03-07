@@ -12,7 +12,9 @@ import { addIncomingRequest, removeRequest, addFriend } from '../store/friendSli
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
-  const { isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user: currentUser } = useAppSelector((state) => state.auth);
+  const currentUserIdRef = useRef(currentUser?.id);
+  currentUserIdRef.current = currentUser?.id;
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -27,6 +29,10 @@ export function useSocket() {
 
     socket.on('message:new', (message) => {
       dispatch(addMessage(message));
+      // Notify for server channel messages from other users
+      if (message.sender_id !== currentUserIdRef.current) {
+        notify(message.sender_name || 'New message', message.content || 'Sent an attachment');
+      }
     });
 
     socket.on('message:updated', (message) => {
@@ -62,14 +68,16 @@ export function useSocket() {
     });
 
     socket.on('dm:new', ({ conversationId, message }) => {
+      // Skip our own messages (sender is included in participantIds relay)
+      const isOwnMessage = message.sender_id === currentUserIdRef.current;
       dispatch(addDmMessage(message));
       // Only increment unread if NOT currently viewing this conversation
       const currentPath = window.location.pathname;
       const isViewingConversation = currentPath.includes(`/@me/${conversationId}`);
-      if (!isViewingConversation) {
+      if (!isViewingConversation && !isOwnMessage) {
         dispatch(incrementConversationUnread(conversationId));
-        notify(`New message`, message.content || 'Sent an attachment');
-      } else {
+        notify(message.sender_name || 'New message', message.content || 'Sent an attachment');
+      } else if (isViewingConversation) {
         // If viewing the conversation, immediately clear the server-side unread
         // so when fetchConversations re-fetches, the count stays 0
         dispatch(clearConversationUnread(conversationId));

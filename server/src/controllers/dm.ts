@@ -95,7 +95,10 @@ export async function getDirectMessages(req: Request, res: Response): Promise<vo
     const msgLimit = Math.min(parseInt(limit as string, 10) || 50, 100);
 
     let sql = `
-      SELECT dm.*, u.username as sender_name, u.avatar_url as sender_avatar
+      SELECT dm.*, u.username as sender_name, u.avatar_url as sender_avatar,
+        (SELECT json_group_array(json_object('emoji', r.emoji, 'user_id', r.user_id, 'username', ru.username))
+         FROM dm_reactions r JOIN users ru ON ru.id = r.user_id
+         WHERE r.message_id = dm.id) as reactions
       FROM direct_messages dm
       JOIN users u ON u.id = dm.sender_id
       WHERE dm.conversation_id = $1
@@ -304,6 +307,110 @@ export async function markConversationRead(req: Request, res: Response): Promise
     res.json({ success: true });
   } catch (error) {
     console.error('Mark read error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ── DM Message Editing, Deleting, Reactions, Pinning ────────────
+
+export async function editDirectMessage(req: Request, res: Response): Promise<void> {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const userId = req.user!.userId;
+
+    if (!content || content.trim().length === 0) {
+      res.status(400).json({ error: 'Content is required' });
+      return;
+    }
+
+    const msg = await query('SELECT * FROM direct_messages WHERE id = $1', [messageId]);
+    if (msg.rows.length === 0) { res.status(404).json({ error: 'Message not found' }); return; }
+    if (msg.rows[0].sender_id !== userId) { res.status(403).json({ error: 'Can only edit your own messages' }); return; }
+
+    const result = await query(
+      `UPDATE direct_messages SET content = $1, edited = 1, updated_at = datetime('now') WHERE id = $2 RETURNING *`,
+      [sanitizeHtml(content), messageId]
+    );
+
+    const userResult = await query('SELECT username, avatar_url FROM users WHERE id = $1', [userId]);
+    const message = { ...result.rows[0], sender_name: userResult.rows[0].username, sender_avatar: userResult.rows[0].avatar_url };
+    res.json({ message });
+  } catch (error) {
+    console.error('Edit DM error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function deleteDirectMessage(req: Request, res: Response): Promise<void> {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user!.userId;
+
+    const msg = await query('SELECT * FROM direct_messages WHERE id = $1', [messageId]);
+    if (msg.rows.length === 0) { res.status(404).json({ error: 'Message not found' }); return; }
+    if (msg.rows[0].sender_id !== userId) { res.status(403).json({ error: 'Can only delete your own messages' }); return; }
+
+    await query('DELETE FROM direct_messages WHERE id = $1', [messageId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete DM error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function addDmReaction(req: Request, res: Response): Promise<void> {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.user!.userId;
+
+    if (!emoji) { res.status(400).json({ error: 'Emoji is required' }); return; }
+
+    await query(
+      `INSERT INTO dm_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+      [messageId, userId, emoji]
+    );
+
+    const userResult = await query('SELECT username FROM users WHERE id = $1', [userId]);
+    res.json({ reaction: { message_id: messageId, user_id: userId, emoji, username: userResult.rows[0].username } });
+  } catch (error) {
+    console.error('Add DM reaction error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function removeDmReaction(req: Request, res: Response): Promise<void> {
+  try {
+    const { messageId, emoji } = req.params;
+    const userId = req.user!.userId;
+
+    await query('DELETE FROM dm_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3', [messageId, userId, emoji]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Remove DM reaction error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function pinDirectMessage(req: Request, res: Response): Promise<void> {
+  try {
+    const { messageId } = req.params;
+    await query('UPDATE direct_messages SET pinned = 1 WHERE id = $1', [messageId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Pin DM error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function unpinDirectMessage(req: Request, res: Response): Promise<void> {
+  try {
+    const { messageId } = req.params;
+    await query('UPDATE direct_messages SET pinned = 0 WHERE id = $1', [messageId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Unpin DM error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
