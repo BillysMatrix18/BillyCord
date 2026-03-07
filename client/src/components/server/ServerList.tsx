@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { toggleCreateServer, toggleJoinServer, toggleSettings } from '../../store/uiSlice';
 import { clearServerUnread } from '../../store/serverSlice';
@@ -8,10 +8,17 @@ import { IconHome, IconPlus, IconCompass, IconSettings } from '../common/Icons';
 
 export default function ServerList() {
   const navigate = useNavigate();
-  const { serverId } = useParams();
+  const location = useLocation();
   const { servers } = useAppSelector((state) => state.servers);
   const { conversations } = useAppSelector((state) => state.dm);
   const dispatch = useAppDispatch();
+
+  // Extract serverId from URL path: /channels/:serverId/...
+  const pathParts = location.pathname.split('/');
+  const channelsIdx = pathParts.indexOf('channels');
+  const serverId = channelsIdx !== -1 && pathParts[channelsIdx + 1] && pathParts[channelsIdx + 1] !== '@me'
+    ? pathParts[channelsIdx + 1]
+    : undefined;
 
   // Calculate total unread DMs for the home button badge
   const totalDmUnread = conversations.reduce((sum, c) => sum + (c.unread_count || 0), 0);

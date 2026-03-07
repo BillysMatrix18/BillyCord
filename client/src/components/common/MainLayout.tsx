@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchServers } from '../../store/serverSlice';
@@ -13,12 +13,24 @@ import DmChatArea from '../dm/DmChatArea';
 import SettingsOverlay from '../settings/SettingsOverlay';
 import CreateServerModal from '../server/CreateServerModal';
 import JoinServerModal from '../server/JoinServerModal';
+import DevModeOverlay from './DevModeOverlay';
 import { IconX } from './Icons';
 
 export default function MainLayout() {
   const dispatch = useAppDispatch();
   const { showSettings, showCreateServer, showJoinServer, showMemberList, announcement } = useAppSelector((state) => state.ui);
   const { currentServer } = useAppSelector((state) => state.servers);
+  const [devModeEnabled] = useState(() => localStorage.getItem('devMode') === 'true');
+
+  // Listen for devMode changes from settings
+  const [devMode, setDevMode] = useState(devModeEnabled);
+  useEffect(() => {
+    const handleStorage = () => setDevMode(localStorage.getItem('devMode') === 'true');
+    window.addEventListener('storage', handleStorage);
+    // Also poll since same-window localStorage changes don't fire 'storage'
+    const interval = setInterval(handleStorage, 1000);
+    return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
+  }, []);
 
   useEffect(() => {
     dispatch(fetchServers());
@@ -63,6 +75,7 @@ export default function MainLayout() {
         </Routes>
       </div>
 
+      {devMode && <DevModeOverlay />}
       {showSettings && <SettingsOverlay />}
       {showCreateServer && <CreateServerModal />}
       {showJoinServer && <JoinServerModal />}

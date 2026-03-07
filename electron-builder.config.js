@@ -59,7 +59,7 @@ module.exports = {
   publish: {
     provider: 'github',
     owner: 'BillysMatrix18',
-    repo: 'discord-clone-test',
+    repo: 'BillyCord',
     releaseType: 'release',
   },
 

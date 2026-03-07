@@ -11,6 +11,7 @@ let splashWindow = null;
 let tray = null;
 let isQuitting = false;
 let updateAvailable = false;
+let manualUpdateCheck = false;
 
 const isDev = process.env.ELECTRON_DEV === 'true';
 const DISCOVERY_PORT = 41234;
@@ -475,7 +476,9 @@ function createTray() {
     { label: 'Show BillyCord', click: () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
     { type: 'separator' },
     { label: 'Check for Updates', click: () => {
+      manualUpdateCheck = true;
       autoUpdater.checkForUpdates().catch(() => {
+        manualUpdateCheck = false;
         dialog.showMessageBox(mainWindow, { type: 'info', title: 'Updates', message: 'Could not check for updates.' });
       });
     }},
@@ -506,6 +509,20 @@ function setupAutoUpdater() {
     }
   });
 
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('No update available. Current version:', app.getVersion(), 'Latest:', info.version);
+    if (manualUpdateCheck) {
+      manualUpdateCheck = false;
+      if (mainWindow) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'info', title: 'No Updates',
+          message: `You're on the latest version (v${app.getVersion()}).`,
+          buttons: ['OK'],
+        });
+      }
+    }
+  });
+
   autoUpdater.on('update-downloaded', (info) => {
     if (mainWindow) {
       dialog.showMessageBox(mainWindow, {
@@ -518,7 +535,19 @@ function setupAutoUpdater() {
     }
   });
 
-  autoUpdater.on('error', (err) => { console.error('Auto-updater error:', err); });
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err);
+    if (manualUpdateCheck) {
+      manualUpdateCheck = false;
+      if (mainWindow) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'error', title: 'Update Error',
+          message: `Could not check for updates: ${err.message}`,
+          buttons: ['OK'],
+        });
+      }
+    }
+  });
 
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((err) => { console.error('Update check failed:', err); });

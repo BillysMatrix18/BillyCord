@@ -1,6 +1,6 @@
 {
   "name": "billycord",
-  "version": "1.0.0",
+  "version": "1.0.8",
   "productName": "BillyCord",
   "description": "BillyCord - A full-featured chat application with real-time messaging, voice channels, and server management",
   "private": true,
