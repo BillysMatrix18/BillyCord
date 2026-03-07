@@ -666,7 +666,7 @@ export default function SettingsOverlay() {
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.1.0</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.2</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -685,6 +685,29 @@ export default function SettingsOverlay() {
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', paddingTop: 16, marginTop: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.2</strong>
+                    <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>Fixed channel drag-and-drop reordering</li>
+                      <li>Added version changelog to About page</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.1</strong>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>Initial release</li>
+                      <li>Text and voice channels</li>
+                      <li>Server creation and management</li>
+                      <li>User profiles and settings</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', paddingTop: 16, marginTop: 16 }}>
                 <button
                   className="btn btn-primary"
                   style={{ width: 'auto', marginBottom: 16 }}

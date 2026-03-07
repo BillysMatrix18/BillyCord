@@ -42,6 +42,7 @@ export default function ChannelSidebar() {
   // Drag-and-drop state
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dragOverPos, setDragOverPos] = useState<'above' | 'below'>('below');
   const [dragType, setDragType] = useState<'text' | 'voice' | null>(null);
   const dragCounter = useRef(0);
 
@@ -140,9 +141,13 @@ export default function ChannelSidebar() {
     dragCounter.current = 0;
   }, [dragId]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    setDragOverPos(e.clientY < midY ? 'above' : 'below');
+    setDragOverId(targetId);
   }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent, targetId: string) => {
@@ -172,16 +177,29 @@ export default function ChannelSidebar() {
     // Get the list of channels of the same type
     const list = dragType === 'voice' ? [...voiceChannels] : [...textChannels];
     const dragIndex = list.findIndex(c => c.id === dragId);
-    const targetIndex = list.findIndex(c => c.id === targetId);
+    let targetIndex = list.findIndex(c => c.id === targetId);
 
     if (dragIndex === -1 || targetIndex === -1) {
       handleDragEnd();
       return;
     }
 
+    // Determine drop position based on mouse position
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const dropBelow = e.clientY >= midY;
+
     // Move the dragged channel to the target position
     const [moved] = list.splice(dragIndex, 1);
-    list.splice(targetIndex, 0, moved);
+    // Adjust target index: if dropping below, insert after the target
+    if (dropBelow) {
+      // After splice, if drag was before target, targetIndex shifted down by 1
+      const adjustedTarget = dragIndex < targetIndex ? targetIndex : targetIndex + 1;
+      list.splice(adjustedTarget, 0, moved);
+    } else {
+      const adjustedTarget = dragIndex < targetIndex ? targetIndex : targetIndex;
+      list.splice(adjustedTarget, 0, moved);
+    }
 
     // Build order payload
     const order = list.map((ch, i) => ({ id: ch.id, position: i }));
@@ -227,15 +245,16 @@ export default function ChannelSidebar() {
         draggable={isOwner}
         onDragStart={(e) => handleDragStart(e, ch)}
         onDragEnd={handleDragEnd}
-        onDragOver={handleDragOver}
+        onDragOver={(e) => handleDragOver(e, ch.id)}
         onDragEnter={(e) => handleDragEnter(e, ch.id)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, ch.id)}
         style={{
-          cursor: isOwner ? 'grab' : undefined,
-          borderTop: isDragOver ? '2px solid var(--accent)' : '2px solid transparent',
+          cursor: isOwner ? (isDragging ? 'grabbing' : 'grab') : undefined,
+          borderTop: isDragOver && dragOverPos === 'above' ? '2px solid var(--brand-color)' : '2px solid transparent',
+          borderBottom: isDragOver && dragOverPos === 'below' ? '2px solid var(--brand-color)' : '2px solid transparent',
           opacity: isDragging ? 0.4 : 1,
-          transition: 'border-top-color 0.15s',
+          transition: 'border-color 0.15s',
         }}
       >
         <span className="channel-icon">
