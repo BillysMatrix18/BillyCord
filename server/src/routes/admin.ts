@@ -148,7 +148,7 @@ router.get('/analytics/active-users', async (_req: Request, res: Response) => {
 router.get('/users', async (req: Request, res: Response) => {
   try {
     const search = req.query.search as string;
-    let sql = `SELECT id, username, email, status, custom_status, avatar_url, created_at, last_seen
+    let sql = `SELECT id, username, email, status, custom_status, avatar_url, bio, profile_color, created_at, last_seen
                FROM users`;
     const params: unknown[] = [];
     if (search) {
@@ -321,7 +321,7 @@ router.get('/users/:userId/details', async (req: Request, res: Response) => {
 
     // Friends count
     const friendsCount = await query(
-      "SELECT COUNT(*) as count FROM friends WHERE (user_id = $1 OR friend_id = $1) AND status = 'accepted'",
+      "SELECT COUNT(*) as count FROM friends WHERE (requester_id = $1 OR receiver_id = $1) AND status = 'accepted'",
       [userId]
     );
 
@@ -557,7 +557,7 @@ router.delete('/users/:userId/purge', async (req: Request, res: Response) => {
     // Delete reactions
     try { await query('DELETE FROM message_reactions WHERE user_id = $1', [userId]); } catch (_e) { /* */ }
     // Delete friend relationships
-    try { await query('DELETE FROM friends WHERE user_id = $1 OR friend_id = $1', [userId]); } catch (_e) { /* */ }
+    try { await query('DELETE FROM friends WHERE requester_id = $1 OR receiver_id = $1', [userId]); } catch (_e) { /* */ }
     // Remove from server memberships
     try { await query('DELETE FROM server_members WHERE user_id = $1', [userId]); } catch (_e) { /* */ }
     // Remove from conversations
