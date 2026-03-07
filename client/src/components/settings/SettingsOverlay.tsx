@@ -666,7 +666,7 @@ export default function SettingsOverlay() {
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.2</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.3</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -688,8 +688,17 @@ export default function SettingsOverlay() {
                 <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.2</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.3</strong>
                     <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>Fixed channel creation (spaces auto-convert to hyphens)</li>
+                      <li>Fixed message corruption (apostrophes and quotes no longer garbled)</li>
+                      <li>Fixed DM message rendering double-encoding</li>
+                      <li>Fixed file-only message sending crash</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.2</strong>
                     <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                       <li>Fixed channel drag-and-drop reordering</li>
                       <li>Added version changelog to About page</li>

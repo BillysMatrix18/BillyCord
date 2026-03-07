@@ -65,7 +65,7 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
 
     // Enforce max message length from admin settings
     const maxLength = getSettingInt('max_message_length', 2000);
-    if (content.length > maxLength) {
+    if (content && content.length > maxLength) {
       res.status(400).json({ error: `Message too long (max ${maxLength} characters)` });
       return;
     }

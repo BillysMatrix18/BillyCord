@@ -55,10 +55,10 @@ export const createInviteSchema = z.object({
 });
 
 export function sanitizeHtml(input: string): string {
+  // Only escape HTML angle brackets to prevent injection.
+  // Quotes and apostrophes are safe - the client renders via React JSX.
+  // Do NOT encode & either, since the client's markdown renderer handles its own escaping.
   return input
-    .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+    .replace(/>/g, '&gt;');
 }

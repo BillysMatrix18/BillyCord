@@ -118,13 +118,17 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
   // Channel handlers
   const handleCreateChannel = async () => {
     if (!newChannelName.trim()) return;
+    // Auto-convert spaces to hyphens and lowercase (like Discord)
+    const sanitizedName = newChannelName.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '');
+    if (!sanitizedName) return;
     try {
-      await channelApi.create(serverId, { name: newChannelName.trim(), type: newChannelType });
+      await channelApi.create(serverId, { name: sanitizedName, type: newChannelType });
       setNewChannelName('');
       await refreshServer();
       showToast('Channel created!');
-    } catch {
-      showToast('Failed to create channel');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Failed to create channel';
+      showToast(msg);
     }
   };
 

@@ -177,8 +177,8 @@ export default function DmChatArea() {
   const renderContent = (content: string) => {
     if (!content) return null;
     // Simple markdown: bold, italic, code, strikethrough
-    let html = content
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Server already escapes < and > to prevent HTML injection
+    const html = content
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code style="background:var(--bg-tertiary);padding:1px 4px;border-radius:3px;font-size:0.9em">$1</code>')
