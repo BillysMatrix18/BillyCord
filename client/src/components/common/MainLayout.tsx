@@ -14,6 +14,9 @@ import SettingsOverlay from '../settings/SettingsOverlay';
 import CreateServerModal from '../server/CreateServerModal';
 import JoinServerModal from '../server/JoinServerModal';
 import DevModeOverlay from './DevModeOverlay';
+import VoiceCallPanel from '../voice/VoiceCallPanel';
+import IncomingCallOverlay from '../voice/IncomingCallOverlay';
+import { attachVoiceListeners, detachVoiceListeners } from '../../services/voiceService';
 import { IconX } from './Icons';
 
 export default function MainLayout() {
@@ -35,6 +38,12 @@ export default function MainLayout() {
   useEffect(() => {
     dispatch(fetchServers());
   }, [dispatch]);
+
+  // Attach voice call listeners
+  useEffect(() => {
+    attachVoiceListeners();
+    return () => detachVoiceListeners();
+  }, []);
 
   return (
     <>
@@ -76,6 +85,8 @@ export default function MainLayout() {
       </div>
 
       {devMode && <DevModeOverlay />}
+      <VoiceCallPanel />
+      <IncomingCallOverlay />
       {showSettings && <SettingsOverlay />}
       {showCreateServer && <CreateServerModal />}
       {showJoinServer && <JoinServerModal />}

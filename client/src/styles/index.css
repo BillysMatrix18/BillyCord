@@ -4418,3 +4418,456 @@ input, textarea {
   border-radius: 0 3px 3px 0;
   animation: expandWidth 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Voice Call Panel & Incoming Call Overlay
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Voice Call Panel ─── */
+.voice-call-panel {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 340px;
+  max-height: 520px;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 8000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--bg-quaternary);
+}
+
+.voice-call-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--bg-quaternary);
+}
+
+.voice-call-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green, #43b581);
+}
+
+.voice-call-timer {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+.voice-call-minimize {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.voice-call-minimize:hover {
+  color: var(--text-primary);
+  background: var(--bg-modifier-hover);
+}
+
+/* ─── Participants ─── */
+.voice-call-participants {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  min-height: 80px;
+}
+
+.voice-call-participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.voice-call-participant:hover {
+  background: var(--bg-modifier-hover);
+}
+.voice-call-participant.speaking {
+  background: rgba(67, 181, 129, 0.1);
+}
+
+.voice-call-participant-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+.voice-call-participant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.voice-call-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  background: var(--brand-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+
+.voice-call-speaking-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--green, #43b581);
+  animation: pulse-ring 1s ease-in-out infinite;
+}
+@keyframes pulse-ring {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+.voice-call-participant-info {
+  flex: 1;
+  min-width: 0;
+}
+.voice-call-participant-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+}
+.voice-call-participant-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.voice-call-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.voice-call-badge.muted {
+  background: rgba(255, 59, 48, 0.15);
+  color: #ff3b30;
+}
+.voice-call-badge.deafened {
+  background: rgba(255, 149, 0, 0.15);
+  color: #ff9500;
+}
+
+.voice-call-quality {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+.quality-bar {
+  width: 3px;
+  border-radius: 1px;
+  transition: background 0.3s;
+}
+.quality-bar:nth-child(1) { height: 4px; }
+.quality-bar:nth-child(2) { height: 6px; }
+.quality-bar:nth-child(3) { height: 8px; }
+.quality-bar:nth-child(4) { height: 10px; }
+.quality-bar:nth-child(5) { height: 12px; }
+
+.voice-call-waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.voice-call-ring-animation {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid var(--brand-color);
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+/* ─── Device Selection ─── */
+.voice-call-devices {
+  padding: 8px 12px;
+  border-top: 1px solid var(--bg-quaternary);
+  background: var(--bg-tertiary);
+}
+.voice-call-device-section {
+  margin-bottom: 8px;
+}
+.voice-call-device-section label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.voice-call-device-section select {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--bg-quaternary);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.voice-call-device-section input[type="range"] {
+  width: calc(100% - 40px);
+  vertical-align: middle;
+}
+.voice-call-device-section span {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* ─── Controls ─── */
+.voice-call-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--bg-quaternary);
+  background: var(--bg-tertiary);
+}
+
+.voice-call-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.1s;
+  background: var(--bg-modifier-hover);
+  color: var(--text-primary);
+}
+.voice-call-btn:hover {
+  background: var(--bg-modifier-active);
+  transform: scale(1.05);
+}
+.voice-call-btn.active {
+  background: rgba(255, 59, 48, 0.2);
+  color: #ff3b30;
+}
+.voice-call-btn.end-call {
+  background: #ff3b30;
+  color: #fff;
+  width: 48px;
+  height: 48px;
+}
+.voice-call-btn.end-call:hover {
+  background: #e0352b;
+}
+
+/* ─── Minimized Panel ─── */
+.voice-call-mini {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-quaternary);
+  border-radius: 24px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  z-index: 8000;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: background 0.15s;
+}
+.voice-call-mini:hover {
+  background: var(--bg-tertiary);
+}
+.voice-call-mini-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.voice-call-mini-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green, #43b581);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+.voice-call-mini-end {
+  background: #ff3b30;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* ─── Incoming Call Overlay ─── */
+.incoming-call-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.incoming-call-card {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  width: 320px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.incoming-call-ring-anim {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -80%);
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 2px solid var(--green, #43b581);
+  animation: incoming-ring 2s ease-in-out infinite;
+  opacity: 0.3;
+}
+@keyframes incoming-ring {
+  0% { transform: translate(-50%, -80%) scale(0.8); opacity: 0.5; }
+  50% { transform: translate(-50%, -80%) scale(1.3); opacity: 0; }
+  100% { transform: translate(-50%, -80%) scale(0.8); opacity: 0.5; }
+}
+
+.incoming-call-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin: 0 auto 16px;
+  position: relative;
+}
+.incoming-call-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.incoming-call-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  background: var(--brand-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.incoming-call-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.incoming-call-label {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.incoming-call-actions {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+.incoming-call-reject,
+.incoming-call-accept {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.incoming-call-reject {
+  background: #ff3b30;
+  color: #fff;
+}
+.incoming-call-accept {
+  background: #34c759;
+  color: #fff;
+}
+.incoming-call-reject:hover,
+.incoming-call-accept:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Glass theme overrides ─── */
+[data-theme="glass"] .voice-call-panel {
+  background: rgba(15, 15, 30, 0.92);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+[data-theme="glass"] .voice-call-header {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+[data-theme="glass"] .voice-call-controls {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+[data-theme="glass"] .voice-call-btn {
+  background: rgba(255, 255, 255, 0.08);
+}
+[data-theme="glass"] .voice-call-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+[data-theme="glass"] .voice-call-mini {
+  background: rgba(15, 15, 30, 0.92);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+[data-theme="glass"] .incoming-call-card {
+  background: rgba(15, 15, 30, 0.95);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+[data-theme="glass"] .voice-call-devices {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+[data-theme="glass"] .voice-call-device-section select {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}

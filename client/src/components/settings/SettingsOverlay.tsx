@@ -3,6 +3,8 @@ import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { toggleSettings, setThemeWithSync } from '../../store/uiSlice';
 import { updateProfile, logout } from '../../store/authSlice';
 import { authApi } from '../../services/api';
+import { enumerateDevices, switchMicrophone, switchSpeaker, setOutputVolumeLevel } from '../../services/voiceService';
+import { setInputVolume, setNoiseSuppression as setNoiseSuppressionAction, setSelectedMic, setSelectedSpeaker } from '../../store/voiceSlice';
 import { getSocket } from '../../services/socket';
 import { clearServerAddress } from '../common/ConnectionScreen';
 import {
@@ -11,6 +13,137 @@ import {
 } from '../common/Icons';
 
 type SettingsTab = 'account' | 'profile' | 'appearance' | 'animations' | 'notifications' | 'privacy' | 'voice' | 'accessibility' | 'keybinds' | 'devmode' | 'about';
+
+function VoiceSettings({ micVolume, speakerVolume, echoCancellation, noiseSuppression, autoAdjustMic,
+  onMicVolumeChange, onSpeakerVolumeChange, onEchoCancellationToggle, onNoiseSuppressionToggle, onAutoAdjustMicToggle,
+}: {
+  micVolume: number; speakerVolume: number; echoCancellation: boolean; noiseSuppression: boolean; autoAdjustMic: boolean;
+  onMicVolumeChange: (v: number) => void; onSpeakerVolumeChange: (v: number) => void;
+  onEchoCancellationToggle: (v: boolean) => void; onNoiseSuppressionToggle: (v: boolean) => void; onAutoAdjustMicToggle: (v: boolean) => void;
+}) {
+  const dispatch = useAppDispatch();
+  const { availableMicrophones, availableSpeakers, selectedMicId, selectedSpeakerId, inputVolume, outputVolume, noiseSuppression: nsRedux } = useAppSelector(s => s.voice);
+
+  useEffect(() => { enumerateDevices(); }, []);
+
+  return (
+    <div className="animate-fade-in">
+      <h2>Voice & Video</h2>
+      <div className="settings-card">
+        <div className="form-group">
+          <label>Microphone</label>
+          <select className="form-input" value={selectedMicId || ''} onChange={(e) => {
+            dispatch(setSelectedMic(e.target.value));
+            switchMicrophone(e.target.value);
+          }}>
+            <option value="">Default</option>
+            {availableMicrophones.map(d => (
+              <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group" style={{ marginTop: 16 }}>
+          <label>Speaker</label>
+          <select className="form-input" value={selectedSpeakerId || ''} onChange={(e) => {
+            dispatch(setSelectedSpeaker(e.target.value));
+            switchSpeaker(e.target.value);
+          }}>
+            <option value="">Default</option>
+            {availableSpeakers.map(d => (
+              <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="form-group" style={{ marginTop: 16 }}>
+          <label>Input Volume - {inputVolume}%</label>
+          <input type="range" min="0" max="200" value={inputVolume}
+            onChange={e => { dispatch(setInputVolume(Number(e.target.value))); onMicVolumeChange(Number(e.target.value)); }}
+            style={{ width: '100%', accentColor: 'var(--brand-color)' }} />
+        </div>
+
+        <div className="form-group" style={{ marginTop: 16 }}>
+          <label>Output Volume - {outputVolume}%</label>
+          <input type="range" min="0" max="100" value={outputVolume}
+            onChange={e => { setOutputVolumeLevel(Number(e.target.value)); onSpeakerVolumeChange(Number(e.target.value)); }}
+            style={{ width: '100%', accentColor: 'var(--brand-color)' }} />
+        </div>
+      </div>
+
+      <div className="settings-card" style={{ marginTop: 16 }}>
+        <div className="settings-toggle-row">
+          <div>
+            <div className="toggle-label">Echo Cancellation</div>
+            <div className="toggle-desc">Reduce echo from your speakers</div>
+          </div>
+          <label className="switch-toggle">
+            <input type="checkbox" checked={echoCancellation} onChange={e => onEchoCancellationToggle(e.target.checked)} />
+            <span className="switch-slider" />
+          </label>
+        </div>
+
+        <div className="settings-toggle-row">
+          <div>
+            <div className="toggle-label">Noise Suppression</div>
+            <div className="toggle-desc">Filter out background noise from your microphone</div>
+          </div>
+          <label className="switch-toggle">
+            <input type="checkbox" checked={nsRedux} onChange={e => {
+              dispatch(setNoiseSuppressionAction(e.target.checked));
+              onNoiseSuppressionToggle(e.target.checked);
+            }} />
+            <span className="switch-slider" />
+          </label>
+        </div>
+
+        <div className="settings-toggle-row">
+          <div>
+            <div className="toggle-label">Auto-Adjust Mic Level</div>
+            <div className="toggle-desc">Automatically adjust microphone sensitivity</div>
+          </div>
+          <label className="switch-toggle">
+            <input type="checkbox" checked={autoAdjustMic} onChange={e => onAutoAdjustMicToggle(e.target.checked)} />
+            <span className="switch-slider" />
+          </label>
+        </div>
+      </div>
+
+      <div className="settings-card" style={{ marginTop: 16 }}>
+        <h3 style={{ marginBottom: 12, fontSize: 14 }}>Call History</h3>
+        <CallHistory />
+      </div>
+    </div>
+  );
+}
+
+function CallHistory() {
+  const { callHistory } = useAppSelector(s => s.voice);
+  if (callHistory.length === 0) {
+    return <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>No call history yet.</p>;
+  }
+  return (
+    <div style={{ maxHeight: 200, overflow: 'auto' }}>
+      {callHistory.map(entry => (
+        <div key={entry.id} style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '6px 0', borderBottom: '1px solid var(--bg-quaternary)', fontSize: 13,
+        }}>
+          <div>
+            <span style={{ color: 'var(--text-primary)' }}>{entry.participantNames.join(', ') || 'Unknown'}</span>
+            <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>
+              {entry.status === 'completed' ? `${Math.floor(entry.duration / 60)}:${(entry.duration % 60).toString().padStart(2, '0')}` :
+               entry.status === 'missed' ? 'Missed' : 'Declined'}
+            </span>
+          </div>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+            {new Date(entry.timestamp).toLocaleDateString()}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function SettingsOverlay() {
   const dispatch = useAppDispatch();
@@ -567,83 +700,18 @@ export default function SettingsOverlay() {
         )}
 
         {activeTab === 'voice' && (
-          <div className="animate-fade-in">
-            <h2>Voice & Video</h2>
-            <div className="settings-card">
-              <div className="form-group">
-                <label>Microphone</label>
-                <select className="form-input">
-                  <option value="default">Default</option>
-                </select>
-              </div>
-
-              <div className="form-group" style={{ marginTop: 16 }}>
-                <label>Speaker</label>
-                <select className="form-input">
-                  <option value="default">Default</option>
-                </select>
-              </div>
-
-              <div className="form-group" style={{ marginTop: 16 }}>
-                <label>Microphone Volume - {micVolume}%</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={micVolume}
-                  onChange={e => handleMicVolumeChange(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--brand-color)' }}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginTop: 16 }}>
-                <label>Speaker Volume - {speakerVolume}%</label>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={speakerVolume}
-                  onChange={e => handleSpeakerVolumeChange(Number(e.target.value))}
-                  style={{ width: '100%', accentColor: 'var(--brand-color)' }}
-                />
-              </div>
-            </div>
-
-            <div className="settings-card" style={{ marginTop: 16 }}>
-              <div className="settings-toggle-row">
-                <div>
-                  <div className="toggle-label">Echo Cancellation</div>
-                  <div className="toggle-desc">Reduce echo from your speakers</div>
-                </div>
-                <label className="switch-toggle">
-                  <input type="checkbox" checked={echoCancellation} onChange={e => handleEchoCancellationToggle(e.target.checked)} />
-                  <span className="switch-slider" />
-                </label>
-              </div>
-
-              <div className="settings-toggle-row">
-                <div>
-                  <div className="toggle-label">Noise Suppression</div>
-                  <div className="toggle-desc">Filter out background noise from your microphone</div>
-                </div>
-                <label className="switch-toggle">
-                  <input type="checkbox" checked={noiseSuppression} onChange={e => handleNoiseSuppressionToggle(e.target.checked)} />
-                  <span className="switch-slider" />
-                </label>
-              </div>
-
-              <div className="settings-toggle-row">
-                <div>
-                  <div className="toggle-label">Auto-Adjust Mic Level</div>
-                  <div className="toggle-desc">Automatically adjust microphone sensitivity</div>
-                </div>
-                <label className="switch-toggle">
-                  <input type="checkbox" checked={autoAdjustMic} onChange={e => handleAutoAdjustMicToggle(e.target.checked)} />
-                  <span className="switch-slider" />
-                </label>
-              </div>
-            </div>
-          </div>
+          <VoiceSettings
+            micVolume={micVolume}
+            speakerVolume={speakerVolume}
+            echoCancellation={echoCancellation}
+            noiseSuppression={noiseSuppression}
+            autoAdjustMic={autoAdjustMic}
+            onMicVolumeChange={handleMicVolumeChange}
+            onSpeakerVolumeChange={handleSpeakerVolumeChange}
+            onEchoCancellationToggle={handleEchoCancellationToggle}
+            onNoiseSuppressionToggle={handleNoiseSuppressionToggle}
+            onAutoAdjustMicToggle={handleAutoAdjustMicToggle}
+          />
         )}
 
         {activeTab === 'accessibility' && (
@@ -835,7 +903,7 @@ export default function SettingsOverlay() {
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Version 0.1.3</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Version 0.1.4</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -857,8 +925,23 @@ export default function SettingsOverlay() {
                 <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.3</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.4</strong>
                     <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>Complete voice calling system: 1v1 DM calls, group calls, and voice channels</li>
+                      <li>WebRTC peer-to-peer audio with STUN servers for NAT traversal</li>
+                      <li>Incoming call overlay with accept/reject and 60s auto-timeout</li>
+                      <li>Voice call panel with mute, deafen, device selection, and quality indicators</li>
+                      <li>Microphone and speaker selection with live switching during calls</li>
+                      <li>Voice activity detection with speaking indicators</li>
+                      <li>Volume controls for input (0-200%) and output (0-100%)</li>
+                      <li>Call history tracking in Voice & Video settings</li>
+                      <li>Voice call database tables for persistent call records</li>
+                      <li>Noise suppression and echo cancellation options</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.3</strong>
                     <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                       <li>Fixed profile modal appearing behind UI when clicking users in member list</li>
                       <li>Fixed liquid glass theme transparency in server settings</li>

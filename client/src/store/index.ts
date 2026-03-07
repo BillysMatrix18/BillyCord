@@ -6,6 +6,7 @@ import messageReducer from './messageSlice';
 import friendReducer from './friendSlice';
 import dmReducer from './dmSlice';
 import uiReducer from './uiSlice';
+import voiceReducer from './voiceSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     friends: friendReducer,
     dm: dmReducer,
     ui: uiReducer,
+    voice: voiceReducer,
   },
 });
 

@@ -8,6 +8,7 @@ import { setUserStatus } from '../../store/authSlice';
 import { authApi, channelApi } from '../../services/api';
 import { useVoice } from '../../hooks/useVoice';
 import { getSocket } from '../../services/socket';
+import { joinVoiceChannelCall, leaveVoiceChannelCall } from '../../services/voiceService';
 import { Channel } from '../../types';
 import {
   IconHash, IconVolume, IconChevronDown, IconSettings, IconMic, IconMicOff,
@@ -89,7 +90,13 @@ export default function ChannelSidebar() {
 
   const handleChannelClick = (channel: { id: string; type: string }) => {
     if (channel.type === 'voice') {
-      currentVoiceChannel === channel.id ? leaveVoiceChannel() : joinVoiceChannel(channel.id);
+      if (currentVoiceChannel === channel.id) {
+        leaveVoiceChannel();
+        leaveVoiceChannelCall();
+      } else {
+        joinVoiceChannel(channel.id);
+        if (serverId) joinVoiceChannelCall(channel.id, serverId);
+      }
     } else {
       navigate(`/channels/${serverId}/${channel.id}`);
       dispatch(clearChannelUnread(channel.id));

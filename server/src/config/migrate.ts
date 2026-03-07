@@ -373,6 +373,53 @@ export async function runMigrations() {
     UNIQUE(message_id, user_id, emoji)
   )`);
 
+  // Voice calls table
+  await exec(`CREATE TABLE IF NOT EXISTS voice_calls (
+    id TEXT PRIMARY KEY,
+    initiator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    receiver_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    conversation_id TEXT,
+    server_id TEXT,
+    channel_id TEXT,
+    call_type TEXT NOT NULL DEFAULT 'dm' CHECK (call_type IN ('dm', 'group', 'channel')),
+    status TEXT NOT NULL DEFAULT 'initiated' CHECK (status IN ('initiated', 'ringing', 'active', 'ended', 'declined', 'missed')),
+    start_time TEXT DEFAULT (datetime('now')),
+    end_time TEXT,
+    duration_seconds INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now'))
+  )`);
+
+  // Voice call participants
+  await exec(`CREATE TABLE IF NOT EXISTS voice_call_participants (
+    id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+    call_id TEXT NOT NULL REFERENCES voice_calls(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TEXT DEFAULT (datetime('now')),
+    left_at TEXT,
+    muted INTEGER DEFAULT 0,
+    deafened INTEGER DEFAULT 0
+  )`);
+
+  // Voice device preferences
+  await exec(`CREATE TABLE IF NOT EXISTS voice_devices (
+    id TEXT PRIMARY KEY DEFAULT ${UUID_DEFAULT},
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    device_type TEXT NOT NULL CHECK (device_type IN ('microphone', 'speaker')),
+    device_id TEXT NOT NULL,
+    device_name TEXT,
+    is_default INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, device_type, device_id)
+  )`);
+
+  // Voice call indexes
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_voice_calls_initiator ON voice_calls(initiator_id)");
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_voice_calls_receiver ON voice_calls(receiver_id)");
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_voice_calls_conv ON voice_calls(conversation_id)");
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_voice_call_participants_call ON voice_call_participants(call_id)");
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_voice_call_participants_user ON voice_call_participants(user_id)");
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_voice_devices_user ON voice_devices(user_id)");
+
   // Insert default server settings
   await defaultSetting('max_users', '10000', 'integer', 'users', 'Maximum total users allowed');
   await defaultSetting('max_friends_per_user', '5000', 'integer', 'users', 'Maximum friends per user');
