@@ -26,6 +26,8 @@ export default function DmChatArea() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [reactingId, setReactingId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msgId: string } | null>(null);
+  const [copyToast, setCopyToast] = useState(false);
 
   const conversation = conversations.find(c => c.id === conversationId);
   const otherParticipant = conversation?.is_group ? null : conversation?.participants?.[0];
@@ -204,6 +206,26 @@ export default function DmChatArea() {
     return Array.from(grouped.entries()).map(([emoji, users]) => ({ emoji, users }));
   };
 
+  const handleContextMenu = (e: React.MouseEvent, msgId: string) => {
+    e.preventDefault();
+    const menuW = 220, menuH = 300;
+    const x = Math.min(e.clientX, window.innerWidth - menuW - 8);
+    const y = Math.min(e.clientY, window.innerHeight - menuH - 8);
+    setContextMenu({ x, y, msgId });
+  };
+
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setContextMenu(null);
+    setCopyToast(true);
+    setTimeout(() => setCopyToast(false), 2000);
+  };
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setContextMenu(null);
+  };
+
   const renderAttachments = (attachments: unknown) => {
     if (!attachments) return null;
     let parsed: Array<{ url?: string; name?: string; type?: string; size?: number } | string> = [];
@@ -280,6 +302,7 @@ export default function DmChatArea() {
 
             return (
               <div key={msg.id} className={`message ${shouldShowHeader(index) ? 'message-group-start' : ''}`}
+                onContextMenu={(e) => handleContextMenu(e, msg.id)}
                 style={{ position: 'relative', borderLeft: isPinned ? '2px solid var(--accent)' : undefined,
                   paddingLeft: isPinned ? 6 : undefined }}>
                 {shouldShowHeader(index) ? (
@@ -463,6 +486,66 @@ export default function DmChatArea() {
           </button>
         </div>
       </div>
+
+      {/* Right-click context menu */}
+      {contextMenu && (() => {
+        const msg = messages.find(m => m.id === contextMenu.msgId);
+        if (!msg) return null;
+        const isOwn = msg.sender_id === user?.id;
+        const isPinned = msg.pinned === true || msg.pinned === 1;
+        return (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+              onClick={() => setContextMenu(null)}
+              onContextMenu={(e) => { e.preventDefault(); setContextMenu(null); }} />
+            <div className="context-menu animate-fade-in"
+              style={{ position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 1000 }}>
+              <div className="context-menu-item" onClick={() => {
+                setReactingId(reactingId === msg.id ? null : msg.id);
+                setContextMenu(null);
+              }}>
+                <span className="context-menu-icon">😀</span> Add Reaction
+              </div>
+              {isOwn && (
+                <div className="context-menu-item" onClick={() => {
+                  setEditingId(msg.id); setEditContent(msg.content);
+                  setContextMenu(null);
+                }}>
+                  <span className="context-menu-icon">✏️</span> Edit Message
+                </div>
+              )}
+              <div className="context-menu-item" onClick={() => {
+                handlePin(msg.id, isPinned);
+                setContextMenu(null);
+              }}>
+                <span className="context-menu-icon">📌</span> {isPinned ? 'Unpin Message' : 'Pin Message'}
+              </div>
+              <div className="context-menu-item" onClick={() => handleCopyText(msg.content)}>
+                <span className="context-menu-icon">📋</span> Copy Text
+              </div>
+              <div className="context-menu-item" onClick={() => handleCopyId(msg.id)}>
+                <span className="context-menu-icon">#</span> Copy Message ID
+              </div>
+              {isOwn && (
+                <>
+                  <div className="context-menu-separator" />
+                  <div className="context-menu-item context-menu-danger" onClick={() => {
+                    handleDelete(msg.id);
+                    setContextMenu(null);
+                  }}>
+                    <span className="context-menu-icon">🗑️</span> Delete Message
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
+      {/* Copy toast */}
+      {copyToast && (
+        <div className="copy-toast animate-fade-in">Copied to clipboard</div>
+      )}
 
       {profileUser && (
         <UserProfileModal

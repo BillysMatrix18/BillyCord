@@ -142,6 +142,13 @@ export async function sendDirectMessage(req: Request, res: Response): Promise<vo
       return;
     }
 
+    // Check if user is muted
+    const muteCheck = await query('SELECT custom_status FROM users WHERE id = $1', [userId]);
+    if (muteCheck.rows[0]?.custom_status?.startsWith('MUTED:')) {
+      res.status(403).json({ error: 'You are muted and cannot send messages' });
+      return;
+    }
+
     // Verify membership
     const membership = await query(
       'SELECT id FROM conversation_members WHERE conversation_id = $1 AND user_id = $2',

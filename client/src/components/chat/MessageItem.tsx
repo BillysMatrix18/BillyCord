@@ -333,11 +333,9 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
                 <span className="context-menu-icon">✏️</span> Edit Message
               </div>
             )}
-            {isAuthor && (
-              <div className="context-menu-item" onClick={() => { handlePin(); setContextMenu(null); }}>
-                <span className="context-menu-icon">📌</span> {message.pinned ? 'Unpin Message' : 'Pin Message'}
-              </div>
-            )}
+            <div className="context-menu-item" onClick={() => { handlePin(); setContextMenu(null); }}>
+              <span className="context-menu-icon">📌</span> {message.pinned ? 'Unpin Message' : 'Pin Message'}
+            </div>
             <div className="context-menu-item" onClick={handleCopyText}>
               <span className="context-menu-icon">📋</span> Copy Text
             </div>

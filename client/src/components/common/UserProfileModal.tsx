@@ -24,8 +24,14 @@ interface FullProfile {
   status: string;
   custom_status: string | null;
   avatar_url: string | null;
+  badges: string | null;
   created_at: string;
 }
+
+const BADGE_COLORS: Record<string, string> = {
+  Admin: '#e74c3c', Moderator: '#3498db', Verified: '#2ecc71', VIP: '#f1c40f',
+  'Beta Tester': '#9b59b6', Developer: '#e67e22', Supporter: '#1abc9c', OG: '#fd79a8',
+};
 
 export default function UserProfileModal({ userId, username, avatarUrl, bio, status, profileColor, onClose }: UserProfileModalProps) {
   const navigate = useNavigate();
@@ -164,6 +170,19 @@ export default function UserProfileModal({ userId, username, avatarUrl, bio, sta
 
         <div className="profile-modal-body">
           <h2 className="profile-modal-username">{username}</h2>
+          {/* Badges */}
+          {profile?.badges && profile.badges.trim() && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+              {profile.badges.split(',').map(b => b.trim()).filter(Boolean).map(badge => (
+                <span key={badge} className="user-badge-tag" style={{
+                  color: BADGE_COLORS[badge] || '#8b95a5',
+                  borderColor: BADGE_COLORS[badge] || '#8b95a5',
+                }}>
+                  {badge}
+                </span>
+              ))}
+            </div>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span className="profile-modal-status" style={{ textTransform: 'capitalize' }}>{displayStatus}</span>
             {displayPronouns && (

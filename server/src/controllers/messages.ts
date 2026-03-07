@@ -66,6 +66,13 @@ export async function createMessage(req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Check if user is muted
+    const muteCheck = await query('SELECT custom_status FROM users WHERE id = $1', [userId]);
+    if (muteCheck.rows[0]?.custom_status?.startsWith('MUTED:')) {
+      res.status(403).json({ error: 'You are muted and cannot send messages' });
+      return;
+    }
+
     // Enforce max message length from admin settings
     const maxLength = getSettingInt('max_message_length', 2000);
     if (content && content.length > maxLength) {

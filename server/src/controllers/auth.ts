@@ -193,7 +193,7 @@ export async function getUserProfile(req: Request, res: Response): Promise<void>
     const result = await query(
       `SELECT id, username, avatar_url, banner_url, bio, status, custom_status,
               pronouns, location, birthday, social_links, profile_color, profile_visibility,
-              created_at
+              badges, created_at
        FROM users WHERE id = $1`,
       [userId]
     );
