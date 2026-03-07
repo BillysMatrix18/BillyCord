@@ -4,6 +4,7 @@ import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
 import { useAppDispatch, useAppSelector } from './useAppDispatch';
 import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage, setMessagePinned } from '../store/messageSlice';
 import { updateMemberStatus } from '../store/serverSlice';
+import { incrementChannelUnread } from '../store/channelSlice';
 import { addDmMessage, incrementConversationUnread, clearConversationUnread, fetchConversations } from '../store/dmSlice';
 import { dmApi } from '../services/api';
 import { notify, requestNotificationPermission } from '../services/notifications';
@@ -32,6 +33,11 @@ export function useSocket() {
       // Notify for server channel messages from other users
       if (message.sender_id !== currentUserIdRef.current) {
         notify(message.sender_name || 'New message', message.content || 'Sent an attachment');
+        // Increment channel unread if not currently viewing that channel
+        const currentPath = window.location.pathname;
+        if (message.channel_id && !currentPath.includes(`/${message.channel_id}`)) {
+          dispatch(incrementChannelUnread(message.channel_id));
+        }
       }
     });
 

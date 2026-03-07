@@ -5,12 +5,14 @@ interface ChannelState {
   channels: Channel[];
   categories: Category[];
   currentChannel: Channel | null;
+  unreadChannels: Record<string, number>; // channelId -> unread count
 }
 
 const initialState: ChannelState = {
   channels: [],
   categories: [],
   currentChannel: null,
+  unreadChannels: {},
 };
 
 const channelSlice = createSlice({
@@ -35,8 +37,17 @@ const channelSlice = createSlice({
         state.currentChannel = null;
       }
     },
+    incrementChannelUnread(state, action: PayloadAction<string>) {
+      state.unreadChannels[action.payload] = (state.unreadChannels[action.payload] || 0) + 1;
+    },
+    clearChannelUnread(state, action: PayloadAction<string>) {
+      delete state.unreadChannels[action.payload];
+    },
+    clearAllChannelUnreads(state) {
+      state.unreadChannels = {};
+    },
   },
 });
 
-export const { setChannels, setCategories, setCurrentChannel, addChannel, removeChannel } = channelSlice.actions;
+export const { setChannels, setCategories, setCurrentChannel, addChannel, removeChannel, incrementChannelUnread, clearChannelUnread, clearAllChannelUnreads } = channelSlice.actions;
 export default channelSlice.reducer;

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchServer } from '../../store/serverSlice';
-import { setChannels, setCategories, setCurrentChannel } from '../../store/channelSlice';
+import { setChannels, setCategories, setCurrentChannel, clearChannelUnread } from '../../store/channelSlice';
 import { toggleSettings } from '../../store/uiSlice';
 import { setUserStatus } from '../../store/authSlice';
 import { authApi, channelApi } from '../../services/api';
@@ -27,7 +27,7 @@ export default function ChannelSidebar() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { currentServer } = useAppSelector((state) => state.servers);
-  const { channels, categories } = useAppSelector((state) => state.channels);
+  const { channels, categories, unreadChannels } = useAppSelector((state) => state.channels);
   const { user } = useAppSelector((state) => state.auth);
   const { currentVoiceChannel, voiceUsers, isMuted, isDeafened, joinVoiceChannel, leaveVoiceChannel, toggleMute, toggleDeafen } = useVoice();
   const [showStatus, setShowStatus] = useState(false);
@@ -63,6 +63,7 @@ export default function ChannelSidebar() {
     if (channelId) {
       const channel = channels.find(c => c.id === channelId);
       if (channel) dispatch(setCurrentChannel(channel));
+      dispatch(clearChannelUnread(channelId));
     }
   }, [channelId, channels, dispatch]);
 
@@ -91,6 +92,7 @@ export default function ChannelSidebar() {
       currentVoiceChannel === channel.id ? leaveVoiceChannel() : joinVoiceChannel(channel.id);
     } else {
       navigate(`/channels/${serverId}/${channel.id}`);
+      dispatch(clearChannelUnread(channel.id));
     }
   };
 
@@ -293,12 +295,14 @@ export default function ChannelSidebar() {
     const isActive = isVoice ? currentVoiceChannel === ch.id : channelId === ch.id;
     const isDragging = dragId === ch.id;
     const isDragOver = dragOverId === ch.id && dragId !== ch.id;
+    const unreadCount = unreadChannels[ch.id] || 0;
+    const hasUnread = unreadCount > 0 && !isActive;
 
     return (
       <div
         key={ch.id}
         data-channel-id={ch.id}
-        className={`channel-item ${isActive ? 'active' : ''}`}
+        className={`channel-item ${isActive ? 'active' : ''} ${hasUnread ? 'unread' : ''}`}
         onClick={() => handleChannelClick(ch)}
         draggable={isOwner}
         onDragStart={(e) => handleDragStart(e, ch)}
@@ -318,7 +322,10 @@ export default function ChannelSidebar() {
         <span className="channel-icon">
           {isVoice ? <IconVolume size={18} /> : <IconHash size={18} />}
         </span>
-        <span className="channel-name">{ch.name}</span>
+        <span className="channel-name" style={hasUnread ? { color: 'var(--interactive-active)', fontWeight: 600 } : undefined}>{ch.name}</span>
+        {hasUnread && (
+          <span className="channel-unread-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+        )}
       </div>
     );
   };
