@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import { createServer } from 'http';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -35,6 +36,7 @@ app.use(cors({
   origin: true,
   credentials: true,
 }));
+app.use(compression());  // Gzip responses — reduces payload size for faster transfers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter);
@@ -44,7 +46,7 @@ const uploadsDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir, { maxAge: '7d' }));
 
 // Maintenance mode check (skip admin routes so admin can disable it)
 app.use('/api', (req, res, next) => {
@@ -76,7 +78,7 @@ app.get('/api/health', (_req, res) => {
     serverName: 'BillyCord',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: '1.0.0',
+    version: 'Alpha 0.1.0',
     memory: {
       heapUsed: Math.round(mem.heapUsed / 1024 / 1024),
       heapTotal: Math.round(mem.heapTotal / 1024 / 1024),
@@ -103,7 +105,7 @@ const clientBuildPath = candidatePaths.find(p => {
 
 if (clientBuildPath) {
   console.log('Serving client build from:', clientBuildPath);
-  app.use(express.static(clientBuildPath));
+  app.use(express.static(clientBuildPath, { maxAge: '1d' }));
 
   // SPA fallback: any non-API route serves index.html
   app.get('*', (_req, res) => {

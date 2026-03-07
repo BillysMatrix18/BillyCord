@@ -353,6 +353,11 @@ export async function runMigrations() {
   await safeAlter("ALTER TABLE conversation_members ADD COLUMN unread_count INTEGER DEFAULT 0");
   await safeAlter("ALTER TABLE server_members ADD COLUMN unread_count INTEGER DEFAULT 0");
 
+  // Performance indexes for DM queries
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_dm_conv_time ON direct_messages(conversation_id, created_at DESC)");
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_dm_reactions_msg ON dm_reactions(message_id)");
+  await safeAlter("CREATE INDEX IF NOT EXISTS idx_channels_server_pos ON channels(server_id, position)");
+
   // DM message editing, pinning support
   await safeAlter("ALTER TABLE direct_messages ADD COLUMN edited INTEGER DEFAULT 0");
   await safeAlter("ALTER TABLE direct_messages ADD COLUMN pinned INTEGER DEFAULT 0");

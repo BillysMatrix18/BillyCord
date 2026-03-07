@@ -6,6 +6,7 @@ import { query } from '../config/database';
 interface AuthenticatedSocket extends Socket {
   userId?: string;
   username?: string;
+  restoredStatus?: string;
 }
 
 // Track users in voice channels: channelId -> Set of { socketId, userId, username }
@@ -43,13 +44,16 @@ export function initializeSocket(httpServer: HttpServer): Server {
       const payload = verifyAccessToken(token);
       socket.userId = payload.userId;
 
-      const userResult = await query('SELECT username FROM users WHERE id = $1', [payload.userId]);
+      const userResult = await query('SELECT username, status FROM users WHERE id = $1', [payload.userId]);
       if (userResult.rows.length > 0) {
         socket.username = userResult.rows[0].username;
       }
 
-      // Update user status to online
-      await query("UPDATE users SET status = 'online', last_seen = NOW() WHERE id = $1", [payload.userId]);
+      // Restore user's chosen status on reconnect (respect dnd/idle), only change from offline → online
+      const prevStatus = userResult.rows[0]?.status;
+      const restoreStatus = (prevStatus === 'dnd' || prevStatus === 'idle') ? prevStatus : 'online';
+      socket.restoredStatus = restoreStatus;
+      await query("UPDATE users SET status = $1, last_seen = NOW() WHERE id = $2", [restoreStatus, payload.userId]);
 
       next();
     } catch {
@@ -80,8 +84,9 @@ export function initializeSocket(httpServer: HttpServer): Server {
     // Join user's personal room for DMs and notifications
     socket.join(`user:${userId}`);
 
-    // Broadcast online status
-    socket.broadcast.emit('user:status', { userId, status: 'online' });
+    // Broadcast user's restored status (respects dnd/idle choice)
+    const connectedStatus = socket.restoredStatus || 'online';
+    socket.broadcast.emit('user:status', { userId, status: connectedStatus });
 
     // Join a channel room for real-time messages
     socket.on('channel:join', safe((channelId: unknown) => {

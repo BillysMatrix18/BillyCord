@@ -24,7 +24,7 @@ export function startDiscoveryBeacon(serverPort: number): () => void {
     app: 'billycord',
     port: serverPort,
     ip: lanIp,
-    version: '1.0.0',
+    version: 'Alpha 0.1.0',
   }));
 
   let interval: ReturnType<typeof setInterval> | null = null;

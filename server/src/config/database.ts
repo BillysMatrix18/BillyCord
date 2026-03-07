@@ -54,6 +54,11 @@ db.run('PRAGMA journal_mode = WAL');
 db.run('PRAGMA foreign_keys = ON');
 // Wait up to 10s for locked database instead of failing immediately
 db.run('PRAGMA busy_timeout = 10000');
+// Performance optimizations
+db.run('PRAGMA cache_size = -8000');      // 8MB page cache
+db.run('PRAGMA temp_store = MEMORY');      // Temp tables in RAM
+db.run('PRAGMA mmap_size = 67108864');     // 64MB memory-mapped I/O
+db.run('PRAGMA synchronous = NORMAL');     // Faster writes (safe with WAL)
 
 /**
  * Convert PostgreSQL-style SQL to SQLite-compatible SQL.

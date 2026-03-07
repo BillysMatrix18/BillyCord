@@ -28,9 +28,11 @@ export default function DmChatArea() {
   const [reactingId, setReactingId] = useState<string | null>(null);
 
   const conversation = conversations.find(c => c.id === conversationId);
+  const otherParticipant = conversation?.is_group ? null : conversation?.participants?.[0];
   const displayName = conversation?.is_group
     ? conversation.name || conversation.participants?.map(p => p.username).join(', ')
-    : conversation?.participants?.[0]?.username || 'Unknown';
+    : otherParticipant?.username || 'Unknown';
+  const headerAvatar = conversation?.is_group ? conversation.icon_url : otherParticipant?.avatar_url;
 
   useEffect(() => {
     if (conversationId) {
@@ -243,9 +245,22 @@ export default function DmChatArea() {
   return (
     <div className="chat-area">
       <div className="chat-header">
-        <div className="chat-header-left">
-          <span style={{ fontSize: 20, color: 'var(--channel-icon)' }}>@</span>
-          <span className="channel-name">{displayName}</span>
+        <div className="chat-header-left" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, cursor: otherParticipant ? 'pointer' : undefined, overflow: 'hidden', flexShrink: 0 }}
+            onClick={() => otherParticipant && setProfileUser({ id: otherParticipant.id, name: otherParticipant.username, avatar: otherParticipant.avatar_url })}
+          >
+            {headerAvatar
+              ? <img src={headerAvatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ color: 'var(--text-primary)' }}>{displayName?.[0]?.toUpperCase() || '?'}</span>}
+          </div>
+          <span
+            className="channel-name"
+            style={{ cursor: otherParticipant ? 'pointer' : undefined }}
+            onClick={() => otherParticipant && setProfileUser({ id: otherParticipant.id, name: otherParticipant.username, avatar: otherParticipant.avatar_url })}
+          >
+            {displayName}
+          </span>
         </div>
         <div className="chat-header-right">
           <button onClick={() => navigate('/channels/@me')} title="Close DM"

@@ -134,10 +134,12 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // Update last_seen and status
+    // Update last_seen; restore chosen status (respect dnd/idle), only change offline → online
+    const prevLoginStatus = user.status;
+    const loginStatus = (prevLoginStatus === 'dnd' || prevLoginStatus === 'idle') ? prevLoginStatus : 'online';
     await query(
-      "UPDATE users SET last_seen = NOW(), status = 'online' WHERE id = $1",
-      [user.id]
+      "UPDATE users SET last_seen = NOW(), status = $1 WHERE id = $2",
+      [loginStatus, user.id]
     );
 
     const tokenPayload = { userId: user.id, email: user.email };
@@ -153,7 +155,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       [user.id]
     );
     const userData = fullUser.rows[0] || user;
-    userData.status = 'online';
+    userData.status = loginStatus;
 
     // Log successful login
     logUserActivity(userData.id, 'login', { identifier: loginIdentifier }, req.ip, req.headers['user-agent'] as string);
