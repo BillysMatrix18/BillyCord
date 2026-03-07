@@ -5,7 +5,7 @@ import {
   joinServer, leaveServer, getMembers, kickMember, banMember, unbanMember,
   getBans, getAuditLogs, markServerRead,
 } from '../controllers/servers';
-import { createChannel, getChannels, updateChannel, deleteChannel, createCategory } from '../controllers/channels';
+import { createChannel, getChannels, updateChannel, deleteChannel, createCategory, reorderChannels } from '../controllers/channels';
 import { createRole, getRoles, updateRole, deleteRole, assignRole, removeRole } from '../controllers/roles';
 import { createInvite, getInvites, deleteInvite } from '../controllers/invites';
 
@@ -35,6 +35,7 @@ router.post('/:serverId/channels', authenticate, createChannel);
 router.get('/:serverId/channels', authenticate, getChannels);
 router.patch('/:serverId/channels/:channelId', authenticate, updateChannel);
 router.delete('/:serverId/channels/:channelId', authenticate, deleteChannel);
+router.put('/:serverId/channels/reorder', authenticate, reorderChannels);
 router.post('/:serverId/categories', authenticate, createCategory);
 
 // Roles

@@ -94,6 +94,8 @@ export const channelApi = {
     api.patch(`/servers/${serverId}/channels/${channelId}`, data),
   delete: (serverId: string, channelId: string) =>
     api.delete(`/servers/${serverId}/channels/${channelId}`),
+  reorder: (serverId: string, order: { id: string; position: number }[]) =>
+    api.put(`/servers/${serverId}/channels/reorder`, { order }),
   createCategory: (serverId: string, name: string) =>
     api.post(`/servers/${serverId}/categories`, { name }),
 };

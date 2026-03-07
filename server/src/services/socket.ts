@@ -57,6 +57,20 @@ export function initializeSocket(httpServer: HttpServer): Server {
     }
   });
 
+  // Wrap socket event handlers to prevent unhandled errors from crashing the server
+  function safe(handler: (...args: unknown[]) => void | Promise<void>) {
+    return (...args: unknown[]) => {
+      try {
+        const result = handler(...args);
+        if (result && typeof (result as Promise<void>).catch === 'function') {
+          (result as Promise<void>).catch(err => console.error('Socket handler error:', err));
+        }
+      } catch (err) {
+        console.error('Socket handler error:', err);
+      }
+    };
+  }
+
   io.on('connection', (socket: AuthenticatedSocket) => {
     const userId = socket.userId!;
     const username = socket.username || 'Unknown';
@@ -70,104 +84,93 @@ export function initializeSocket(httpServer: HttpServer): Server {
     socket.broadcast.emit('user:status', { userId, status: 'online' });
 
     // Join a channel room for real-time messages
-    socket.on('channel:join', (channelId: string) => {
+    socket.on('channel:join', safe((channelId: unknown) => {
       socket.join(`channel:${channelId}`);
-      console.log(`${username} joined channel ${channelId}`);
-    });
+    }));
 
-    socket.on('channel:leave', (channelId: string) => {
+    socket.on('channel:leave', safe((channelId: unknown) => {
       socket.leave(`channel:${channelId}`);
-    });
+    }));
 
     // Join a server room
-    socket.on('server:join', (serverId: string) => {
+    socket.on('server:join', safe((serverId: unknown) => {
       socket.join(`server:${serverId}`);
-    });
+    }));
 
-    socket.on('server:leave', (serverId: string) => {
+    socket.on('server:leave', safe((serverId: unknown) => {
       socket.leave(`server:${serverId}`);
-    });
+    }));
 
     // Handle new messages (real-time broadcast)
-    socket.on('message:send', (data: { channelId: string; message: Record<string, unknown> }) => {
-      io.to(`channel:${data.channelId}`).emit('message:new', data.message);
-    });
+    socket.on('message:send', safe((data: unknown) => {
+      const { channelId, message } = data as { channelId: string; message: Record<string, unknown> };
+      io.to(`channel:${channelId}`).emit('message:new', message);
+    }));
 
     // Handle message edit
-    socket.on('message:edit', (data: { channelId: string; message: Record<string, unknown> }) => {
-      io.to(`channel:${data.channelId}`).emit('message:updated', data.message);
-    });
+    socket.on('message:edit', safe((data: unknown) => {
+      const { channelId, message } = data as { channelId: string; message: Record<string, unknown> };
+      io.to(`channel:${channelId}`).emit('message:updated', message);
+    }));
 
     // Handle message delete
-    socket.on('message:delete', (data: { channelId: string; messageId: string }) => {
-      io.to(`channel:${data.channelId}`).emit('message:deleted', { messageId: data.messageId });
-    });
+    socket.on('message:delete', safe((data: unknown) => {
+      const { channelId, messageId } = data as { channelId: string; messageId: string };
+      io.to(`channel:${channelId}`).emit('message:deleted', { messageId });
+    }));
 
     // Typing indicator
-    socket.on('typing:start', (data: { channelId: string }) => {
-      socket.to(`channel:${data.channelId}`).emit('typing:start', { userId, username });
-    });
+    socket.on('typing:start', safe((data: unknown) => {
+      const { channelId } = data as { channelId: string };
+      socket.to(`channel:${channelId}`).emit('typing:start', { userId, username });
+    }));
 
-    socket.on('typing:stop', (data: { channelId: string }) => {
-      socket.to(`channel:${data.channelId}`).emit('typing:stop', { userId });
-    });
+    socket.on('typing:stop', safe((data: unknown) => {
+      const { channelId } = data as { channelId: string };
+      socket.to(`channel:${channelId}`).emit('typing:stop', { userId });
+    }));
 
     // Reactions
-    socket.on('reaction:add', (data: { channelId: string; messageId: string; emoji: string }) => {
-      io.to(`channel:${data.channelId}`).emit('reaction:added', {
-        messageId: data.messageId,
-        emoji: data.emoji,
-        userId,
-        username,
-      });
-    });
+    socket.on('reaction:add', safe((data: unknown) => {
+      const { channelId, messageId, emoji } = data as { channelId: string; messageId: string; emoji: string };
+      io.to(`channel:${channelId}`).emit('reaction:added', { messageId, emoji, userId, username });
+    }));
 
-    socket.on('reaction:remove', (data: { channelId: string; messageId: string; emoji: string }) => {
-      io.to(`channel:${data.channelId}`).emit('reaction:removed', {
-        messageId: data.messageId,
-        emoji: data.emoji,
-        userId,
-      });
-    });
+    socket.on('reaction:remove', safe((data: unknown) => {
+      const { channelId, messageId, emoji } = data as { channelId: string; messageId: string; emoji: string };
+      io.to(`channel:${channelId}`).emit('reaction:removed', { messageId, emoji, userId });
+    }));
 
     // Direct messages
-    socket.on('dm:send', (data: { conversationId: string; message: Record<string, unknown>; participantIds: string[] }) => {
-      // Send to all participants
-      data.participantIds.forEach((pid: string) => {
-        io.to(`user:${pid}`).emit('dm:new', {
-          conversationId: data.conversationId,
-          message: data.message,
-        });
+    socket.on('dm:send', safe((data: unknown) => {
+      const { conversationId, message, participantIds } = data as { conversationId: string; message: Record<string, unknown>; participantIds: string[] };
+      participantIds.forEach((pid: string) => {
+        io.to(`user:${pid}`).emit('dm:new', { conversationId, message });
       });
-    });
+    }));
 
     // DM typing
-    socket.on('dm:typing:start', (data: { conversationId: string; participantIds: string[] }) => {
-      data.participantIds.forEach((pid: string) => {
+    socket.on('dm:typing:start', safe((data: unknown) => {
+      const { conversationId, participantIds } = data as { conversationId: string; participantIds: string[] };
+      participantIds.forEach((pid: string) => {
         if (pid !== userId) {
-          io.to(`user:${pid}`).emit('dm:typing:start', {
-            conversationId: data.conversationId,
-            userId,
-            username,
-          });
+          io.to(`user:${pid}`).emit('dm:typing:start', { conversationId, userId, username });
         }
       });
-    });
+    }));
 
-    socket.on('dm:typing:stop', (data: { conversationId: string; participantIds: string[] }) => {
-      data.participantIds.forEach((pid: string) => {
+    socket.on('dm:typing:stop', safe((data: unknown) => {
+      const { conversationId, participantIds } = data as { conversationId: string; participantIds: string[] };
+      participantIds.forEach((pid: string) => {
         if (pid !== userId) {
-          io.to(`user:${pid}`).emit('dm:typing:stop', {
-            conversationId: data.conversationId,
-            userId,
-          });
+          io.to(`user:${pid}`).emit('dm:typing:stop', { conversationId, userId });
         }
       });
-    });
+    }));
 
     // Voice channel - join
-    socket.on('voice:join', (data: { channelId: string }) => {
-      const { channelId } = data;
+    socket.on('voice:join', safe((data: unknown) => {
+      const { channelId } = data as { channelId: string };
 
       if (!voiceChannelUsers.has(channelId)) {
         voiceChannelUsers.set(channelId, new Set());
@@ -189,71 +192,75 @@ export function initializeSocket(httpServer: HttpServer): Server {
       // Send current participants to the joining user
       const participants = Array.from(users).filter(u => u.userId !== userId);
       socket.emit('voice:participants', { channelId, participants });
-    });
+    }));
 
     // Voice channel - leave
-    socket.on('voice:leave', (data: { channelId: string }) => {
-      const { channelId } = data;
+    socket.on('voice:leave', safe((data: unknown) => {
+      const { channelId } = data as { channelId: string };
       leaveVoiceChannel(socket, channelId, userId, io);
-    });
+    }));
 
     // WebRTC signaling
-    socket.on('voice:offer', (data: { targetSocketId: string; offer: unknown }) => {
-      io.to(data.targetSocketId).emit('voice:offer', {
-        offer: data.offer,
+    socket.on('voice:offer', safe((data: unknown) => {
+      const { targetSocketId, offer } = data as { targetSocketId: string; offer: unknown };
+      io.to(targetSocketId).emit('voice:offer', {
+        offer,
         senderSocketId: socket.id,
         userId,
         username,
       });
-    });
+    }));
 
-    socket.on('voice:answer', (data: { targetSocketId: string; answer: unknown }) => {
-      io.to(data.targetSocketId).emit('voice:answer', {
-        answer: data.answer,
+    socket.on('voice:answer', safe((data: unknown) => {
+      const { targetSocketId, answer } = data as { targetSocketId: string; answer: unknown };
+      io.to(targetSocketId).emit('voice:answer', {
+        answer,
         senderSocketId: socket.id,
       });
-    });
+    }));
 
-    socket.on('voice:ice-candidate', (data: { targetSocketId: string; candidate: unknown }) => {
-      io.to(data.targetSocketId).emit('voice:ice-candidate', {
-        candidate: data.candidate,
+    socket.on('voice:ice-candidate', safe((data: unknown) => {
+      const { targetSocketId, candidate } = data as { targetSocketId: string; candidate: unknown };
+      io.to(targetSocketId).emit('voice:ice-candidate', {
+        candidate,
         senderSocketId: socket.id,
       });
-    });
+    }));
 
     // Voice mute/unmute
-    socket.on('voice:mute', (data: { channelId: string; muted: boolean }) => {
-      socket.to(`voice:${data.channelId}`).emit('voice:user-muted', {
-        userId,
-        muted: data.muted,
-      });
-    });
+    socket.on('voice:mute', safe((data: unknown) => {
+      const { channelId, muted } = data as { channelId: string; muted: boolean };
+      socket.to(`voice:${channelId}`).emit('voice:user-muted', { userId, muted });
+    }));
 
-    socket.on('voice:deafen', (data: { channelId: string; deafened: boolean }) => {
-      socket.to(`voice:${data.channelId}`).emit('voice:user-deafened', {
-        userId,
-        deafened: data.deafened,
-      });
-    });
+    socket.on('voice:deafen', safe((data: unknown) => {
+      const { channelId, deafened } = data as { channelId: string; deafened: boolean };
+      socket.to(`voice:${channelId}`).emit('voice:user-deafened', { userId, deafened });
+    }));
 
     // Friend request notifications
-    socket.on('friend:request', (data: { targetUserId: string }) => {
-      io.to(`user:${data.targetUserId}`).emit('friend:request-received', {
+    socket.on('friend:request', safe((data: unknown) => {
+      const { targetUserId } = data as { targetUserId: string };
+      io.to(`user:${targetUserId}`).emit('friend:request-received', {
         fromUserId: userId,
         fromUsername: username,
       });
-    });
+    }));
 
     // Server member events
-    socket.on('server:member-joined', (data: { serverId: string }) => {
-      io.to(`server:${data.serverId}`).emit('server:member-joined', {
-        userId,
-        username,
-      });
-    });
+    socket.on('server:member-joined', safe((data: unknown) => {
+      const { serverId } = data as { serverId: string };
+      io.to(`server:${serverId}`).emit('server:member-joined', { userId, username });
+    }));
+
+    // Channel reorder
+    socket.on('channel:reorder', safe((data: unknown) => {
+      const { serverId } = data as { serverId: string };
+      io.to(`server:${serverId}`).emit('channel:reordered', { serverId });
+    }));
 
     // Disconnect
-    socket.on('disconnect', async () => {
+    socket.on('disconnect', safe(async () => {
       console.log(`User disconnected: ${username} (${userId})`);
 
       // Update status to offline
@@ -270,7 +277,7 @@ export function initializeSocket(httpServer: HttpServer): Server {
 
       // Broadcast offline status
       socket.broadcast.emit('user:status', { userId, status: 'offline' });
-    });
+    }));
   });
 
   return io;

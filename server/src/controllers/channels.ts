@@ -122,6 +122,48 @@ export async function deleteChannel(req: Request, res: Response): Promise<void> 
   }
 }
 
+export async function reorderChannels(req: Request, res: Response): Promise<void> {
+  try {
+    const { serverId } = req.params;
+    const userId = req.user!.userId;
+    const { order } = req.body; // [{ id: channelId, position: number }]
+
+    if (!Array.isArray(order) || order.length === 0) {
+      res.status(400).json({ error: 'order array is required' });
+      return;
+    }
+
+    // Check ownership
+    const server = await query('SELECT owner_id FROM servers WHERE id = $1', [serverId]);
+    if (server.rows.length === 0 || server.rows[0].owner_id !== userId) {
+      res.status(403).json({ error: 'Only the server owner can reorder channels' });
+      return;
+    }
+
+    // Update each channel's position in a transaction
+    await query('BEGIN');
+    for (const item of order) {
+      await query(
+        'UPDATE channels SET position = $1 WHERE id = $2 AND server_id = $3',
+        [item.position, item.id, serverId]
+      );
+    }
+    await query('COMMIT');
+
+    // Return updated channel list
+    const result = await query(
+      'SELECT * FROM channels WHERE server_id = $1 ORDER BY position ASC',
+      [serverId]
+    );
+
+    res.json({ channels: result.rows });
+  } catch (error) {
+    await query('ROLLBACK').catch(() => {});
+    console.error('Reorder channels error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 export async function createCategory(req: Request, res: Response): Promise<void> {
   try {
     const { serverId } = req.params;

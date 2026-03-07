@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchServer } from '../../store/serverSlice';
 import { setChannels, setCategories, setCurrentChannel } from '../../store/channelSlice';
 import { toggleSettings } from '../../store/uiSlice';
 import { setUserStatus } from '../../store/authSlice';
-import { authApi } from '../../services/api';
+import { authApi, channelApi } from '../../services/api';
 import { useVoice } from '../../hooks/useVoice';
+import { getSocket } from '../../services/socket';
+import { Channel } from '../../types';
 import {
   IconHash, IconVolume, IconChevronDown, IconSettings, IconMic, IconMicOff,
   IconHeadphones, IconHeadphonesOff, IconPhoneOff,
@@ -37,6 +39,14 @@ export default function ChannelSidebar() {
     } catch { return new Set(); }
   });
 
+  // Drag-and-drop state
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dragType, setDragType] = useState<'text' | 'voice' | null>(null);
+  const dragCounter = useRef(0);
+
+  const isOwner = currentServer?.owner_id === user?.id;
+
   useEffect(() => {
     if (serverId) {
       dispatch(fetchServer(serverId)).then((result) => {
@@ -54,6 +64,23 @@ export default function ChannelSidebar() {
       if (channel) dispatch(setCurrentChannel(channel));
     }
   }, [channelId, channels, dispatch]);
+
+  // Listen for channel reorder events from other clients
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !serverId) return;
+    const handler = (data: { serverId: string }) => {
+      if (data.serverId === serverId) {
+        dispatch(fetchServer(serverId)).then((result) => {
+          if (fetchServer.fulfilled.match(result)) {
+            dispatch(setChannels(result.payload.channels));
+          }
+        });
+      }
+    };
+    socket.on('channel:reordered', handler);
+    return () => { socket.off('channel:reordered', handler); };
+  }, [serverId, dispatch]);
 
   const textChannels = channels.filter(c => c.type === 'text');
   const voiceChannels = channels.filter(c => c.type === 'voice');
@@ -87,6 +114,138 @@ export default function ChannelSidebar() {
     try { await authApi.updateProfile({ status }); } catch { /* ignore */ }
   };
 
+  // --- Drag and Drop handlers ---
+  const handleDragStart = useCallback((e: React.DragEvent, channel: Channel) => {
+    if (!isOwner) return;
+    setDragId(channel.id);
+    setDragType(channel.type as 'text' | 'voice');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', channel.id);
+    // Add drag styling after a tick so the drag image captures the original style
+    setTimeout(() => {
+      const el = document.querySelector(`[data-channel-id="${channel.id}"]`) as HTMLElement;
+      if (el) el.style.opacity = '0.4';
+    }, 0);
+  }, [isOwner]);
+
+  const handleDragEnd = useCallback(() => {
+    // Reset opacity
+    if (dragId) {
+      const el = document.querySelector(`[data-channel-id="${dragId}"]`) as HTMLElement;
+      if (el) el.style.opacity = '1';
+    }
+    setDragId(null);
+    setDragOverId(null);
+    setDragType(null);
+    dragCounter.current = 0;
+  }, [dragId]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    dragCounter.current++;
+    setDragOverId(targetId);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    dragCounter.current--;
+    if (dragCounter.current <= 0) {
+      setDragOverId(null);
+      dragCounter.current = 0;
+    }
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragOverId(null);
+
+    if (!dragId || !serverId || dragId === targetId || !dragType) {
+      handleDragEnd();
+      return;
+    }
+
+    // Get the list of channels of the same type
+    const list = dragType === 'voice' ? [...voiceChannels] : [...textChannels];
+    const dragIndex = list.findIndex(c => c.id === dragId);
+    const targetIndex = list.findIndex(c => c.id === targetId);
+
+    if (dragIndex === -1 || targetIndex === -1) {
+      handleDragEnd();
+      return;
+    }
+
+    // Move the dragged channel to the target position
+    const [moved] = list.splice(dragIndex, 1);
+    list.splice(targetIndex, 0, moved);
+
+    // Build order payload
+    const order = list.map((ch, i) => ({ id: ch.id, position: i }));
+
+    // Optimistic update: update channels in Redux immediately
+    const updatedChannels = channels.map(ch => {
+      const reordered = order.find(o => o.id === ch.id);
+      return reordered ? { ...ch, position: reordered.position } : ch;
+    });
+    updatedChannels.sort((a, b) => a.position - b.position);
+    dispatch(setChannels(updatedChannels));
+
+    handleDragEnd();
+
+    // Persist to server
+    try {
+      await channelApi.reorder(serverId, order);
+      // Notify other clients
+      const socket = getSocket();
+      if (socket) socket.emit('channel:reorder', { serverId });
+    } catch (error) {
+      console.error('Failed to reorder channels:', error);
+      // Refetch on error to restore correct order
+      dispatch(fetchServer(serverId)).then((result) => {
+        if (fetchServer.fulfilled.match(result)) {
+          dispatch(setChannels(result.payload.channels));
+        }
+      });
+    }
+  }, [dragId, dragType, serverId, textChannels, voiceChannels, channels, dispatch, handleDragEnd]);
+
+  const renderChannel = (ch: Channel, isVoice = false) => {
+    const isActive = isVoice ? currentVoiceChannel === ch.id : channelId === ch.id;
+    const isDragging = dragId === ch.id;
+    const isDragOver = dragOverId === ch.id && dragId !== ch.id;
+
+    return (
+      <div
+        key={ch.id}
+        data-channel-id={ch.id}
+        className={`channel-item ${isActive ? 'active' : ''}`}
+        onClick={() => handleChannelClick(ch)}
+        draggable={isOwner}
+        onDragStart={(e) => handleDragStart(e, ch)}
+        onDragEnd={handleDragEnd}
+        onDragOver={handleDragOver}
+        onDragEnter={(e) => handleDragEnter(e, ch.id)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, ch.id)}
+        style={{
+          cursor: isOwner ? 'grab' : undefined,
+          borderTop: isDragOver ? '2px solid var(--accent)' : '2px solid transparent',
+          opacity: isDragging ? 0.4 : 1,
+          transition: 'border-top-color 0.15s',
+        }}
+      >
+        <span className="channel-icon">
+          {isVoice ? <IconVolume size={18} /> : <IconHash size={18} />}
+        </span>
+        <span className="channel-name">{ch.name}</span>
+      </div>
+    );
+  };
+
   return (
     <div className="channel-sidebar">
       <div className="server-header" onClick={() => setShowServerSettings(true)} style={{ cursor: 'pointer' }}>
@@ -95,16 +254,7 @@ export default function ChannelSidebar() {
       </div>
 
       <div className="channel-list">
-        {uncategorizedText.map(ch => (
-          <div
-            key={ch.id}
-            className={`channel-item ${channelId === ch.id ? 'active' : ''}`}
-            onClick={() => handleChannelClick(ch)}
-          >
-            <span className="channel-icon"><IconHash size={18} /></span>
-            <span className="channel-name">{ch.name}</span>
-          </div>
-        ))}
+        {uncategorizedText.map(ch => renderChannel(ch))}
 
         {categorized.map(cat => (
           <div key={cat.id}>
@@ -117,16 +267,7 @@ export default function ChannelSidebar() {
               </span>
               <span className="channel-category-name">{cat.name}</span>
             </div>
-            {!collapsedCategories.has(cat.id) && cat.channels.map(ch => (
-              <div
-                key={ch.id}
-                className={`channel-item ${channelId === ch.id ? 'active' : ''}`}
-                onClick={() => handleChannelClick(ch)}
-              >
-                <span className="channel-icon"><IconHash size={18} /></span>
-                <span className="channel-name">{ch.name}</span>
-              </div>
-            ))}
+            {!collapsedCategories.has(cat.id) && cat.channels.map(ch => renderChannel(ch))}
           </div>
         ))}
 
@@ -136,16 +277,7 @@ export default function ChannelSidebar() {
               <IconChevronDown size={12} />
               <span className="channel-category-name">Voice Channels</span>
             </div>
-            {voiceChannels.map(ch => (
-              <div
-                key={ch.id}
-                className={`channel-item ${currentVoiceChannel === ch.id ? 'active' : ''}`}
-                onClick={() => handleChannelClick(ch)}
-              >
-                <span className="channel-icon"><IconVolume size={18} /></span>
-                <span className="channel-name">{ch.name}</span>
-              </div>
-            ))}
+            {voiceChannels.map(ch => renderChannel(ch, true))}
           </div>
         )}
       </div>

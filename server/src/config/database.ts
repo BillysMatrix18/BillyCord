@@ -52,6 +52,8 @@ const db = new sqlite3.Database(DB_PATH, (err: Error | null) => {
 // Enable WAL mode for better concurrency and foreign key enforcement
 db.run('PRAGMA journal_mode = WAL');
 db.run('PRAGMA foreign_keys = ON');
+// Wait up to 10s for locked database instead of failing immediately
+db.run('PRAGMA busy_timeout = 10000');
 
 /**
  * Convert PostgreSQL-style SQL to SQLite-compatible SQL.
