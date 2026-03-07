@@ -446,27 +446,6 @@ export default function SettingsOverlay() {
                   Liquid Glass
                 </div>
               </div>
-              <div className={`theme-option ${theme === 'midnight' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('midnight'))}
-                style={theme === 'midnight' ? { borderColor: '#4299e1' } : {}}>
-                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #060812, #0d1530, #4299e1, #9f7aea)' }} />
-                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'midnight' ? '#4299e1' : 'var(--text-secondary)' }}>
-                  Midnight Aurora
-                </div>
-              </div>
-              <div className={`theme-option ${theme === 'sunset' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('sunset'))}
-                style={theme === 'sunset' ? { borderColor: '#f97316' } : {}}>
-                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #180e13, #3a1525, #f97316, #ec4899)' }} />
-                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'sunset' ? '#f97316' : 'var(--text-secondary)' }}>
-                  Sunset Blaze
-                </div>
-              </div>
-              <div className={`theme-option ${theme === 'forest' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('forest'))}
-                style={theme === 'forest' ? { borderColor: '#38a169' } : {}}>
-                <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #0a130e, #163020, #38a169, #2b6cb0)' }} />
-                <div className="theme-label" style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', color: theme === 'forest' ? '#38a169' : 'var(--text-secondary)' }}>
-                  Enchanted Forest
-                </div>
-              </div>
               <div className={`theme-option ${theme === 'sakura' ? 'active' : ''}`} onClick={() => dispatch(setThemeWithSync('sakura'))}
                 style={theme === 'sakura' ? { borderColor: '#ec4899' } : {}}>
                 <div className="theme-preview" style={{ background: 'linear-gradient(135deg, #140e1a, #2a1035, #ec4899, #a78bfa)' }} />
@@ -856,7 +835,7 @@ export default function SettingsOverlay() {
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.4</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Alpha 0.0.9</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -878,40 +857,18 @@ export default function SettingsOverlay() {
                 <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.4</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.9</strong>
                     <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
                     <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
-                      <li>Fixed cross-category channel drag-and-drop</li>
-                      <li>Added active server indicator (pill highlight)</li>
-                      <li>Added Dev Mode with ping, network stats, and connection quality</li>
-                      <li>Added upload syncing indicator on media messages</li>
-                      <li>Added 4 new themes: Midnight Aurora, Sunset Blaze, Enchanted Forest, Sakura Blossom</li>
-                      <li>Video and audio file upload support (.mp4, .wav, etc.)</li>
-                    </ul>
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.3</strong>
-                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
-                      <li>Fixed channel creation (spaces auto-convert to hyphens)</li>
-                      <li>Fixed message corruption (apostrophes and quotes no longer garbled)</li>
-                      <li>Fixed DM message rendering double-encoding</li>
-                      <li>Fixed file-only message sending crash</li>
-                    </ul>
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.2</strong>
-                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
-                      <li>Fixed channel drag-and-drop reordering</li>
-                      <li>Added version changelog to About page</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <strong style={{ color: 'var(--text-primary)' }}>Alpha 0.0.1</strong>
-                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
-                      <li>Initial release</li>
-                      <li>Text and voice channels</li>
-                      <li>Server creation and management</li>
-                      <li>User profiles and settings</li>
+                      <li>Fixed message editing keybinds (Escape/Enter) for image-only messages</li>
+                      <li>Fixed message reactions not displaying or updating properly</li>
+                      <li>Fixed server list active indicator (home icon no longer stuck active)</li>
+                      <li>Fixed auto-updater not detecting new versions</li>
+                      <li>Added channel unread notifications with badge counts</li>
+                      <li>Added floating Dev Mode overlay (visible while messaging)</li>
+                      <li>Fixed status bubble rendering in front of avatar</li>
+                      <li>Removed Midnight Aurora, Sunset Blaze, and Enchanted Forest themes</li>
+                      <li>Redesigned admin panel with modern dashboard layout</li>
                     </ul>
                   </div>
                 </div>

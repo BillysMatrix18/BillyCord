@@ -86,16 +86,22 @@ const messageSlice = createSlice({
     addReactionToMessage(state, action: PayloadAction<{ messageId: string; emoji: string; userId: string; username: string }>) {
       const msg = state.messages.find(m => m.id === action.payload.messageId);
       if (msg) {
-        msg.reactions.push({
-          emoji: action.payload.emoji,
-          user_id: action.payload.userId,
-          username: action.payload.username,
-        });
+        if (!msg.reactions) msg.reactions = [];
+        // Avoid duplicate reactions
+        const exists = msg.reactions.some(r => r.emoji === action.payload.emoji && r.user_id === action.payload.userId);
+        if (!exists) {
+          msg.reactions.push({
+            emoji: action.payload.emoji,
+            user_id: action.payload.userId,
+            username: action.payload.username,
+          });
+        }
       }
     },
     removeReactionFromMessage(state, action: PayloadAction<{ messageId: string; emoji: string; userId: string }>) {
       const msg = state.messages.find(m => m.id === action.payload.messageId);
       if (msg) {
+        if (!msg.reactions) msg.reactions = [];
         msg.reactions = msg.reactions.filter(
           r => !(r.emoji === action.payload.emoji && r.user_id === action.payload.userId)
         );

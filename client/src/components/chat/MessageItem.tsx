@@ -40,7 +40,7 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
   };
 
   const handleEdit = async () => {
-    if (!editContent.trim()) return;
+    if (!editContent.trim() && (!message.attachments || message.attachments.length === 0)) return;
     try {
       const response = await messageApi.update(message.id, editContent);
       dispatch(updateMessage(response.data.message));
