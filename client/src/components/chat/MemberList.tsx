@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAppSelector } from '../../hooks/useAppDispatch';
 import { ServerMember } from '../../types';
 import UserProfileModal from '../common/UserProfileModal';
+import { resolveUploadUrl } from '../../services/api';
 
 const BADGE_COLORS: Record<string, string> = {
   Admin: '#e74c3c', Moderator: '#3498db', Verified: '#2ecc71', VIP: '#f1c40f',
@@ -24,7 +25,7 @@ export default function MemberList() {
     >
       <div className="member-avatar" style={{ position: 'relative' }}>
         {member.avatar_url ? (
-          <img src={member.avatar_url} alt={member.username} />
+          <img src={resolveUploadUrl(member.avatar_url) || ''} alt={member.username} />
         ) : (
           member.username[0].toUpperCase()
         )}

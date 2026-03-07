@@ -835,7 +835,7 @@ export default function SettingsOverlay() {
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Version 0.1.1</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Version 0.1.2</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -857,8 +857,22 @@ export default function SettingsOverlay() {
                 <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.1</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.2</strong>
                     <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>Fixed server icons not visible to other users (URL resolution)</li>
+                      <li>Fixed timestamps to display in user's local timezone</li>
+                      <li>Server settings: full-screen Discord-style layout with opaque background</li>
+                      <li>Server settings: ESC key closes the settings modal</li>
+                      <li>Auto-focus message input when opening a channel or DM</li>
+                      <li>Fixed message input click/focus issues</li>
+                      <li>Added right-click context menu to DM messages</li>
+                      <li>Badges now display on user profile modals</li>
+                      <li>Muted users are now blocked from sending messages</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.1</strong>
                     <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                       <li>Fixed app loading stale cached version on startup</li>
                       <li>Fixed status bubble visibility on message avatars</li>

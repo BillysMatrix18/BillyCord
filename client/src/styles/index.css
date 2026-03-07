@@ -1143,6 +1143,8 @@ input, textarea {
 .message-input-container {
   padding: 0 16px 24px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 .message-input-wrapper {
   background: var(--bg-quaternary);

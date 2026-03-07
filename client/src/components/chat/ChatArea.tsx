@@ -25,6 +25,7 @@ export default function ChatArea() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   const fetchPinned = useCallback(async () => {
     if (!channelId) return;
@@ -65,6 +66,13 @@ export default function ChatArea() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-focus message input when channel changes
+  useEffect(() => {
+    if (channelId) {
+      setTimeout(() => messageInputRef.current?.focus(), 100);
+    }
+  }, [channelId]);
 
   const handleScroll = () => {
     const container = messagesContainerRef.current;
@@ -179,9 +187,13 @@ export default function ChatArea() {
   };
 
   const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // Append Z if no timezone info, so the browser treats it as UTC before converting to local
+    const normalized = dateStr.includes('Z') || dateStr.includes('+') || dateStr.includes('T') ? dateStr : dateStr.replace(' ', 'T') + 'Z';
+    const date = new Date(normalized);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round((startOfToday.getTime() - startOfDate.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays === 0) return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     if (diffDays === 1) return `Yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -325,6 +337,7 @@ export default function ChatArea() {
             <IconPlus size={20} />
           </button>
           <textarea
+            ref={messageInputRef}
             className="message-input"
             placeholder={`Message #${currentChannel?.name || 'channel'}`}
             value={messageText}

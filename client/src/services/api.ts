@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 let API_BASE = '/api';
+let SERVER_BASE = '';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -14,7 +15,23 @@ const api = axios.create({
  */
 export function setApiBaseUrl(serverUrl: string) {
   API_BASE = `${serverUrl}/api`;
+  SERVER_BASE = serverUrl;
   api.defaults.baseURL = API_BASE;
+}
+
+/**
+ * Resolve a potentially relative upload URL to an absolute URL.
+ * e.g. "/uploads/abc.png" → "http://server:3001/uploads/abc.png"
+ */
+export function resolveUploadUrl(url: string | null | undefined): string | null | undefined {
+  if (!url) return url;
+  // Already absolute
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
+  // Relative /uploads/ path - prefix with server base
+  if (SERVER_BASE && url.startsWith('/')) {
+    return `${SERVER_BASE}${url}`;
+  }
+  return url;
 }
 
 // Attach token to requests

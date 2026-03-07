@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { toggleCreateServer, toggleJoinServer, toggleSettings } from '../../store/uiSlice';
 import { clearServerUnread } from '../../store/serverSlice';
-import { serverApi } from '../../services/api';
+import { serverApi, resolveUploadUrl } from '../../services/api';
 import { IconHome, IconPlus, IconCompass, IconSettings } from '../common/Icons';
 
 export default function ServerList() {
@@ -59,7 +59,7 @@ export default function ServerList() {
             style={{ position: 'relative' }}
           >
             {server.icon_url ? (
-              <img src={server.icon_url} alt={server.name} />
+              <img src={resolveUploadUrl(server.icon_url) || ''} alt={server.name} />
             ) : (
               server.name.substring(0, 2).toUpperCase()
             )}

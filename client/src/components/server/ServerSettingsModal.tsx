@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchServer, fetchServers } from '../../store/serverSlice';
 import { setChannels, setCategories } from '../../store/channelSlice';
-import { serverApi, channelApi, roleApi, inviteApi, friendApi, dmApi } from '../../services/api';
+import { serverApi, channelApi, roleApi, inviteApi, friendApi, dmApi, resolveUploadUrl } from '../../services/api';
 import { IconX, IconPlus, IconTrash, IconEdit, IconHash, IconVolume, IconSettings, IconUsers, IconShield } from '../common/Icons';
 import { Channel, Role, Invite, ServerMember } from '../../types';
 
@@ -124,6 +124,15 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
       setServerIcon(currentServer.icon_url || '');
     }
   }, [currentServer]);
+
+  // ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -438,9 +447,6 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
 
   return createPortal(
     <>
-      <div style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9000,
-      }} onClick={onClose} />
       <div style={{
         position: 'fixed', inset: 0, zIndex: 9001,
         display: 'flex',
