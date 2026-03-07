@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
+import { attachVoiceListeners, detachVoiceListeners } from '../services/voiceService';
 import { useAppDispatch, useAppSelector } from './useAppDispatch';
 import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage, setMessagePinned } from '../store/messageSlice';
 import { updateMemberStatus } from '../store/serverSlice';
@@ -27,6 +28,15 @@ export function useSocket() {
     const socket = connectSocket(token);
     socketRef.current = socket;
     requestNotificationPermission();
+
+    // Attach voice call listeners once socket is ready
+    socket.on('connect', () => {
+      attachVoiceListeners();
+    });
+    // Also attach immediately if already connected
+    if (socket.connected) {
+      attachVoiceListeners();
+    }
 
     socket.on('message:new', (message) => {
       dispatch(addMessage(message));
@@ -127,6 +137,7 @@ export function useSocket() {
     });
 
     return () => {
+      detachVoiceListeners();
       disconnectSocket();
     };
   }, [isAuthenticated, dispatch]);

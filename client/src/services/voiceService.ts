@@ -144,6 +144,49 @@ function stopVAD() {
   analyser = null;
 }
 
+// ─── WebRTC signaling for DM/group calls ───
+let callSignalingAttached = false;
+
+function attachCallSignaling() {
+  const socket = getSocket();
+  if (!socket || callSignalingAttached) return;
+  callSignalingAttached = true;
+
+  socket.on('voice:offer', async (data: { offer: RTCSessionDescriptionInit; senderSocketId: string; userId: string }) => {
+    // Only handle if we're in a DM/group call
+    const state = getState();
+    if (!state.currentCall || state.currentCall.type === 'channel') return;
+    const pc = createPeerConnection(data.senderSocketId, data.userId);
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('voice:answer', { targetSocketId: data.senderSocketId, answer });
+  });
+
+  socket.on('voice:answer', async (data: { answer: RTCSessionDescriptionInit; senderSocketId: string }) => {
+    const state = getState();
+    if (!state.currentCall || state.currentCall.type === 'channel') return;
+    const pc = peerConnections.get(data.senderSocketId);
+    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+  });
+
+  socket.on('voice:ice-candidate', async (data: { candidate: RTCIceCandidateInit; senderSocketId: string }) => {
+    const state = getState();
+    if (!state.currentCall || state.currentCall.type === 'channel') return;
+    const pc = peerConnections.get(data.senderSocketId);
+    if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+  });
+}
+
+function detachCallSignaling() {
+  const socket = getSocket();
+  if (!socket || !callSignalingAttached) return;
+  callSignalingAttached = false;
+  socket.off('voice:offer');
+  socket.off('voice:answer');
+  socket.off('voice:ice-candidate');
+}
+
 // ─── Socket Event Listeners ───
 let listenersAttached = false;
 
@@ -264,28 +307,8 @@ export function attachVoiceListeners() {
     dispatch(updateParticipant({ userId: data.userId, updates: { deafened: data.deafened } }));
   });
 
-  // WebRTC signaling (reuse existing voice channel events)
-  socket.on('voice:offer', async (data: { offer: RTCSessionDescriptionInit; senderSocketId: string; userId: string }) => {
-    const pc = createPeerConnection(data.senderSocketId, data.userId);
-    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.emit('voice:answer', { targetSocketId: data.senderSocketId, answer });
-  });
-
-  socket.on('voice:answer', async (data: { answer: RTCSessionDescriptionInit; senderSocketId: string }) => {
-    const pc = peerConnections.get(data.senderSocketId);
-    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-  });
-
-  socket.on('voice:ice-candidate', async (data: { candidate: RTCIceCandidateInit; senderSocketId: string }) => {
-    const pc = peerConnections.get(data.senderSocketId);
-    if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-  });
-
   // Call history update from server
   socket.on('voice:call:history', (data: { history: Array<{ id: string; participant_names: string; call_type: string; status: string; duration: number; created_at: string }> }) => {
-    // We'll just use the local history for now
     void data;
   });
 }
@@ -350,6 +373,7 @@ export async function initiateCall(conversationId: string, callType: 'dm' | 'gro
   };
 
   dispatch(setCurrentCall(callInfo));
+  attachCallSignaling();
   playRingtone();
 
   // Timeout after 60s if not accepted
@@ -418,6 +442,7 @@ export async function acceptCall() {
 
   dispatch(setCurrentCall(callInfo));
   dispatch(setIncomingCall(null));
+  attachCallSignaling();
 
   // Start duration timer
   startDurationTimer();
@@ -460,6 +485,7 @@ export function endCall() {
 function endCallCleanup() {
   stopRingtone();
   stopVAD();
+  detachCallSignaling();
 
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
