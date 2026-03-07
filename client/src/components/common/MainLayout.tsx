@@ -34,6 +34,25 @@ export default function MainLayout() {
     return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
   }, []);
 
+  // Global voice toast notifications
+  const [voiceToast, setVoiceToast] = useState<string | null>(null);
+  useEffect(() => {
+    const handleError = (e: Event) => {
+      const msg = (e as CustomEvent).detail?.message;
+      if (msg) { setVoiceToast(msg); setTimeout(() => setVoiceToast(null), 4000); }
+    };
+    const handleInfo = (e: Event) => {
+      const msg = (e as CustomEvent).detail?.message;
+      if (msg) { setVoiceToast(msg); setTimeout(() => setVoiceToast(null), 3000); }
+    };
+    window.addEventListener('voice:error', handleError);
+    window.addEventListener('voice:info', handleInfo);
+    return () => {
+      window.removeEventListener('voice:error', handleError);
+      window.removeEventListener('voice:info', handleInfo);
+    };
+  }, []);
+
   useEffect(() => {
     dispatch(fetchServers());
   }, [dispatch]);
@@ -83,6 +102,19 @@ export default function MainLayout() {
       {showSettings && <SettingsOverlay />}
       {showCreateServer && <CreateServerModal />}
       {showJoinServer && <JoinServerModal />}
+
+      {/* Global voice call toast */}
+      {voiceToast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--bg-floating, #18191c)', color: 'var(--text-primary)',
+          padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)', zIndex: 9999,
+          border: '1px solid var(--border, #2f3136)',
+        }}>
+          {voiceToast}
+        </div>
+      )}
     </>
   );
 }

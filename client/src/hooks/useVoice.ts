@@ -23,6 +23,8 @@ export function useVoice() {
   const localStream = useRef<MediaStream | null>(null);
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const audioElements = useRef<Map<string, HTMLAudioElement>>(new Map());
+  // Track active voice channel for scoping signaling
+  const activeChannelRef = useRef<string | null>(null);
 
   const createPeerConnection = useCallback((targetSocketId: string) => {
     const socket = getSocket();
@@ -64,15 +66,19 @@ export function useVoice() {
     const socket = getSocket();
     if (!socket) return;
 
+    console.log('[useVoice] Joining voice channel:', channelId);
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       localStream.current = stream;
 
       socket.emit('voice:join', { channelId });
       setCurrentVoiceChannel(channelId);
+      activeChannelRef.current = channelId;
 
       // Listen for participants
       socket.on('voice:participants', ({ participants }: { participants: VoiceUser[] }) => {
+        console.log('[useVoice] Received participants:', participants.length);
         setVoiceUsers(participants);
         // Create offers for each participant
         participants.forEach(async (participant) => {
@@ -102,7 +108,11 @@ export function useVoice() {
         }
       });
 
+      // Signaling for voice channels - scoped to only process when in a channel
+      // This prevents conflict with voiceService's DM/group call signaling
       socket.on('voice:offer', async ({ offer, senderSocketId }: { offer: RTCSessionDescriptionInit; senderSocketId: string }) => {
+        if (!activeChannelRef.current) return; // Not in a voice channel, let voiceService handle
+        console.log('[useVoice] Handling voice:offer from', senderSocketId);
         const pc = createPeerConnection(senderSocketId);
         if (!pc) return;
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -112,6 +122,7 @@ export function useVoice() {
       });
 
       socket.on('voice:answer', async ({ answer, senderSocketId }: { answer: RTCSessionDescriptionInit; senderSocketId: string }) => {
+        if (!activeChannelRef.current) return;
         const pc = peerConnections.current.get(senderSocketId);
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(answer));
@@ -119,6 +130,7 @@ export function useVoice() {
       });
 
       socket.on('voice:ice-candidate', async ({ candidate, senderSocketId }: { candidate: RTCIceCandidateInit; senderSocketId: string }) => {
+        if (!activeChannelRef.current) return;
         const pc = peerConnections.current.get(senderSocketId);
         if (pc) {
           await pc.addIceCandidate(new RTCIceCandidate(candidate));
@@ -132,7 +144,7 @@ export function useVoice() {
       });
 
     } catch (error) {
-      console.error('Failed to join voice channel:', error);
+      console.error('[useVoice] Failed to join voice channel:', error);
     }
   }, [createPeerConnection]);
 
@@ -140,6 +152,7 @@ export function useVoice() {
     const socket = getSocket();
     if (!socket || !currentVoiceChannel) return;
 
+    console.log('[useVoice] Leaving voice channel:', currentVoiceChannel);
     socket.emit('voice:leave', { channelId: currentVoiceChannel });
 
     // Cleanup
@@ -161,6 +174,7 @@ export function useVoice() {
     socket.off('voice:ice-candidate');
     socket.off('voice:user-muted');
 
+    activeChannelRef.current = null;
     setCurrentVoiceChannel(null);
     setVoiceUsers([]);
     setIsMuted(false);

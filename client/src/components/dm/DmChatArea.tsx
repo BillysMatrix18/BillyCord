@@ -35,6 +35,27 @@ export default function DmChatArea() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [voiceToast, setVoiceToast] = useState<string | null>(null);
+
+  // Listen for voice service errors/info
+  useEffect(() => {
+    const handleVoiceError = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setVoiceToast(detail.message);
+      setTimeout(() => setVoiceToast(null), 4000);
+    };
+    const handleVoiceInfo = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setVoiceToast(detail.message);
+      setTimeout(() => setVoiceToast(null), 3000);
+    };
+    window.addEventListener('voice:error', handleVoiceError);
+    window.addEventListener('voice:info', handleVoiceInfo);
+    return () => {
+      window.removeEventListener('voice:error', handleVoiceError);
+      window.removeEventListener('voice:info', handleVoiceInfo);
+    };
+  }, []);
 
   const conversation = conversations.find(c => c.id === conversationId);
   const otherParticipant = conversation?.is_group ? null : conversation?.participants?.[0];
@@ -354,9 +375,16 @@ export default function DmChatArea() {
         </div>
         <div className="chat-header-right">
           <button
-            onClick={() => conversationId && initiateCall(conversationId, conversation?.is_group ? 'group' : 'dm')}
+            onClick={() => {
+              console.log('[DmChatArea] Call button clicked. conversationId:', conversationId, 'is_group:', conversation?.is_group);
+              if (conversationId) {
+                initiateCall(conversationId, conversation?.is_group ? 'group' : 'dm');
+              } else {
+                console.error('[DmChatArea] No conversationId when call button clicked');
+              }
+            }}
             title="Start Voice Call"
-            style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
+            style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', cursor: 'pointer', background: 'none', border: 'none', padding: 4 }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56-.35-.12-.74-.03-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
@@ -658,6 +686,19 @@ export default function DmChatArea() {
 
       {imageModalSrc && (
         <ImageModal src={imageModalSrc} onClose={() => setImageModalSrc(null)} />
+      )}
+
+      {/* Voice call toast notification */}
+      {voiceToast && (
+        <div style={{
+          position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)',
+          background: 'var(--bg-floating, #18191c)', color: 'var(--text-primary)',
+          padding: '10px 20px', borderRadius: 8, fontSize: 14, fontWeight: 500,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)', zIndex: 9999,
+          border: '1px solid var(--border, #2f3136)',
+        }}>
+          {voiceToast}
+        </div>
       )}
     </div>
   );

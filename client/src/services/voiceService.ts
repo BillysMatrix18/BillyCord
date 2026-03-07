@@ -7,6 +7,22 @@ import {
   addCallHistory, clearCall, CallInfo, VoiceParticipant,
 } from '../store/voiceSlice';
 
+const LOG_PREFIX = '[VoiceService]';
+function log(...args: unknown[]) { console.log(LOG_PREFIX, ...args); }
+function logError(...args: unknown[]) { console.error(LOG_PREFIX, ...args); }
+
+// Simple toast notification system
+function showCallError(message: string) {
+  logError('Call Error:', message);
+  // Dispatch a custom event that UI can listen to
+  window.dispatchEvent(new CustomEvent('voice:error', { detail: { message } }));
+}
+
+function showCallInfo(message: string) {
+  log('Call Info:', message);
+  window.dispatchEvent(new CustomEvent('voice:info', { detail: { message } }));
+}
+
 const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -41,8 +57,9 @@ export async function enumerateDevices() {
       .filter(d => d.kind === 'audiooutput' && d.deviceId)
       .map(d => ({ deviceId: d.deviceId, label: d.label || `Speaker ${d.deviceId.slice(0, 5)}`, kind: 'audiooutput' as const }));
     dispatch(setAvailableDevices({ microphones, speakers }));
+    log('Devices enumerated:', microphones.length, 'mics,', speakers.length, 'speakers');
   } catch (e) {
-    console.error('Failed to enumerate devices:', e);
+    logError('Failed to enumerate devices:', e);
   }
 }
 
@@ -57,6 +74,7 @@ async function getMicrophoneStream(deviceId?: string | null): Promise<MediaStrea
     },
     video: false,
   };
+  log('Requesting microphone with constraints:', JSON.stringify(constraints));
   return navigator.mediaDevices.getUserMedia(constraints);
 }
 
@@ -64,14 +82,17 @@ async function getMicrophoneStream(deviceId?: string | null): Promise<MediaStrea
 function createPeerConnection(targetSocketId: string, targetUserId: string): RTCPeerConnection {
   const socket = getSocket();
   const pc = new RTCPeerConnection(ICE_SERVERS);
+  log('Creating peer connection to:', targetSocketId, 'userId:', targetUserId);
 
   pc.onicecandidate = (event) => {
     if (event.candidate && socket) {
+      log('Sending ICE candidate to:', targetSocketId);
       socket.emit('voice:ice-candidate', { targetSocketId, candidate: event.candidate });
     }
   };
 
   pc.ontrack = (event) => {
+    log('Remote track received from:', targetSocketId);
     let audio = audioElements.get(targetSocketId);
     if (!audio) {
       audio = new Audio();
@@ -89,6 +110,7 @@ function createPeerConnection(targetSocketId: string, targetUserId: string): RTC
   };
 
   pc.onconnectionstatechange = () => {
+    log('Peer connection state:', pc.connectionState, 'for:', targetSocketId);
     if (pc.connectionState === 'connected') {
       dispatch(updateParticipant({ userId: targetUserId, updates: { latency: 0 } }));
     }
@@ -97,9 +119,18 @@ function createPeerConnection(targetSocketId: string, targetUserId: string): RTC
     }
   };
 
+  pc.oniceconnectionstatechange = () => {
+    log('ICE connection state:', pc.iceConnectionState, 'for:', targetSocketId);
+  };
+
   // Add local tracks
   if (localStream) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream!));
+    localStream.getTracks().forEach(track => {
+      log('Adding local track:', track.kind, 'enabled:', track.enabled);
+      pc.addTrack(track, localStream!);
+    });
+  } else {
+    logError('No local stream when creating peer connection!');
   }
 
   peerConnections.set(targetSocketId, pc);
@@ -132,8 +163,9 @@ function startVAD() {
         }
       }
     }, 100);
+    log('VAD started');
   } catch (e) {
-    console.error('VAD setup failed:', e);
+    logError('VAD setup failed:', e);
   }
 }
 
@@ -149,32 +181,65 @@ let callSignalingAttached = false;
 
 function attachCallSignaling() {
   const socket = getSocket();
-  if (!socket || callSignalingAttached) return;
+  if (!socket) {
+    logError('attachCallSignaling: No socket available');
+    return;
+  }
+  if (callSignalingAttached) {
+    log('attachCallSignaling: Already attached, skipping');
+    return;
+  }
   callSignalingAttached = true;
+  log('Attaching call signaling listeners');
 
   socket.on('voice:offer', async (data: { offer: RTCSessionDescriptionInit; senderSocketId: string; userId: string }) => {
     // Only handle if we're in a DM/group call
     const state = getState();
-    if (!state.currentCall || state.currentCall.type === 'channel') return;
-    const pc = createPeerConnection(data.senderSocketId, data.userId);
-    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    socket.emit('voice:answer', { targetSocketId: data.senderSocketId, answer });
+    log('Received voice:offer from:', data.senderSocketId, 'userId:', data.userId, 'currentCall:', state.currentCall?.id, 'type:', state.currentCall?.type);
+    if (!state.currentCall || state.currentCall.type === 'channel') {
+      log('Ignoring voice:offer - not in DM/group call');
+      return;
+    }
+    try {
+      const pc = createPeerConnection(data.senderSocketId, data.userId);
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      log('Sending voice:answer to:', data.senderSocketId);
+      socket.emit('voice:answer', { targetSocketId: data.senderSocketId, answer });
+    } catch (e) {
+      logError('Error handling voice:offer:', e);
+    }
   });
 
   socket.on('voice:answer', async (data: { answer: RTCSessionDescriptionInit; senderSocketId: string }) => {
     const state = getState();
+    log('Received voice:answer from:', data.senderSocketId);
     if (!state.currentCall || state.currentCall.type === 'channel') return;
-    const pc = peerConnections.get(data.senderSocketId);
-    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    try {
+      const pc = peerConnections.get(data.senderSocketId);
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        log('Set remote description for answer from:', data.senderSocketId);
+      } else {
+        logError('No peer connection found for:', data.senderSocketId);
+      }
+    } catch (e) {
+      logError('Error handling voice:answer:', e);
+    }
   });
 
   socket.on('voice:ice-candidate', async (data: { candidate: RTCIceCandidateInit; senderSocketId: string }) => {
     const state = getState();
     if (!state.currentCall || state.currentCall.type === 'channel') return;
-    const pc = peerConnections.get(data.senderSocketId);
-    if (pc) await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    try {
+      const pc = peerConnections.get(data.senderSocketId);
+      if (pc) {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      }
+    } catch (e) {
+      logError('Error handling voice:ice-candidate:', e);
+    }
   });
 }
 
@@ -185,6 +250,7 @@ function detachCallSignaling() {
   socket.off('voice:offer');
   socket.off('voice:answer');
   socket.off('voice:ice-candidate');
+  log('Detached call signaling listeners');
 }
 
 // ─── Socket Event Listeners ───
@@ -192,16 +258,30 @@ let listenersAttached = false;
 
 export function attachVoiceListeners() {
   const socket = getSocket();
-  if (!socket || listenersAttached) return;
+  if (!socket) {
+    logError('attachVoiceListeners: No socket available! Socket is null.');
+    return;
+  }
+
+  // Reset the flag on reconnection - if socket changed, re-attach
+  if (listenersAttached) {
+    log('attachVoiceListeners: Already attached, skipping');
+    return;
+  }
   listenersAttached = true;
+  log('Attaching voice listeners. Socket connected:', socket.connected, 'Socket ID:', socket.id);
 
   // Incoming call notification
   socket.on('voice:call:incoming', (data: {
     callId: string; callerId: string; callerName: string;
     callerAvatar: string | null; conversationId?: string; callType: 'dm' | 'group';
   }) => {
+    log('Received voice:call:incoming', data);
     // Don't show if already in a call
-    if (getState().currentCall) return;
+    if (getState().currentCall) {
+      log('Already in a call, ignoring incoming call');
+      return;
+    }
     dispatch(setIncomingCall({
       callId: data.callId,
       callerId: data.callerId,
@@ -224,6 +304,7 @@ export function attachVoiceListeners() {
 
   // Call accepted by the other side
   socket.on('voice:call:accepted', async (data: { callId: string; userId: string; username: string; socketId: string; avatarUrl: string | null }) => {
+    log('Received voice:call:accepted', data);
     stopRingtone();
     dispatch(setCallStatus('active'));
     dispatch(addParticipant({
@@ -237,14 +318,22 @@ export function attachVoiceListeners() {
       latency: 0,
     }));
     // Create WebRTC offer to the accepted user
-    const pc = createPeerConnection(data.socketId, data.userId);
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('voice:offer', { targetSocketId: data.socketId, offer });
+    try {
+      const pc = createPeerConnection(data.socketId, data.userId);
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      log('Sending voice:offer to accepted user:', data.socketId);
+      socket.emit('voice:offer', { targetSocketId: data.socketId, offer });
+      showCallInfo('Call connected!');
+    } catch (e) {
+      logError('Error creating offer for accepted user:', e);
+      showCallError('Failed to establish connection');
+    }
   });
 
   // Call rejected
   socket.on('voice:call:rejected', (data: { callId: string; reason?: string }) => {
+    log('Received voice:call:rejected', data);
     stopRingtone();
     if (getState().currentCall?.id === data.callId) {
       const call = getState().currentCall;
@@ -259,19 +348,27 @@ export function attachVoiceListeners() {
         }));
       }
       dispatch(clearCall());
+      showCallInfo(data.reason === 'missed' ? 'Call not answered' : 'Call declined');
+    }
+    // Also clear incoming call if we're rejecting
+    if (getState().incomingCall?.callId === data.callId) {
+      dispatch(setIncomingCall(null));
     }
   });
 
   // Call ended
   socket.on('voice:call:ended', (data: { callId: string }) => {
+    log('Received voice:call:ended', data);
     stopRingtone();
     if (getState().currentCall?.id === data.callId) {
+      showCallInfo('Call ended');
       endCallCleanup();
     }
   });
 
   // Participant joined (group/channel)
   socket.on('voice:call:participant-joined', (data: { callId: string; userId: string; username: string; socketId: string; avatarUrl: string | null }) => {
+    log('Received voice:call:participant-joined', data);
     if (getState().currentCall?.id !== data.callId) return;
     dispatch(addParticipant({
       userId: data.userId,
@@ -284,15 +381,20 @@ export function attachVoiceListeners() {
       latency: 0,
     }));
     // Create offer to new participant
-    const pc = createPeerConnection(data.socketId, data.userId);
-    pc.createOffer().then(offer => {
-      pc.setLocalDescription(offer);
-      socket.emit('voice:offer', { targetSocketId: data.socketId, offer });
-    });
+    try {
+      const pc = createPeerConnection(data.socketId, data.userId);
+      pc.createOffer().then(offer => {
+        pc.setLocalDescription(offer);
+        socket.emit('voice:offer', { targetSocketId: data.socketId, offer });
+      });
+    } catch (e) {
+      logError('Error creating offer for new participant:', e);
+    }
   });
 
   // Participant left
   socket.on('voice:call:participant-left', (data: { userId: string; socketId: string }) => {
+    log('Received voice:call:participant-left', data);
     dispatch(removeParticipant(data.userId));
     cleanupPeer(data.socketId);
   });
@@ -307,6 +409,12 @@ export function attachVoiceListeners() {
     dispatch(updateParticipant({ userId: data.userId, updates: { deafened: data.deafened } }));
   });
 
+  // Server error responses
+  socket.on('voice:call:error', (data: { message: string }) => {
+    logError('Server voice call error:', data.message);
+    showCallError(data.message);
+  });
+
   // Call history update from server
   socket.on('voice:call:history', (data: { history: Array<{ id: string; participant_names: string; call_type: string; status: string; duration: number; created_at: string }> }) => {
     void data;
@@ -317,6 +425,7 @@ export function detachVoiceListeners() {
   const socket = getSocket();
   if (!socket) return;
   listenersAttached = false;
+  callSignalingAttached = false;
   socket.off('voice:call:incoming');
   socket.off('voice:call:accepted');
   socket.off('voice:call:rejected');
@@ -325,33 +434,94 @@ export function detachVoiceListeners() {
   socket.off('voice:call:participant-left');
   socket.off('voice:call:mute-status');
   socket.off('voice:call:deafen-status');
+  socket.off('voice:call:error');
   socket.off('voice:call:history');
+  socket.off('voice:offer');
+  socket.off('voice:answer');
+  socket.off('voice:ice-candidate');
+  log('Detached all voice listeners');
+}
+
+// Reset listeners flag (needed for reconnection)
+export function resetListenersFlag() {
+  listenersAttached = false;
+  callSignalingAttached = false;
+  log('Reset voice listener flags for reconnection');
 }
 
 // ─── Call Actions ───
 
 export async function initiateCall(conversationId: string, callType: 'dm' | 'group') {
-  const socket = getSocket();
-  if (!socket || getState().currentCall) return;
+  log('initiateCall called with:', { conversationId, callType });
 
+  const socket = getSocket();
+  if (!socket) {
+    showCallError('Not connected to server. Please check your connection.');
+    logError('initiateCall: Socket is null');
+    return;
+  }
+
+  if (!socket.connected) {
+    showCallError('Not connected to server. Reconnecting...');
+    logError('initiateCall: Socket exists but not connected. State:', socket.connected);
+    return;
+  }
+
+  log('Socket state - connected:', socket.connected, 'id:', socket.id);
+
+  if (getState().currentCall) {
+    showCallError('Already in a call. Please end the current call first.');
+    logError('initiateCall: Already in a call:', getState().currentCall?.id);
+    return;
+  }
+
+  if (!conversationId) {
+    showCallError('No conversation selected.');
+    logError('initiateCall: No conversationId');
+    return;
+  }
+
+  // Get microphone access
   try {
+    log('Requesting microphone access...');
     localStream = await getMicrophoneStream(getState().selectedMicId);
+    log('Microphone access granted. Tracks:', localStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, label: t.label })));
     await enumerateDevices();
     startVAD();
-  } catch {
-    console.error('Mic access denied');
+  } catch (err) {
+    logError('Microphone access denied:', err);
+    showCallError('Microphone access denied. Please allow microphone access and try again.');
     return;
   }
 
   const callId = `call-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
   const user = store.getState().auth.user;
 
+  if (!user) {
+    showCallError('Not logged in.');
+    logError('initiateCall: No user in auth state');
+    if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+    return;
+  }
+
+  log('Emitting voice:call:initiate', { callId, conversationId, callType, callerName: user.username });
+
+  // Set up a response listener for server acknowledgment
+  const initTimeout = setTimeout(() => {
+    log('Call initiation timeout - no response from server after 10s');
+    const state = getState();
+    if (state.currentCall?.id === callId && state.currentCall.status === 'ringing') {
+      // Check if we at least got the call set up
+      log('Call is still ringing, server may have processed but no one answered yet');
+    }
+  }, 10000);
+
   socket.emit('voice:call:initiate', {
     callId,
     conversationId,
     callType,
-    callerName: user?.username,
-    callerAvatar: user?.avatar_url,
+    callerName: user.username,
+    callerAvatar: user.avatar_url,
   });
 
   const callInfo: CallInfo = {
@@ -361,9 +531,9 @@ export async function initiateCall(conversationId: string, callType: 'dm' | 'gro
     conversationId,
     startTime: Date.now(),
     participants: [{
-      userId: user?.id || '',
-      username: user?.username || '',
-      avatarUrl: user?.avatar_url || null,
+      userId: user.id || '',
+      username: user.username || '',
+      avatarUrl: user.avatar_url || null,
       socketId: socket.id || '',
       muted: false,
       deafened: false,
@@ -375,11 +545,16 @@ export async function initiateCall(conversationId: string, callType: 'dm' | 'gro
   dispatch(setCurrentCall(callInfo));
   attachCallSignaling();
   playRingtone();
+  showCallInfo('Calling...');
+
+  log('Call initiated successfully. Call ID:', callId, 'Redux state updated.');
 
   // Timeout after 60s if not accepted
   missedCallTimer = setTimeout(() => {
+    clearTimeout(initTimeout);
     const state = getState();
     if (state.currentCall?.id === callId && state.currentCall.status === 'ringing') {
+      log('Call timeout - no answer after 60s');
       socket.emit('voice:call:end', { callId, reason: 'timeout' });
       stopRingtone();
       dispatch(addCallHistory({
@@ -391,30 +566,47 @@ export async function initiateCall(conversationId: string, callType: 'dm' | 'gro
         timestamp: new Date().toISOString(),
       }));
       endCallCleanup();
+      showCallInfo('No answer');
     }
   }, 60000);
 }
 
 export async function acceptCall() {
+  log('acceptCall called');
   const socket = getSocket();
   const incoming = getState().incomingCall;
-  if (!socket || !incoming) return;
 
+  if (!socket) {
+    showCallError('Not connected to server.');
+    logError('acceptCall: Socket is null');
+    return;
+  }
+  if (!incoming) {
+    showCallError('No incoming call to accept.');
+    logError('acceptCall: No incoming call');
+    return;
+  }
+
+  log('Accepting call:', incoming.callId);
   stopRingtone();
   if (missedCallTimer) { clearTimeout(missedCallTimer); missedCallTimer = null; }
 
   try {
+    log('Requesting microphone access for accepting call...');
     localStream = await getMicrophoneStream(getState().selectedMicId);
+    log('Microphone access granted for accepting call');
     await enumerateDevices();
     startVAD();
-  } catch {
-    console.error('Mic access denied');
+  } catch (err) {
+    logError('Mic access denied on accept:', err);
+    showCallError('Microphone access denied. Cannot join call.');
     dispatch(setIncomingCall(null));
     return;
   }
 
   const user = store.getState().auth.user;
 
+  log('Emitting voice:call:accept', { callId: incoming.callId, userId: user?.id, username: user?.username });
   socket.emit('voice:call:accept', {
     callId: incoming.callId,
     userId: user?.id,
@@ -444,29 +636,39 @@ export async function acceptCall() {
   dispatch(setIncomingCall(null));
   attachCallSignaling();
 
-  // Start duration timer
-  startDurationTimer();
   // Start heartbeat
   startHeartbeat(incoming.callId);
+  showCallInfo('Call connected!');
+  log('Call accepted successfully');
 }
 
 export function rejectCall() {
+  log('rejectCall called');
   const socket = getSocket();
   const incoming = getState().incomingCall;
-  if (!socket || !incoming) return;
+  if (!socket || !incoming) {
+    log('rejectCall: No socket or no incoming call');
+    return;
+  }
 
   stopRingtone();
   if (missedCallTimer) { clearTimeout(missedCallTimer); missedCallTimer = null; }
 
+  log('Emitting voice:call:reject', { callId: incoming.callId });
   socket.emit('voice:call:reject', { callId: incoming.callId });
   dispatch(setIncomingCall(null));
 }
 
 export function endCall() {
+  log('endCall called');
   const socket = getSocket();
   const call = getState().currentCall;
-  if (!socket || !call) return;
+  if (!socket || !call) {
+    log('endCall: No socket or no current call');
+    return;
+  }
 
+  log('Emitting voice:call:end', { callId: call.id });
   socket.emit('voice:call:end', { callId: call.id });
 
   const duration = Math.floor((Date.now() - call.startTime) / 1000);
@@ -483,6 +685,7 @@ export function endCall() {
 }
 
 function endCallCleanup() {
+  log('endCallCleanup called');
   stopRingtone();
   stopVAD();
   detachCallSignaling();
@@ -490,9 +693,13 @@ function endCallCleanup() {
   if (localStream) {
     localStream.getTracks().forEach(t => t.stop());
     localStream = null;
+    log('Local stream stopped');
   }
 
-  peerConnections.forEach(pc => pc.close());
+  peerConnections.forEach((pc, id) => {
+    log('Closing peer connection:', id);
+    pc.close();
+  });
   peerConnections.clear();
 
   audioElements.forEach(audio => { audio.srcObject = null; });
@@ -503,6 +710,7 @@ function endCallCleanup() {
   if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
 
   dispatch(clearCall());
+  log('Call cleanup complete');
 }
 
 function cleanupPeer(socketId: string) {
@@ -517,14 +725,21 @@ function cleanupPeer(socketId: string) {
 export function toggleMute() {
   const socket = getSocket();
   const state = getState();
-  if (!localStream) return;
+  if (!localStream) {
+    log('toggleMute: No local stream');
+    return;
+  }
 
   const track = localStream.getAudioTracks()[0];
-  if (!track) return;
+  if (!track) {
+    log('toggleMute: No audio track');
+    return;
+  }
 
   const newMuted = !state.isMuted;
   track.enabled = !newMuted;
   dispatch(setMuted(newMuted));
+  log('Mute toggled:', newMuted);
 
   if (socket && state.currentCall) {
     socket.emit('voice:call:mute-toggle', { callId: state.currentCall.id, muted: newMuted });
@@ -537,6 +752,7 @@ export function toggleDeafen() {
   const newDeafened = !state.isDeafened;
   dispatch(setDeafened(newDeafened));
   audioElements.forEach(audio => { audio.muted = newDeafened; });
+  log('Deafen toggled:', newDeafened);
 
   if (socket && state.currentCall) {
     socket.emit('voice:call:deafen-toggle', { callId: state.currentCall.id, deafened: newDeafened });
@@ -566,8 +782,9 @@ export async function switchMicrophone(deviceId: string) {
     startVAD();
 
     store.dispatch({ type: 'voice/setSelectedMic', payload: deviceId });
+    log('Switched microphone to:', deviceId);
   } catch (e) {
-    console.error('Failed to switch microphone:', e);
+    logError('Failed to switch microphone:', e);
   }
 }
 
@@ -578,6 +795,7 @@ export function switchSpeaker(deviceId: string) {
     }
   });
   store.dispatch({ type: 'voice/setSelectedSpeaker', payload: deviceId });
+  log('Switched speaker to:', deviceId);
 }
 
 export function setOutputVolumeLevel(volume: number) {
@@ -598,6 +816,7 @@ function startHeartbeat(callId: string) {
     const socket = getSocket();
     if (socket) socket.emit('voice:call:heartbeat', { callId });
   }, 10000);
+  log('Heartbeat started for call:', callId);
 }
 
 function playRingtone() {
@@ -624,9 +843,10 @@ function playRingtone() {
       (ringtoneAudio as unknown as Record<string, unknown>)._ctx = ctx;
       (ringtoneAudio as unknown as Record<string, unknown>)._osc = osc;
       (ringtoneAudio as unknown as Record<string, unknown>)._interval = ringInterval;
+      log('Ringtone playing');
     }
   } catch {
-    // Audio context not available
+    logError('Failed to play ringtone');
   }
 }
 
@@ -641,6 +861,7 @@ function stopRingtone() {
       if (ctx) ctx.close();
     } catch { /* already closed */ }
     ringtoneAudio = null;
+    log('Ringtone stopped');
   }
 }
 
@@ -671,15 +892,24 @@ export function measureLatency() {
 // ─── Voice Channel Calls (server voice channels) ───
 
 export async function joinVoiceChannelCall(channelId: string, serverId: string) {
+  log('joinVoiceChannelCall called:', { channelId, serverId });
   const socket = getSocket();
-  if (!socket || getState().currentCall) return;
+  if (!socket) {
+    showCallError('Not connected to server.');
+    return;
+  }
+  if (getState().currentCall) {
+    showCallError('Already in a call. Please leave current call first.');
+    return;
+  }
 
   try {
     localStream = await getMicrophoneStream(getState().selectedMicId);
     await enumerateDevices();
     startVAD();
   } catch {
-    console.error('Mic access denied');
+    logError('Mic access denied for voice channel');
+    showCallError('Microphone access denied.');
     return;
   }
 
@@ -707,74 +937,19 @@ export async function joinVoiceChannelCall(channelId: string, serverId: string) 
 
   dispatch(setCurrentCall(callInfo));
 
-  // Use existing voice channel join
-  socket.emit('voice:join', { channelId });
-
-  // Listen for existing participants
-  const handleParticipants = ({ participants }: { participants: Array<{ socketId: string; userId: string; username: string }> }) => {
-    participants.forEach(async (p) => {
-      dispatch(addParticipant({
-        userId: p.userId,
-        username: p.username,
-        avatarUrl: null,
-        socketId: p.socketId,
-        muted: false,
-        deafened: false,
-        speaking: false,
-        latency: 0,
-      }));
-      const pc = createPeerConnection(p.socketId, p.userId);
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('voice:offer', { targetSocketId: p.socketId, offer });
-    });
-    socket.off('voice:participants', handleParticipants);
-  };
-
-  socket.on('voice:participants', handleParticipants);
-
-  socket.on('voice:user-joined', (data: { userId: string; username: string; socketId: string }) => {
-    if (getState().currentCall?.channelId !== channelId) return;
-    dispatch(addParticipant({
-      userId: data.userId,
-      username: data.username,
-      avatarUrl: null,
-      socketId: data.socketId,
-      muted: false,
-      deafened: false,
-      speaking: false,
-      latency: 0,
-    }));
-  });
-
-  socket.on('voice:user-left', (data: { userId: string; socketId: string }) => {
-    dispatch(removeParticipant(data.userId));
-    cleanupPeer(data.socketId);
-  });
-
-  socket.on('voice:user-muted', (data: { userId: string; muted: boolean }) => {
-    dispatch(updateParticipant({ userId: data.userId, updates: { muted: data.muted } }));
-  });
-
-  socket.on('voice:user-deafened', (data: { userId: string; deafened: boolean }) => {
-    dispatch(updateParticipant({ userId: data.userId, updates: { deafened: data.deafened } }));
-  });
+  // Note: voice:join is handled by the useVoice hook which also handles
+  // voice channel specific signaling. We only track state here.
+  // Don't emit voice:join here as useVoice hook does it.
 
   startHeartbeat(callId);
+  log('Joined voice channel call:', callId);
 }
 
 export function leaveVoiceChannelCall() {
-  const socket = getSocket();
+  log('leaveVoiceChannelCall called');
   const call = getState().currentCall;
-  if (!socket || !call || call.type !== 'channel') return;
+  if (!call || call.type !== 'channel') return;
 
-  socket.emit('voice:leave', { channelId: call.channelId });
-
-  // Remove vc-specific listeners
-  socket.off('voice:user-joined');
-  socket.off('voice:user-left');
-  socket.off('voice:user-muted');
-  socket.off('voice:user-deafened');
-
+  // Only clean up our state, let useVoice handle the actual voice:leave
   endCallCleanup();
 }

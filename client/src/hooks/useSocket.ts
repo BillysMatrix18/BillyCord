@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Socket } from 'socket.io-client';
 import { connectSocket, disconnectSocket, getSocket } from '../services/socket';
-import { attachVoiceListeners, detachVoiceListeners } from '../services/voiceService';
+import { attachVoiceListeners, detachVoiceListeners, resetListenersFlag } from '../services/voiceService';
 import { useAppDispatch, useAppSelector } from './useAppDispatch';
 import { addMessage, updateMessage, removeMessage, addTypingUser, removeTypingUser, addReactionToMessage, removeReactionFromMessage, setMessagePinned } from '../store/messageSlice';
 import { updateMemberStatus } from '../store/serverSlice';
@@ -30,12 +30,21 @@ export function useSocket() {
     requestNotificationPermission();
 
     // Attach voice call listeners once socket is ready
-    socket.on('connect', () => {
+    const handleConnect = () => {
+      console.log('[useSocket] Socket connected, attaching voice listeners. Socket ID:', socket.id);
+      // Reset the flag so listeners re-attach on reconnection
+      resetListenersFlag();
       attachVoiceListeners();
-    });
+    };
+
+    socket.on('connect', handleConnect);
+
     // Also attach immediately if already connected
     if (socket.connected) {
+      console.log('[useSocket] Socket already connected, attaching voice listeners immediately. Socket ID:', socket.id);
       attachVoiceListeners();
+    } else {
+      console.log('[useSocket] Socket not yet connected, waiting for connect event...');
     }
 
     socket.on('message:new', (message) => {

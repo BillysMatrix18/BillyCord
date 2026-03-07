@@ -267,8 +267,20 @@ export function initializeSocket(httpServer: HttpServer): Server {
         callerName: string; callerAvatar: string | null;
       };
 
+      console.log(`[Voice] Call initiate from ${username} (${userId}): callId=${callId}, convId=${conversationId}, type=${callType}`);
+
       // Check if user is already in a call
-      if (userCallMap.has(userId)) return;
+      if (userCallMap.has(userId)) {
+        console.log(`[Voice] User ${username} already in call: ${userCallMap.get(userId)}`);
+        socket.emit('voice:call:error', { message: 'You are already in a call.' });
+        return;
+      }
+
+      if (!conversationId) {
+        console.log(`[Voice] No conversationId provided`);
+        socket.emit('voice:call:error', { message: 'No conversation specified.' });
+        return;
+      }
 
       // Create active call record
       const call: ActiveCall = {
@@ -294,8 +306,9 @@ export function initializeSocket(httpServer: HttpServer): Server {
           `INSERT INTO voice_call_participants (call_id, user_id) VALUES ($1, $2)`,
           [callId, userId]
         );
+        console.log(`[Voice] Call record saved to DB: ${callId}`);
       } catch (e) {
-        console.error('Failed to save call record:', e);
+        console.error('[Voice] Failed to save call record:', e);
       }
 
       // Get conversation members and notify them
@@ -304,8 +317,12 @@ export function initializeSocket(httpServer: HttpServer): Server {
           'SELECT user_id FROM conversation_members WHERE conversation_id = $1 AND user_id != $2',
           [conversationId, userId]
         );
+        console.log(`[Voice] Found ${members.rows.length} other member(s) in conversation ${conversationId}`);
+
+        let notifiedCount = 0;
         for (const member of members.rows) {
           if (!userCallMap.has(member.user_id)) {
+            console.log(`[Voice] Notifying user ${member.user_id} of incoming call`);
             io.to(`user:${member.user_id}`).emit('voice:call:incoming', {
               callId,
               callerId: userId,
@@ -314,16 +331,28 @@ export function initializeSocket(httpServer: HttpServer): Server {
               conversationId,
               callType,
             });
+            notifiedCount++;
+          } else {
+            console.log(`[Voice] User ${member.user_id} already in a call, skipping`);
           }
         }
+
+        if (notifiedCount === 0 && members.rows.length === 0) {
+          console.log(`[Voice] No members found in conversation to notify! Check conversation_members table.`);
+          socket.emit('voice:call:error', { message: 'No other members found in this conversation.' });
+        } else {
+          console.log(`[Voice] Notified ${notifiedCount} user(s) of incoming call`);
+        }
       } catch (e) {
-        console.error('Failed to notify call recipients:', e);
+        console.error('[Voice] Failed to notify call recipients:', e);
+        socket.emit('voice:call:error', { message: 'Failed to notify call recipients.' });
       }
 
       // Auto-timeout after 60s
       call.missedTimer = setTimeout(async () => {
         const c = activeCalls.get(callId);
         if (c && c.participants.size <= 1) {
+          console.log(`[Voice] Call ${callId} timed out - no one answered`);
           // No one joined - mark as missed
           try {
             await query("UPDATE voice_calls SET status = 'missed', end_time = datetime('now') WHERE id = $1", [callId]);
@@ -341,11 +370,21 @@ export function initializeSocket(httpServer: HttpServer): Server {
     socket.on('voice:call:accept', safe(async (data: unknown) => {
       const { callId, avatarUrl } = data as { callId: string; userId?: string; username?: string; avatarUrl?: string | null };
 
+      console.log(`[Voice] Call accept from ${username} (${userId}): callId=${callId}`);
+
       const call = activeCalls.get(callId);
-      if (!call) return;
+      if (!call) {
+        console.log(`[Voice] Call ${callId} not found in active calls`);
+        socket.emit('voice:call:error', { message: 'Call no longer exists.' });
+        return;
+      }
 
       // Check if user is already in a call
-      if (userCallMap.has(userId)) return;
+      if (userCallMap.has(userId)) {
+        console.log(`[Voice] User ${username} already in call: ${userCallMap.get(userId)}`);
+        socket.emit('voice:call:error', { message: 'You are already in a call.' });
+        return;
+      }
 
       // Clear timeout
       if (call.missedTimer) { clearTimeout(call.missedTimer); call.missedTimer = undefined; }
@@ -361,8 +400,10 @@ export function initializeSocket(httpServer: HttpServer): Server {
       } catch { /* ignore */ }
 
       // Notify all existing participants
+      console.log(`[Voice] Notifying existing participants of acceptance. Total participants: ${call.participants.size}`);
       call.participants.forEach((p) => {
         if (p.userId !== userId) {
+          console.log(`[Voice] Sending voice:call:accepted to ${p.userId} (socket: ${p.socketId})`);
           io.to(`user:${p.userId}`).emit('voice:call:accepted', {
             callId,
             userId,
@@ -376,6 +417,7 @@ export function initializeSocket(httpServer: HttpServer): Server {
       // Send existing participants to the joiner
       call.participants.forEach((p) => {
         if (p.userId !== userId) {
+          console.log(`[Voice] Sending voice:call:participant-joined to joiner ${userId} about participant ${p.userId}`);
           io.to(`user:${userId}`).emit('voice:call:participant-joined', {
             callId,
             userId: p.userId,
