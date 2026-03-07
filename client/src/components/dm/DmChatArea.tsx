@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
 import { fetchDmMessages, clearDmMessages } from '../../store/dmSlice';
 import { dmApi } from '../../services/api';
 import { getSocket } from '../../services/socket';
-import { IconPlus, IconSend, IconX, IconSmile, IconEdit, IconPin, IconTrash } from '../common/Icons';
+import { IconPlus, IconSend, IconX, IconSmile, IconEdit, IconPin, IconTrash, IconMic } from '../common/Icons';
 import UserProfileModal from '../common/UserProfileModal';
 import ImageModal from '../common/ImageModal';
 
@@ -29,6 +29,11 @@ export default function DmChatArea() {
   const [reactingId, setReactingId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; msgId: string } | null>(null);
   const [copyToast, setCopyToast] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const conversation = conversations.find(c => c.id === conversationId);
   const otherParticipant = conversation?.is_group ? null : conversation?.participants?.[0];
@@ -71,6 +76,57 @@ export default function DmChatArea() {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg' });
+      mediaRecorderRef.current = mediaRecorder;
+      recordingChunksRef.current = [];
+      mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordingChunksRef.current.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(recordingChunksRef.current, { type: mediaRecorder.mimeType });
+        const ext = mediaRecorder.mimeType.includes('webm') ? 'webm' : 'ogg';
+        const file = new File([blob], `voice-message-${Date.now()}.${ext}`, { type: mediaRecorder.mimeType });
+        setPendingFiles(prev => [...prev, file]);
+        if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+        setRecordingTime(0);
+      };
+      mediaRecorder.start();
+      setRecording(true);
+      setRecordingTime(0);
+      recordingTimerRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch {
+      console.error('Microphone access denied');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setRecording(false);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = null;
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+    }
+    setRecording(false);
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    setRecordingTime(0);
+  };
+
+  const formatRecordingTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const handleSend = async () => {
@@ -477,7 +533,7 @@ export default function DmChatArea() {
             multiple
             style={{ display: 'none' }}
             onChange={handleFileSelect}
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.zip,.rar,.mp3,.wav,.ogg,.m4a,.flac,.webm"
           />
           <button title="Attach file" onClick={() => fileInputRef.current?.click()}>
             <IconPlus size={20} />
@@ -491,11 +547,33 @@ export default function DmChatArea() {
             onKeyDown={handleKeyDown}
             rows={1}
           />
-          <button onClick={handleSend} title="Send"
-            disabled={uploading}
-            style={{ opacity: (messageText.trim() || pendingFiles.length > 0) ? 1 : 0.3 }}>
-            {uploading ? <div className="loading-spinner" style={{ width: 20, height: 20 }} /> : <IconSend size={20} />}
-          </button>
+          {recording ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: 'var(--red)', fontSize: 13, fontWeight: 600, animation: 'pulse 1s infinite' }}>
+                {formatRecordingTime(recordingTime)}
+              </span>
+              <button onClick={cancelRecording} title="Cancel recording"
+                style={{ color: 'var(--text-muted)' }}>
+                <IconX size={18} />
+              </button>
+              <button onClick={stopRecording} title="Stop and attach"
+                style={{ color: 'var(--green, #43b581)' }}>
+                <IconSend size={20} />
+              </button>
+            </div>
+          ) : (
+            <>
+              <button onClick={startRecording} title="Record voice message"
+                style={{ opacity: 0.6 }}>
+                <IconMic size={20} />
+              </button>
+              <button onClick={handleSend} title="Send"
+                disabled={uploading}
+                style={{ opacity: (messageText.trim() || pendingFiles.length > 0) ? 1 : 0.3 }}>
+                {uploading ? <div className="loading-spinner" style={{ width: 20, height: 20 }} /> : <IconSend size={20} />}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

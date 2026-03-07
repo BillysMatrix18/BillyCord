@@ -15,7 +15,7 @@ const storage = multer.diskStorage({
 
 const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-const audioTypes = ['audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm'];
+const audioTypes = ['audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/flac', 'audio/mp4', 'audio/aac', 'audio/x-m4a'];
 const documentTypes = ['application/pdf', 'text/plain', 'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];

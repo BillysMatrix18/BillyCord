@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../hooks/useAppDispatch';
-import { friendApi, dmApi, authApi } from '../../services/api';
+import { friendApi, dmApi, authApi, resolveUploadUrl } from '../../services/api';
 import { IconX, IconMessage, IconUser, IconShield } from './Icons';
 
 interface UserProfileModalProps {
@@ -148,18 +149,21 @@ export default function UserProfileModal({ userId, username, avatarUrl, bio, sta
     return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  return (
+  const resolvedAvatar = resolveUploadUrl(displayAvatar);
+  const resolvedBanner = resolveUploadUrl(displayBanner);
+
+  return createPortal(
     <>
       <div className="profile-modal-overlay" onClick={onClose} />
       <div className="profile-modal animate-fade-in">
         <div className="profile-modal-banner" style={{
-          background: displayBanner ? `url(${displayBanner}) center/cover` : displayColor,
+          background: resolvedBanner ? `url(${resolvedBanner}) center/cover` : displayColor,
         }} />
         <button className="profile-modal-close" onClick={onClose}><IconX size={18} /></button>
 
         <div className="profile-modal-avatar">
-          {displayAvatar ? (
-            <img src={displayAvatar} alt={username} />
+          {resolvedAvatar ? (
+            <img src={resolvedAvatar} alt={username} />
           ) : (
             <div className="profile-modal-avatar-fallback">
               {username[0]?.toUpperCase() || '?'}
@@ -226,6 +230,7 @@ export default function UserProfileModal({ userId, username, avatarUrl, bio, sta
           )}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

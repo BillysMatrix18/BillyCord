@@ -3288,6 +3288,18 @@ input, textarea {
   box-shadow: 0 0 20px rgba(255, 59, 48, 0.1);
 }
 
+/* ═══ Server Settings Modal (glass) ═══ */
+[data-theme="glass"] .server-settings-container {
+  background: #0a0f19;
+}
+[data-theme="glass"] .server-settings-sidebar {
+  background: rgba(15, 20, 35, 0.98) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+[data-theme="glass"] .server-settings-content {
+  background: #0e1525 !important;
+}
+
 /* ═══ Theme selector cards ═══ */
 [data-theme="glass"] .theme-option {
   background: rgba(255, 255, 255, 0.05);

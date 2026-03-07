@@ -447,12 +447,12 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
 
   return createPortal(
     <>
-      <div style={{
+      <div className="server-settings-container" style={{
         position: 'fixed', inset: 0, zIndex: 9001,
         display: 'flex',
       }}>
         {/* Sidebar */}
-        <div style={{
+        <div className="server-settings-sidebar" style={{
           width: 232, background: 'var(--bg-tertiary)', display: 'flex', flexDirection: 'column',
           padding: '60px 8px 20px 20px', overflowY: 'auto', flexShrink: 0,
         }}>
@@ -488,7 +488,7 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
         </div>
 
         {/* Content area */}
-        <div style={{
+        <div className="server-settings-content" style={{
           flex: 1, background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column',
           position: 'relative', overflow: 'hidden',
         }}>
