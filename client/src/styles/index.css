@@ -998,7 +998,8 @@ input, textarea {
   cursor: pointer;
   flex-shrink: 0;
   margin-top: 2px;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
   transition: transform var(--transition-spring), opacity var(--transition-fast), box-shadow var(--transition-fast);
 }
 .message .message-avatar:hover {
@@ -1010,7 +1011,22 @@ input, textarea {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: var(--radius-full);
 }
+.message .message-avatar .message-status-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2.5px solid var(--bg-primary);
+  z-index: 3;
+}
+.message .message-avatar .message-status-dot.online { background: var(--green); }
+.message .message-avatar .message-status-dot.idle { background: var(--yellow); }
+.message .message-avatar .message-status-dot.dnd { background: var(--red); }
+.message .message-avatar .message-status-dot.offline { background: var(--text-muted); }
 
 .message-body {
   flex: 1;

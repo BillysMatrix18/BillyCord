@@ -121,6 +121,8 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
 
   const isAuthor = user?.id === message.sender_id;
   const isOptimistic = message.id.startsWith('optimistic-');
+  const members = useAppSelector((state) => state.servers.members);
+  const senderStatus = members.find(m => m.id === message.sender_id)?.status || 'offline';
 
   const renderContent = (content: string) => {
     return content
@@ -140,6 +142,7 @@ export default function MessageItem({ message, showHeader, formatTime, onReply }
           ) : (
             message.sender_name?.[0]?.toUpperCase() || '?'
           )}
+          <span className={`message-status-dot ${senderStatus}`} />
         </div>
       ) : (
         <div style={{ width: 40, flexShrink: 0 }} />

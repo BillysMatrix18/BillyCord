@@ -116,12 +116,14 @@ export interface Role {
 
 export interface ServerMember {
   id: string;
+  member_id: string;
   username: string;
   avatar_url: string | null;
   status: string;
   custom_status: string | null;
   nickname: string | null;
   joined_at: string;
+  role_ids: string[];
 }
 
 export interface Invite {

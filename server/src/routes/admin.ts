@@ -243,7 +243,7 @@ router.post('/users/:userId/reset-password', async (req: Request, res: Response)
 router.patch('/users/:userId', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const allowedFields = ['username', 'email', 'bio', 'avatar_url', 'status', 'custom_status', 'profile_color', 'theme'];
+    const allowedFields = ['username', 'email', 'bio', 'avatar_url', 'status', 'custom_status', 'profile_color', 'theme', 'badges', 'title', 'admin_notes'];
     const updates: string[] = [];
     const values: unknown[] = [];
     let idx = 1;
@@ -278,6 +278,299 @@ router.patch('/users/:userId', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Admin edit user error:', err);
     res.status(500).json({ error: 'Failed to edit user' });
+  }
+});
+
+// ── User Details with Full Stats ───────────────────────────────────
+
+router.get('/users/:userId/details', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // Ensure extra columns exist
+    try { await query("ALTER TABLE users ADD COLUMN badges TEXT DEFAULT ''"); } catch (_e) { /* already exists */ }
+    try { await query("ALTER TABLE users ADD COLUMN title TEXT DEFAULT ''"); } catch (_e) { /* already exists */ }
+    try { await query("ALTER TABLE users ADD COLUMN admin_notes TEXT DEFAULT ''"); } catch (_e) { /* already exists */ }
+
+    const userResult = await query(
+      `SELECT id, username, email, avatar_url, banner_url, bio, status, custom_status,
+              theme, pronouns, location, birthday, social_links, profile_color,
+              profile_visibility, email_verified, created_at, last_seen,
+              badges, title, admin_notes
+       FROM users WHERE id = $1`,
+      [userId]
+    );
+    if (userResult.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const user = userResult.rows[0];
+
+    // Total messages (all-time)
+    const totalMsgs = await query('SELECT COUNT(*) as count FROM messages WHERE sender_id = $1', [userId]);
+
+    // Messages this month
+    const monthMsgs = await query(
+      "SELECT COUNT(*) as count FROM messages WHERE sender_id = $1 AND created_at >= datetime('now', 'start of month')",
+      [userId]
+    );
+
+    // Servers they're in
+    const servers = await query(
+      `SELECT s.id, s.name FROM server_members sm JOIN servers s ON sm.server_id = s.id WHERE sm.user_id = $1`,
+      [userId]
+    );
+
+    // Friends count
+    const friendsCount = await query(
+      "SELECT COUNT(*) as count FROM friends WHERE (user_id = $1 OR friend_id = $1) AND status = 'accepted'",
+      [userId]
+    );
+
+    // Login history (last 20)
+    let loginHistory: any[] = [];
+    try {
+      const logins = await query(
+        "SELECT * FROM user_activity_logs WHERE user_id = $1 AND action_type = 'login' ORDER BY created_at DESC LIMIT 20",
+        [userId]
+      );
+      loginHistory = logins.rows;
+    } catch (_e) { /* table may not exist */ }
+
+    // Recent messages (last 20)
+    const recentMsgs = await query(
+      `SELECT m.id, m.content, m.created_at, c.name as channel_name, s.name as server_name
+       FROM messages m
+       LEFT JOIN channels c ON m.channel_id = c.id
+       LEFT JOIN servers s ON c.server_id = s.id
+       WHERE m.sender_id = $1
+       ORDER BY m.created_at DESC LIMIT 20`,
+      [userId]
+    );
+
+    res.json({
+      ...user,
+      totalMessages: parseInt(totalMsgs.rows[0].count),
+      messagesThisMonth: parseInt(monthMsgs.rows[0].count),
+      servers: servers.rows,
+      friendsCount: parseInt(friendsCount.rows[0].count),
+      loginHistory,
+      recentMessages: recentMsgs.rows,
+    });
+  } catch (err) {
+    console.error('Admin user details error:', err);
+    res.status(500).json({ error: 'Failed to fetch user details' });
+  }
+});
+
+// ── Account Actions ───────────────────────────────────────────────
+
+// Force logout all sessions
+router.post('/users/:userId/force-logout', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    // Invalidate all refresh tokens
+    try {
+      await query("UPDATE users SET refresh_token = NULL WHERE id = $1", [userId]);
+    } catch (_e) { /* column may not exist */ }
+    // Disconnect their socket
+    const io = req.app.get('io');
+    if (io) io.to(`user:${userId}`).emit('force:disconnect', { reason: 'Admin forced logout of all sessions.' });
+    logAdminAction('force_logout', 'user', userId, {});
+    res.json({ success: true, message: 'All sessions cleared' });
+  } catch (err) {
+    console.error('Admin force-logout error:', err);
+    res.status(500).json({ error: 'Failed to force logout' });
+  }
+});
+
+// Mute user
+router.post('/users/:userId/mute', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { muted } = req.body;
+    const muteStatus = muted ? 'MUTED' : null;
+    await query("UPDATE users SET custom_status = $1 WHERE id = $2", [muteStatus ? `MUTED: User has been muted by admin` : null, userId]);
+    logAdminAction(muted ? 'user_muted' : 'user_unmuted', 'user', userId, {});
+    res.json({ success: true, muted: !!muted });
+  } catch (err) {
+    console.error('Admin mute error:', err);
+    res.status(500).json({ error: 'Failed to mute/unmute user' });
+  }
+});
+
+// Suspend user
+router.post('/users/:userId/suspend', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { duration, reason } = req.body;
+    const suspendMsg = `SUSPENDED: ${reason || 'No reason given'} (Duration: ${duration || 'indefinite'})`;
+    await query("UPDATE users SET status = 'offline', custom_status = $1 WHERE id = $2", [suspendMsg, userId]);
+    const io = req.app.get('io');
+    if (io) io.to(`user:${userId}`).emit('force:disconnect', { reason: 'Your account has been suspended.' });
+    logAdminAction('user_suspended', 'user', userId, { duration, reason });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin suspend error:', err);
+    res.status(500).json({ error: 'Failed to suspend user' });
+  }
+});
+
+// Give badge
+router.post('/users/:userId/badge', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { badge } = req.body;
+    if (!badge) { res.status(400).json({ error: 'Badge is required' }); return; }
+
+    // Ensure column exists
+    try { await query("ALTER TABLE users ADD COLUMN badges TEXT DEFAULT ''"); } catch (_e) { /* exists */ }
+
+    const user = await query("SELECT badges FROM users WHERE id = $1", [userId]);
+    if (user.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const existing = user.rows[0].badges || '';
+    const badgeList = existing ? existing.split(',').map((b: string) => b.trim()).filter(Boolean) : [];
+    if (!badgeList.includes(badge)) badgeList.push(badge);
+    const newBadges = badgeList.join(',');
+
+    await query("UPDATE users SET badges = $1 WHERE id = $2", [newBadges, userId]);
+    logAdminAction('badge_given', 'user', userId, { badge });
+    res.json({ success: true, badges: newBadges });
+  } catch (err) {
+    console.error('Admin badge error:', err);
+    res.status(500).json({ error: 'Failed to give badge' });
+  }
+});
+
+// Give custom title
+router.post('/users/:userId/title', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { title } = req.body;
+
+    // Ensure column exists
+    try { await query("ALTER TABLE users ADD COLUMN title TEXT DEFAULT ''"); } catch (_e) { /* exists */ }
+
+    await query("UPDATE users SET title = $1 WHERE id = $2", [title || '', userId]);
+    logAdminAction('title_set', 'user', userId, { title });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin title error:', err);
+    res.status(500).json({ error: 'Failed to set title' });
+  }
+});
+
+// Add admin note
+router.post('/users/:userId/admin-note', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { note } = req.body;
+
+    // Ensure column exists
+    try { await query("ALTER TABLE users ADD COLUMN admin_notes TEXT DEFAULT ''"); } catch (_e) { /* exists */ }
+
+    const timestamp = new Date().toISOString();
+    const user = await query("SELECT admin_notes FROM users WHERE id = $1", [userId]);
+    if (user.rows.length === 0) { res.status(404).json({ error: 'User not found' }); return; }
+
+    const existing = user.rows[0].admin_notes || '';
+    const newNotes = existing ? `${existing}\n[${timestamp}] ${note}` : `[${timestamp}] ${note}`;
+
+    await query("UPDATE users SET admin_notes = $1 WHERE id = $2", [newNotes, userId]);
+    logAdminAction('admin_note_added', 'user', userId, { note });
+    res.json({ success: true, admin_notes: newNotes });
+  } catch (err) {
+    console.error('Admin note error:', err);
+    res.status(500).json({ error: 'Failed to add admin note' });
+  }
+});
+
+// Send DM as admin
+router.post('/users/:userId/send-dm', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { message } = req.body;
+    if (!message) { res.status(400).json({ error: 'Message is required' }); return; }
+
+    const formattedContent = `**[Admin Message]** ${message}`;
+
+    // Find or create conversation with billybot
+    let convId: string | null = null;
+    const existingConv = await query(
+      `SELECT c.id FROM conversations c
+       WHERE c.is_group = 0
+       AND (SELECT COUNT(*) FROM conversation_members cm WHERE cm.conversation_id = c.id) = 2
+       AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = 'billybot')
+       AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = $1)`,
+      [userId]
+    );
+
+    if (existingConv.rows.length > 0) {
+      convId = existingConv.rows[0].id;
+    } else {
+      const newConv = await query(
+        `INSERT INTO conversations (is_group, name, owner_id) VALUES (0, NULL, NULL) RETURNING id`
+      );
+      convId = newConv.rows[0].id;
+      await query(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, 'billybot')`, [convId]);
+      await query(`INSERT INTO conversation_members (conversation_id, user_id) VALUES ($1, $2)`, [convId, userId]);
+    }
+
+    const msgResult = await query(
+      `INSERT INTO direct_messages (conversation_id, sender_id, content) VALUES ($1, 'billybot', $2) RETURNING *`,
+      [convId, formattedContent]
+    );
+
+    await query(
+      `UPDATE conversation_members SET unread_count = unread_count + 1 WHERE conversation_id = $1 AND user_id = $2`,
+      [convId, userId]
+    );
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${userId}`).emit('dm:new', {
+        conversationId: convId,
+        message: { ...msgResult.rows[0], sender_name: 'BillyBot', sender_avatar: null },
+      });
+    }
+
+    logAdminAction('admin_dm_sent', 'user', userId, { message });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Admin send-dm error:', err);
+    res.status(500).json({ error: 'Failed to send DM' });
+  }
+});
+
+// Purge all user data
+router.delete('/users/:userId/purge', async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // Delete messages
+    const msgResult = await query('DELETE FROM messages WHERE sender_id = $1', [userId]);
+    // Delete DMs
+    let dmCount = 0;
+    try {
+      const dmResult = await query('DELETE FROM direct_messages WHERE sender_id = $1', [userId]);
+      dmCount = dmResult.rowCount || 0;
+    } catch (_e) { /* table may not exist */ }
+    // Delete reactions
+    try { await query('DELETE FROM message_reactions WHERE user_id = $1', [userId]); } catch (_e) { /* */ }
+    // Delete friend relationships
+    try { await query('DELETE FROM friends WHERE user_id = $1 OR friend_id = $1', [userId]); } catch (_e) { /* */ }
+    // Remove from server memberships
+    try { await query('DELETE FROM server_members WHERE user_id = $1', [userId]); } catch (_e) { /* */ }
+    // Remove from conversations
+    try { await query('DELETE FROM conversation_members WHERE user_id = $1', [userId]); } catch (_e) { /* */ }
+
+    // Finally delete the user
+    await query('DELETE FROM users WHERE id = $1', [userId]);
+
+    logAdminAction('user_purged', 'user', userId, { messagesDeleted: msgResult.rowCount, dmsDeleted: dmCount });
+    res.json({ success: true, messagesDeleted: msgResult.rowCount || 0, dmsDeleted: dmCount });
+  } catch (err) {
+    console.error('Admin purge error:', err);
+    res.status(500).json({ error: 'Failed to purge user data' });
   }
 });
 

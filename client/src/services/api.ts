@@ -84,6 +84,13 @@ export const serverApi = {
   getBans: (serverId: string) => api.get(`/servers/${serverId}/bans`),
   getAuditLogs: (serverId: string) => api.get(`/servers/${serverId}/audit-logs`),
   markRead: (serverId: string) => api.post(`/servers/${serverId}/read`),
+  uploadIcon: (serverId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('icon', file);
+    return api.post(`/servers/${serverId}/icon`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };
 
 // Channels

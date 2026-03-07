@@ -144,7 +144,7 @@ export async function getServer(req: Request, res: Response): Promise<void> {
     );
 
     const members = await query(
-      `SELECT u.id, u.username, u.avatar_url, u.status, u.custom_status, sm.nickname, sm.joined_at
+      `SELECT u.id, u.username, u.avatar_url, u.status, u.custom_status, sm.nickname, sm.joined_at, sm.id as member_id
        FROM server_members sm
        JOIN users u ON u.id = sm.user_id
        WHERE sm.server_id = $1
@@ -157,11 +157,32 @@ export async function getServer(req: Request, res: Response): Promise<void> {
       [serverId]
     );
 
+    // Fetch member_roles for all members in this server
+    const memberRoles = await query(
+      `SELECT mr.member_id, mr.role_id
+       FROM member_roles mr
+       JOIN server_members sm ON sm.id = mr.member_id
+       WHERE sm.server_id = $1`,
+      [serverId]
+    );
+
+    // Attach role_ids to each member
+    const memberRolesMap: Record<string, string[]> = {};
+    for (const mr of memberRoles.rows) {
+      if (!memberRolesMap[mr.member_id]) memberRolesMap[mr.member_id] = [];
+      memberRolesMap[mr.member_id].push(mr.role_id);
+    }
+
+    const membersWithRoles = members.rows.map((m: { member_id: string }) => ({
+      ...m,
+      role_ids: memberRolesMap[m.member_id] || [],
+    }));
+
     res.json({
       server: serverResult.rows[0],
       channels: channels.rows,
       categories: categories.rows,
-      members: members.rows,
+      members: membersWithRoles,
       roles: roles.rows,
     });
   } catch (error) {

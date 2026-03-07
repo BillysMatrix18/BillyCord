@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/useAppDispatch';
@@ -7,6 +7,54 @@ import { setChannels, setCategories } from '../../store/channelSlice';
 import { serverApi, channelApi, roleApi, inviteApi, friendApi, dmApi } from '../../services/api';
 import { IconX, IconPlus, IconTrash, IconEdit, IconHash, IconVolume, IconSettings, IconUsers, IconShield } from '../common/Icons';
 import { Channel, Role, Invite, ServerMember } from '../../types';
+
+// Permission bit flags (mirrored from server/src/types/index.ts)
+const Permissions: Record<string, number> = {
+  VIEW_CHANNELS: 1 << 0,
+  SEND_MESSAGES: 1 << 1,
+  MANAGE_MESSAGES: 1 << 2,
+  ATTACH_FILES: 1 << 3,
+  ADD_REACTIONS: 1 << 4,
+  CONNECT_VOICE: 1 << 5,
+  SPEAK: 1 << 6,
+  MUTE_MEMBERS: 1 << 7,
+  DEAFEN_MEMBERS: 1 << 8,
+  MANAGE_CHANNELS: 1 << 9,
+  MANAGE_SERVER: 1 << 10,
+  MANAGE_ROLES: 1 << 11,
+  KICK_MEMBERS: 1 << 12,
+  BAN_MEMBERS: 1 << 13,
+  CREATE_INVITES: 1 << 14,
+  MANAGE_WEBHOOKS: 1 << 15,
+  ADMINISTRATOR: 1 << 16,
+};
+
+const PERMISSION_LABELS: Record<string, string> = {
+  VIEW_CHANNELS: 'View Channels',
+  SEND_MESSAGES: 'Send Messages',
+  MANAGE_MESSAGES: 'Manage Messages',
+  ATTACH_FILES: 'Attach Files',
+  ADD_REACTIONS: 'Add Reactions',
+  CONNECT_VOICE: 'Connect to Voice',
+  SPEAK: 'Speak in Voice',
+  MUTE_MEMBERS: 'Mute Members',
+  DEAFEN_MEMBERS: 'Deafen Members',
+  MANAGE_CHANNELS: 'Manage Channels',
+  MANAGE_SERVER: 'Manage Server',
+  MANAGE_ROLES: 'Manage Roles',
+  KICK_MEMBERS: 'Kick Members',
+  BAN_MEMBERS: 'Ban Members',
+  CREATE_INVITES: 'Create Invites',
+  MANAGE_WEBHOOKS: 'Manage Webhooks',
+  ADMINISTRATOR: 'Administrator',
+};
+
+const PERMISSION_CATEGORIES: Record<string, string[]> = {
+  'General': ['VIEW_CHANNELS', 'MANAGE_CHANNELS', 'MANAGE_SERVER', 'MANAGE_ROLES', 'MANAGE_WEBHOOKS', 'CREATE_INVITES'],
+  'Text': ['SEND_MESSAGES', 'MANAGE_MESSAGES', 'ATTACH_FILES', 'ADD_REACTIONS'],
+  'Voice': ['CONNECT_VOICE', 'SPEAK', 'MUTE_MEMBERS', 'DEAFEN_MEMBERS'],
+  'Moderation': ['KICK_MEMBERS', 'BAN_MEMBERS', 'ADMINISTRATOR'],
+};
 
 interface ServerSettingsModalProps {
   serverId: string;
@@ -39,12 +87,20 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
   // Category creation
   const [newCategoryName, setNewCategoryName] = useState('');
 
+  // Icon upload
+  const iconFileRef = useRef<HTMLInputElement>(null);
+  const [uploadingIcon, setUploadingIcon] = useState(false);
+
   // Role creation
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleColor, setNewRoleColor] = useState('#3B82F6');
   const [editingRole, setEditingRole] = useState<string | null>(null);
   const [editRoleName, setEditRoleName] = useState('');
   const [editRoleColor, setEditRoleColor] = useState('');
+  const [editRolePermissions, setEditRolePermissions] = useState(0);
+
+  // Member role assignment
+  const [roleDropdownMember, setRoleDropdownMember] = useState<string | null>(null);
 
   // Invites
   const [invites, setInvites] = useState<Invite[]>([]);
@@ -113,6 +169,23 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
       showToast('Failed to save settings');
     }
     setSaving(false);
+  };
+
+  // Icon upload handler
+  const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingIcon(true);
+    try {
+      const res = await serverApi.uploadIcon(serverId, file);
+      setServerIcon(res.data.icon_url);
+      showToast('Icon uploaded! Click Save Changes to apply.');
+    } catch {
+      showToast('Failed to upload icon');
+    }
+    setUploadingIcon(false);
+    // Reset file input so the same file can be re-selected
+    if (iconFileRef.current) iconFileRef.current.value = '';
   };
 
   // Channel handlers
@@ -194,12 +267,38 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
 
   const handleUpdateRole = async (roleId: string) => {
     try {
-      await roleApi.update(serverId, roleId, { name: editRoleName, color: editRoleColor });
+      await roleApi.update(serverId, roleId, { name: editRoleName, color: editRoleColor, permissions: editRolePermissions });
       setEditingRole(null);
       await refreshServer();
       showToast('Role updated');
     } catch {
       showToast('Failed to update role');
+    }
+  };
+
+  // Permission toggle helper
+  const togglePermission = (perm: number) => {
+    setEditRolePermissions(prev => prev ^ perm);
+  };
+
+  // Role assignment handlers
+  const handleAssignRole = async (memberId: string, roleId: string) => {
+    try {
+      await roleApi.assign(serverId, memberId, roleId);
+      await refreshServer();
+      showToast('Role assigned');
+    } catch {
+      showToast('Failed to assign role');
+    }
+  };
+
+  const handleRemoveRole = async (memberId: string, roleId: string) => {
+    try {
+      await roleApi.remove(serverId, memberId, roleId);
+      await refreshServer();
+      showToast('Role removed');
+    } catch {
+      showToast('Failed to remove role');
     }
   };
 
@@ -380,9 +479,52 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
                   disabled={!isOwner} style={{ width: '100%', padding: '8px 12px', borderRadius: 6, background: 'var(--bg-tertiary)', border: '1px solid var(--bg-quaternary)', color: 'var(--text-primary)', fontSize: 14, minHeight: 80, resize: 'vertical', fontFamily: 'inherit' }} />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>Server Icon URL</label>
-                <input className="form-input" value={serverIcon} onChange={e => setServerIcon(e.target.value)}
-                  disabled={!isOwner} placeholder="https://... or /uploads/..." style={{ width: '100%', padding: '8px 12px', borderRadius: 6, background: 'var(--bg-tertiary)', border: '1px solid var(--bg-quaternary)', color: 'var(--text-primary)', fontSize: 14 }} />
+                <label style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>Server Icon</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  {/* Icon preview */}
+                  <div style={{
+                    width: 80, height: 80, borderRadius: '50%', background: 'var(--bg-tertiary)',
+                    border: '2px dashed var(--bg-quaternary)', display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', overflow: 'hidden', flexShrink: 0,
+                  }}>
+                    {serverIcon ? (
+                      <img src={serverIcon} alt="Server icon" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-muted)' }}>
+                        {serverName?.[0]?.toUpperCase() || '?'}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                    <input
+                      ref={iconFileRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/gif,image/webp"
+                      style={{ display: 'none' }}
+                      onChange={handleIconUpload}
+                      disabled={!isOwner}
+                    />
+                    <button
+                      onClick={() => iconFileRef.current?.click()}
+                      disabled={!isOwner || uploadingIcon}
+                      style={{
+                        padding: '8px 16px', borderRadius: 6, background: 'var(--brand-color)',
+                        color: '#fff', border: 'none', fontWeight: 600, cursor: 'pointer',
+                        fontSize: 13, opacity: (!isOwner || uploadingIcon) ? 0.5 : 1,
+                      }}>
+                      {uploadingIcon ? 'Uploading...' : 'Upload Image'}
+                    </button>
+                    <input className="form-input" value={serverIcon} onChange={e => setServerIcon(e.target.value)}
+                      disabled={!isOwner} placeholder="Or enter URL manually..."
+                      style={{ width: '100%', padding: '6px 10px', borderRadius: 6, background: 'var(--bg-tertiary)', border: '1px solid var(--bg-quaternary)', color: 'var(--text-primary)', fontSize: 12 }} />
+                    {serverIcon && isOwner && (
+                      <button onClick={() => setServerIcon('')}
+                        style={{ padding: '4px 10px', borderRadius: 4, background: 'transparent', color: 'var(--red)', border: '1px solid var(--red)', fontSize: 11, cursor: 'pointer', alignSelf: 'flex-start' }}>
+                        Remove Icon
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
               {isOwner && (
                 <div style={{ display: 'flex', gap: 12 }}>
@@ -473,36 +615,101 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
               <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
                 {members.length} member{members.length !== 1 ? 's' : ''}
               </div>
-              {members.map(m => (
-                <div key={m.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px',
-                  borderRadius: 6, marginBottom: 4,
-                }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%', background: 'var(--brand-color)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 600, color: '#fff', overflow: 'hidden', flexShrink: 0,
+              {members.map(m => {
+                const memberRoles = (m.role_ids || []).map(rid => roles.find(r => r.id === rid)).filter(Boolean) as Role[];
+                const assignableRoles = roles.filter(r => r.name !== '@everyone' && !(m.role_ids || []).includes(r.id));
+                return (
+                  <div key={m.id} style={{
+                    padding: '8px 12px', borderRadius: 6, marginBottom: 4,
+                    background: roleDropdownMember === m.member_id ? 'var(--bg-tertiary)' : 'transparent',
                   }}>
-                    {m.avatar_url ? <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : m.username[0]?.toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{m.username}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{m.status || 'offline'}</div>
-                  </div>
-                  {isOwner && m.id !== user?.id && (
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      <button onClick={() => handleKick(m.id)} title="Kick"
-                        style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--text-muted)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>
-                        Kick
-                      </button>
-                      <button onClick={() => handleBan(m.id)} title="Ban"
-                        style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--red)', background: 'transparent', color: 'var(--red)', fontSize: 11, cursor: 'pointer' }}>
-                        Ban
-                      </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: '50%', background: 'var(--brand-color)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 13, fontWeight: 600, color: '#fff', overflow: 'hidden', flexShrink: 0,
+                      }}>
+                        {m.avatar_url ? <img src={m.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : m.username[0]?.toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600 }}>{m.username}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'capitalize' }}>{m.status || 'offline'}</div>
+                      </div>
+                      {/* Role tags */}
+                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {memberRoles.map(role => (
+                          <span key={role.id} style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                            background: (role.color || '#99AAB5') + '22',
+                            color: role.color || 'var(--text-secondary)',
+                            border: `1px solid ${(role.color || '#99AAB5')}44`,
+                          }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: role.color || '#99AAB5' }} />
+                            {role.name}
+                            {isOwner && (
+                              <button onClick={() => handleRemoveRole(m.member_id, role.id)} title="Remove role"
+                                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontSize: 13, lineHeight: 1, opacity: 0.7 }}>
+                                x
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                        {isOwner && assignableRoles.length > 0 && (
+                          <button
+                            onClick={() => setRoleDropdownMember(prev => prev === m.member_id ? null : m.member_id)}
+                            title="Add role"
+                            style={{
+                              width: 22, height: 22, borderRadius: '50%', border: '1px dashed var(--text-muted)',
+                              background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, lineHeight: 1,
+                            }}>
+                            +
+                          </button>
+                        )}
+                      </div>
+                      {isOwner && m.id !== user?.id && (
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={() => handleKick(m.id)} title="Kick"
+                            style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--text-muted)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, cursor: 'pointer' }}>
+                            Kick
+                          </button>
+                          <button onClick={() => handleBan(m.id)} title="Ban"
+                            style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid var(--red)', background: 'transparent', color: 'var(--red)', fontSize: 11, cursor: 'pointer' }}>
+                            Ban
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                    {/* Role assignment dropdown */}
+                    {roleDropdownMember === m.member_id && isOwner && (
+                      <div style={{
+                        marginTop: 8, marginLeft: 44, padding: '8px', background: 'var(--bg-primary)',
+                        borderRadius: 6, border: '1px solid var(--bg-quaternary)',
+                      }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase' }}>
+                          Assign Role
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {assignableRoles.map(role => (
+                            <button key={role.id}
+                              onClick={async () => { await handleAssignRole(m.member_id, role.id); setRoleDropdownMember(null); }}
+                              style={{
+                                padding: '4px 10px', borderRadius: 10, fontSize: 12, fontWeight: 500,
+                                border: `1px solid ${(role.color || '#99AAB5')}66`,
+                                background: 'transparent', color: role.color || 'var(--text-secondary)',
+                                cursor: 'pointer',
+                              }}>
+                              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: role.color || '#99AAB5', marginRight: 4 }} />
+                              {role.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               {bans.length > 0 && (
                 <>
@@ -546,39 +753,80 @@ export default function ServerSettingsModal({ serverId, onClose }: ServerSetting
               )}
 
               {roles.map(r => (
-                <div key={r.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
-                  borderRadius: 6, marginBottom: 4, background: 'var(--bg-tertiary)',
-                }}>
-                  {editingRole === r.id ? (
-                    <>
-                      <input value={editRoleName} onChange={e => setEditRoleName(e.target.value)}
-                        style={{ flex: 1, padding: '4px 8px', borderRadius: 4, background: 'var(--bg-primary)', border: '1px solid var(--bg-quaternary)', color: 'var(--text-primary)', fontSize: 14 }}
-                        onKeyDown={e => { if (e.key === 'Enter') handleUpdateRole(r.id); if (e.key === 'Escape') setEditingRole(null); }} />
-                      <input type="color" value={editRoleColor} onChange={e => setEditRoleColor(e.target.value)}
-                        style={{ width: 32, height: 28, borderRadius: 4, border: 'none', cursor: 'pointer', padding: 0 }} />
-                      <button onClick={() => handleUpdateRole(r.id)}
-                        style={{ padding: '4px 10px', borderRadius: 4, background: 'var(--green)', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>Save</button>
-                      <button onClick={() => setEditingRole(null)}
-                        style={{ padding: '4px 10px', borderRadius: 4, background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--bg-quaternary)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ width: 16, height: 16, borderRadius: '50%', background: r.color || 'var(--text-muted)', flexShrink: 0 }} />
-                      <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{r.name}</div>
-                      {isOwner && r.name !== '@everyone' && (
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button onClick={() => { setEditingRole(r.id); setEditRoleName(r.name); setEditRoleColor(r.color || '#3B82F6'); }} title="Edit"
-                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                            <IconEdit size={14} />
-                          </button>
-                          <button onClick={() => handleDeleteRole(r.id)} title="Delete"
-                            style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer' }}>
-                            <IconTrash size={14} />
-                          </button>
+                <div key={r.id} style={{ marginBottom: 4 }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px',
+                    borderRadius: editingRole === r.id ? '6px 6px 0 0' : 6, background: 'var(--bg-tertiary)',
+                  }}>
+                    {editingRole === r.id ? (
+                      <>
+                        <input value={editRoleName} onChange={e => setEditRoleName(e.target.value)}
+                          style={{ flex: 1, padding: '4px 8px', borderRadius: 4, background: 'var(--bg-primary)', border: '1px solid var(--bg-quaternary)', color: 'var(--text-primary)', fontSize: 14 }}
+                          onKeyDown={e => { if (e.key === 'Enter') handleUpdateRole(r.id); if (e.key === 'Escape') setEditingRole(null); }} />
+                        <input type="color" value={editRoleColor} onChange={e => setEditRoleColor(e.target.value)}
+                          style={{ width: 32, height: 28, borderRadius: 4, border: 'none', cursor: 'pointer', padding: 0 }} />
+                        <button onClick={() => handleUpdateRole(r.id)}
+                          style={{ padding: '4px 10px', borderRadius: 4, background: 'var(--green)', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setEditingRole(null)}
+                          style={{ padding: '4px 10px', borderRadius: 4, background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--bg-quaternary)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', background: r.color || 'var(--text-muted)', flexShrink: 0 }} />
+                        <div style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>{r.name}</div>
+                        {isOwner && r.name !== '@everyone' && (
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => { setEditingRole(r.id); setEditRoleName(r.name); setEditRoleColor(r.color || '#3B82F6'); setEditRolePermissions(r.permissions || 0); }} title="Edit"
+                              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                              <IconEdit size={14} />
+                            </button>
+                            <button onClick={() => handleDeleteRole(r.id)} title="Delete"
+                              style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer' }}>
+                              <IconTrash size={14} />
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  {/* Permissions editor */}
+                  {editingRole === r.id && (
+                    <div style={{
+                      padding: '12px 16px', background: 'var(--bg-primary)',
+                      borderRadius: '0 0 6px 6px', border: '1px solid var(--bg-quaternary)', borderTop: 'none',
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: 0.5, marginBottom: 8 }}>
+                        Permissions
+                      </div>
+                      {Object.entries(PERMISSION_CATEGORIES).map(([category, permKeys]) => (
+                        <div key={category} style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                            {category}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
+                            {permKeys.map(key => {
+                              const bit = Permissions[key];
+                              const checked = (editRolePermissions & bit) !== 0;
+                              return (
+                                <label key={key} style={{
+                                  display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                                  padding: '4px 6px', borderRadius: 4, fontSize: 12, color: 'var(--text-primary)',
+                                  background: checked ? 'rgba(59,130,246,0.08)' : 'transparent',
+                                }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => togglePermission(bit)}
+                                    style={{ accentColor: 'var(--brand-color)', cursor: 'pointer' }}
+                                  />
+                                  {PERMISSION_LABELS[key] || key}
+                                </label>
+                              );
+                            })}
+                          </div>
                         </div>
-                      )}
-                    </>
+                      ))}
+                    </div>
                   )}
                 </div>
               ))}

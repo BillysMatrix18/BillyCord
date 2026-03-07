@@ -214,6 +214,44 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* Enhanced User Modal */
+    .modal-wide { width: 720px; max-height: 85vh; }
+    .modal-tabs { display: flex; gap: 2px; margin-bottom: 20px; padding: 4px; background: var(--content-bg); border-radius: 10px; border: 1px solid var(--border); }
+    .modal-tab { padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; flex: 1; text-align: center; }
+    .modal-tab:hover { color: var(--text-primary); background: var(--card-hover); }
+    .modal-tab.active { background: var(--accent); color: #fff; }
+    .modal-tab-content { display: none; }
+    .modal-tab-content.active { display: block; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .detail-item { background: var(--content-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+    .detail-item .detail-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+    .detail-item .detail-value { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    .detail-item.full-width { grid-column: 1 / -1; }
+    .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .action-btn { padding: 10px 16px; border: 1px solid var(--border); background: var(--content-bg); color: var(--text-primary); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: left; }
+    .action-btn:hover { background: var(--card-hover); border-color: var(--accent); }
+    .action-btn.danger { border-color: rgba(239,68,68,0.3); color: var(--red); }
+    .action-btn.danger:hover { background: rgba(239,68,68,0.1); border-color: var(--red); }
+    .action-btn .action-title { font-size: 13px; font-weight: 600; }
+    .action-btn .action-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-weight: 400; }
+    .fun-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .fun-row:last-child { border-bottom: none; }
+    .fun-row label { font-size: 13px; font-weight: 600; min-width: 120px; color: var(--text-primary); }
+    .fun-row input, .fun-row select, .fun-row textarea { flex: 1; padding: 8px 12px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 13px; outline: none; }
+    .fun-row input:focus, .fun-row select:focus, .fun-row textarea:focus { border-color: var(--accent); }
+    .fun-row textarea { min-height: 80px; resize: vertical; font-family: inherit; }
+    .fun-row .btn-sm { flex-shrink: 0; }
+    .server-list-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .server-tag { padding: 4px 10px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 6px; font-size: 12px; color: var(--accent); }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .history-table th { text-align: left; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.15); }
+    .history-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text-secondary); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .inline-form { display: flex; gap: 8px; align-items: center; }
+    .inline-form input { flex: 1; }
+    .action-status { font-size: 12px; padding: 6px 12px; border-radius: 6px; margin-top: 8px; display: none; }
+    .action-status.success { display: block; background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+    .action-status.error { display: block; background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
   </style>
 </head>
 <body>
@@ -392,8 +430,39 @@
 
       <!-- Logs Tab -->
       <div class="tab-content" id="tab-logs">
-        <h2 style="margin-bottom:20px">Live Logs</h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h2>Live Logs</h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sm" onclick="fetchErrorLogs()">Show Error Logs</button>
+            <button class="btn-sm" onclick="fetchSecurityLogs()">Security Logs</button>
+            <button class="btn-sm" onclick="clearLiveLog()">Clear</button>
+          </div>
+        </div>
         <div id="log-container"></div>
+        <div id="error-logs-section" style="display:none;margin-top:24px">
+          <div class="card">
+            <div class="card-header">
+              <span>Server Error Logs (Database)</span>
+              <button class="btn-sm" onclick="document.getElementById('error-logs-section').style.display='none'">Hide</button>
+            </div>
+            <table>
+              <thead><tr><th>Time</th><th>Type</th><th>Message</th><th>Context</th></tr></thead>
+              <tbody id="error-logs-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="security-logs-section" style="display:none;margin-top:24px">
+          <div class="card">
+            <div class="card-header">
+              <span>Security Logs</span>
+              <button class="btn-sm" onclick="document.getElementById('security-logs-section').style.display='none'">Hide</button>
+            </div>
+            <table>
+              <thead><tr><th>Time</th><th>Event</th><th>User</th><th>Details</th></tr></thead>
+              <tbody id="security-logs-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- Network Tab -->
@@ -429,7 +498,8 @@
         <h2 style="margin-bottom:20px">Server Settings</h2>
 
         <div class="settings-tabs">
-          <div class="settings-tab active" onclick="switchSettingsTab('users')">User Limits</div>
+          <div class="settings-tab active" onclick="switchSettingsTab('server-info')">Server Info</div>
+          <div class="settings-tab" onclick="switchSettingsTab('users')">User Limits</div>
           <div class="settings-tab" onclick="switchSettingsTab('messages')">Messages</div>
           <div class="settings-tab" onclick="switchSettingsTab('files')">File Upload</div>
           <div class="settings-tab" onclick="switchSettingsTab('voice')">Voice & Video</div>
@@ -442,8 +512,19 @@
         </div>
 
         <div class="card" style="padding:20px">
+          <!-- Server Info -->
+          <div class="settings-section active" id="settings-server-info">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Server Name</div><div class="setting-desc">Display name for your BillyCord instance</div></div><input type="text" data-key="server_name" value="BillyCord" style="width:240px"></div>
+            <div class="setting-row" style="align-items:flex-start"><div class="setting-info"><div class="setting-label">Server Description</div><div class="setting-desc">Short description shown to users</div></div><textarea data-key="server_description" placeholder="A community server powered by BillyCord" style="width:300px"></textarea></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Server Icon URL</div><div class="setting-desc">URL to server logo/icon image</div></div><input type="text" data-key="server_icon_url" placeholder="/uploads/icon.png or https://..." style="width:300px"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Server Region</div><div class="setting-desc">Primary hosting region</div></div><select data-key="server_region"><option value="us-east">US East</option><option value="us-west">US West</option><option value="europe">Europe</option><option value="asia">Asia</option><option value="australia">Australia</option><option value="south-america">South America</option></select></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Server Language</div><div class="setting-desc">Primary language for the server</div></div><select data-key="server_language"><option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option><option value="pt">Portuguese</option><option value="ja">Japanese</option><option value="ko">Korean</option><option value="zh">Chinese</option><option value="ru">Russian</option><option value="ar">Arabic</option></select></div>
+            <div class="setting-row" style="align-items:flex-start"><div class="setting-info"><div class="setting-label">Default Welcome Message</div><div class="setting-desc">Message shown to new users when they join</div></div><textarea data-key="welcome_message" placeholder="Welcome to BillyCord! Please read the rules." style="width:300px"></textarea></div>
+            <div class="setting-row" style="align-items:flex-start"><div class="setting-info"><div class="setting-label">Server Rules / Terms</div><div class="setting-desc">Community rules and terms of service</div></div><textarea data-key="server_rules" placeholder="1. Be respectful&#10;2. No spam&#10;3. Follow Discord ToS" style="width:300px;height:120px"></textarea></div>
+          </div>
+
           <!-- User Limits -->
-          <div class="settings-section active" id="settings-users">
+          <div class="settings-section" id="settings-users">
             <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Users Allowed</div><div class="setting-desc">Maximum total registered users on the server</div></div><input type="number" data-key="max_users" min="1" value="10000"></div>
             <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Servers Per User</div><div class="setting-desc">Maximum servers a single user can create</div></div><input type="number" data-key="max_servers_per_user" min="1" value="100"></div>
             <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Friends Per User</div><div class="setting-desc">Maximum friends list size per user</div></div><input type="number" data-key="max_friends_per_user" min="1" value="5000"></div>
@@ -547,26 +628,150 @@
   </div>
 </div>
 
-<!-- User Edit Modal -->
+<!-- User Edit Modal (Comprehensive Tabbed) -->
 <div class="modal-overlay" id="user-edit-modal" style="display:none" onclick="if(event.target===this)closeEditUser()">
-  <div class="modal">
+  <div class="modal modal-wide">
     <h2 id="edit-user-title">Edit User</h2>
     <input type="hidden" id="edit-user-id">
-    <div class="form-row">
-      <div class="form-group"><label>Username</label><input type="text" id="edit-username" placeholder="Username"></div>
-      <div class="form-group"><label>Email</label><input type="text" id="edit-email" placeholder="Email"></div>
+
+    <div class="modal-tabs">
+      <div class="modal-tab active" onclick="switchModalTab('profile')">Profile</div>
+      <div class="modal-tab" onclick="switchModalTab('userstats')">Stats</div>
+      <div class="modal-tab" onclick="switchModalTab('actions')">Actions</div>
+      <div class="modal-tab" onclick="switchModalTab('fun')">Fun</div>
+      <div class="modal-tab" onclick="switchModalTab('history')">History</div>
     </div>
-    <div class="form-group"><label>Bio</label><textarea id="edit-bio" placeholder="User bio..."></textarea></div>
-    <div class="form-row">
-      <div class="form-group"><label>Status</label><select id="edit-status"><option value="online">Online</option><option value="idle">Idle</option><option value="dnd">Do Not Disturb</option><option value="offline">Offline</option></select></div>
-      <div class="form-group"><label>Profile Color</label><div style="display:flex;align-items:center;gap:8px"><input type="text" id="edit-profile-color" placeholder="#3B82F6" style="flex:1"><div class="color-preview" id="edit-color-preview"></div></div></div>
+
+    <!-- Tab 1: Profile -->
+    <div class="modal-tab-content active" id="mtab-profile">
+      <div class="form-row">
+        <div class="form-group"><label>Username</label><input type="text" id="edit-username" placeholder="Username"></div>
+        <div class="form-group"><label>Email</label><input type="text" id="edit-email" placeholder="Email"></div>
+      </div>
+      <div class="form-group"><label>Bio</label><textarea id="edit-bio" placeholder="User bio..." style="min-height:60px;resize:vertical"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Status</label><select id="edit-status"><option value="online">Online</option><option value="idle">Idle</option><option value="dnd">Do Not Disturb</option><option value="offline">Offline</option></select></div>
+        <div class="form-group"><label>Profile Color</label><div style="display:flex;align-items:center;gap:8px"><input type="color" id="edit-profile-color" value="#3B82F6" style="width:48px;height:32px;padding:2px;cursor:pointer"><div class="color-preview" id="edit-color-preview"></div></div></div>
+      </div>
+      <div class="form-group"><label>Avatar URL</label><input type="text" id="edit-avatar-url" placeholder="https://... or /uploads/..."></div>
+      <div id="edit-user-status" style="font-size:13px;margin-top:8px;display:none"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeEditUser()">Cancel</button>
+        <button class="btn-primary" onclick="saveEditUser()">Save Changes</button>
+      </div>
     </div>
-    <div class="form-group"><label>Avatar URL</label><input type="text" id="edit-avatar-url" placeholder="https://... or /uploads/..."></div>
-    <div id="edit-user-status" style="font-size:13px;margin-top:8px;display:none"></div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeEditUser()">Cancel</button>
-      <button class="btn-primary" onclick="saveEditUser()">Save Changes</button>
+
+    <!-- Tab 2: Stats -->
+    <div class="modal-tab-content" id="mtab-userstats">
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-label">Total Messages (All-Time)</div><div class="detail-value" id="ud-total-msgs">--</div></div>
+        <div class="detail-item"><div class="detail-label">Messages This Month</div><div class="detail-value" id="ud-month-msgs">--</div></div>
+        <div class="detail-item"><div class="detail-label">Friends Count</div><div class="detail-value" id="ud-friends">--</div></div>
+        <div class="detail-item"><div class="detail-label">Current Status</div><div class="detail-value" id="ud-status">--</div></div>
+        <div class="detail-item"><div class="detail-label">Account Created</div><div class="detail-value" id="ud-created">--</div></div>
+        <div class="detail-item"><div class="detail-label">Last Login</div><div class="detail-value" id="ud-last-seen">--</div></div>
+      </div>
+      <div class="detail-item full-width" style="margin-bottom:16px">
+        <div class="detail-label">Servers Joined</div>
+        <div class="server-list-tags" id="ud-servers" style="margin-top:8px">--</div>
+      </div>
     </div>
+
+    <!-- Tab 3: Actions -->
+    <div class="modal-tab-content" id="mtab-actions">
+      <div class="action-grid">
+        <button class="action-btn" onclick="actionResetPassword()">
+          <div class="action-title">Reset Password</div>
+          <div class="action-desc">Set a new temporary password</div>
+        </button>
+        <button class="action-btn" onclick="actionForceLogout()">
+          <div class="action-title">Force Logout All Sessions</div>
+          <div class="action-desc">Invalidate all active sessions</div>
+        </button>
+        <button class="action-btn" onclick="actionBanToggle()">
+          <div class="action-title" id="action-ban-label">Ban User</div>
+          <div class="action-desc">Prevent user from accessing the server</div>
+        </button>
+        <button class="action-btn" onclick="actionMuteToggle()">
+          <div class="action-title" id="action-mute-label">Mute User</div>
+          <div class="action-desc">Toggle user mute status</div>
+        </button>
+        <button class="action-btn" onclick="actionSuspend()">
+          <div class="action-title">Suspend Account</div>
+          <div class="action-desc">Temporarily suspend with duration</div>
+        </button>
+        <button class="action-btn danger" onclick="actionDeleteAccount()">
+          <div class="action-title">Delete Account + All Data</div>
+          <div class="action-desc">Permanently remove user and all their data</div>
+        </button>
+      </div>
+      <div id="action-feedback" class="action-status"></div>
+    </div>
+
+    <!-- Tab 4: Fun -->
+    <div class="modal-tab-content" id="mtab-fun">
+      <div class="fun-row">
+        <label>Give Badge</label>
+        <select id="fun-badge-select">
+          <option value="">Select badge...</option>
+          <option value="Admin">Admin</option>
+          <option value="Moderator">Moderator</option>
+          <option value="Verified">Verified</option>
+          <option value="VIP">VIP</option>
+          <option value="Beta Tester">Beta Tester</option>
+          <option value="Developer">Developer</option>
+        </select>
+        <button class="btn-sm" onclick="actionGiveBadge()">Give</button>
+      </div>
+      <div class="fun-row">
+        <label>Current Badges</label>
+        <div id="fun-current-badges" style="flex:1;font-size:13px;color:var(--text-secondary)">None</div>
+      </div>
+      <div class="fun-row">
+        <label>Custom Title</label>
+        <input type="text" id="fun-title" placeholder="Enter custom title...">
+        <button class="btn-sm" onclick="actionSetTitle()">Set</button>
+      </div>
+      <div class="fun-row" style="align-items:flex-start">
+        <label style="margin-top:8px">Admin Notes</label>
+        <textarea id="fun-admin-notes" placeholder="Add admin notes..." style="min-height:80px;resize:vertical;font-family:inherit"></textarea>
+        <button class="btn-sm" style="align-self:flex-start;margin-top:8px" onclick="actionAddNote()">Add Note</button>
+      </div>
+      <div class="fun-row">
+        <label>Send DM as Admin</label>
+        <input type="text" id="fun-dm-message" placeholder="Type a message...">
+        <button class="btn-sm" onclick="actionSendDM()">Send</button>
+      </div>
+      <div class="fun-row">
+        <label>Profile Color</label>
+        <input type="color" id="fun-profile-color" value="#3B82F6" style="width:48px;height:32px;padding:2px;cursor:pointer">
+        <button class="btn-sm" onclick="actionSetColor()">Apply</button>
+      </div>
+      <div class="fun-row">
+        <label>Purge All Messages</label>
+        <button class="btn-danger" onclick="actionPurgeMessages()">Purge All Messages</button>
+      </div>
+      <div id="fun-feedback" class="action-status"></div>
+    </div>
+
+    <!-- Tab 5: History -->
+    <div class="modal-tab-content" id="mtab-history">
+      <h3 style="font-size:14px;margin-bottom:12px;color:var(--text-primary)">Recent Messages</h3>
+      <div style="max-height:250px;overflow-y:auto;margin-bottom:20px;border:1px solid var(--border);border-radius:8px">
+        <table class="history-table">
+          <thead><tr><th>Time</th><th>Content</th><th>Channel / Server</th></tr></thead>
+          <tbody id="ud-recent-messages"><tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <h3 style="font-size:14px;margin-bottom:12px;color:var(--text-primary)">Login History</h3>
+      <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+        <table class="history-table">
+          <thead><tr><th>Time</th><th>IP Address</th><th>Details</th></tr></thead>
+          <tbody id="ud-login-history"><tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -661,9 +866,22 @@
 
   function checkHealth() {
     fetch(`http://localhost:${serverPort}/api/health`, { signal: AbortSignal.timeout(5000) }).then(r => {
-      if (r.ok) { if (!serverOnline) { serverOnline = true; updateServerStatus(true); addLogLine('info', 'Server connection restored'); refreshAll(); } }
-      else { serverOnline = false; updateServerStatus(false); }
-    }).catch(() => { if (serverOnline) { serverOnline = false; updateServerStatus(false); addLogLine('warn', 'Lost connection to server'); } });
+      if (r.ok) {
+        return r.json().then(data => {
+          if (!serverOnline) { serverOnline = true; updateServerStatus(true); addLogLine('info', 'Server connection restored'); refreshAll(); }
+          if (data.status === 'degraded') { addLogLine('warn', `Server degraded: Memory ${data.memory?.systemPercent || '?'}% used`); }
+        });
+      } else {
+        if (serverOnline) addLogLine('error', `Server health check failed: HTTP ${r.status}`);
+        serverOnline = false; updateServerStatus(false);
+      }
+    }).catch(err => {
+      if (serverOnline) {
+        serverOnline = false; updateServerStatus(false);
+        addLogLine('error', `Lost connection to server: ${err.message || 'Network error'}`);
+        addLogLine('warn', 'Check the Error Logs tab for database-logged errors');
+      }
+    });
   }
 
   // ── Network Info ──
@@ -727,7 +945,22 @@
       .catch(e => addLogLine('error',`Failed: ${e.message}`));
   }
 
-  function openEditUser(userId) {
+  // ── Modal Tab Switching ──
+  function switchModalTab(name) {
+    document.querySelectorAll('.modal-tab').forEach(t => {
+      t.classList.toggle('active', t.textContent.toLowerCase().replace(/\s/g,'') === name.replace('userstats','stats'));
+    });
+    // More reliable: match by onclick content
+    document.querySelectorAll('.modal-tab').forEach(t => {
+      const onclick = t.getAttribute('onclick') || '';
+      t.classList.toggle('active', onclick.includes("'" + name + "'"));
+    });
+    document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.toggle('active', c.id === 'mtab-' + name));
+  }
+
+  let currentEditUserDetails = null;
+
+  async function openEditUser(userId) {
     const u = usersCache.find(x => x.id === userId); if (!u) return;
     document.getElementById('edit-user-id').value = u.id;
     document.getElementById('edit-user-title').textContent = `Edit User: ${u.username}`;
@@ -739,10 +972,85 @@
     document.getElementById('edit-avatar-url').value = u.avatar_url || '';
     document.getElementById('edit-color-preview').style.background = u.profile_color || '#3B82F6';
     document.getElementById('edit-user-status').style.display = 'none';
+
+    // Reset to profile tab
+    switchModalTab('profile');
+
+    // Clear feedback areas
+    const af = document.getElementById('action-feedback'); if (af) { af.className = 'action-status'; af.textContent = ''; }
+    const ff = document.getElementById('fun-feedback'); if (ff) { ff.className = 'action-status'; ff.textContent = ''; }
+
+    // Update ban/mute labels
+    const isBanned = (u.custom_status || '').startsWith('BANNED:');
+    const isMuted = (u.custom_status || '').startsWith('MUTED:');
+    document.getElementById('action-ban-label').textContent = isBanned ? 'Unban User' : 'Ban User';
+    document.getElementById('action-mute-label').textContent = isMuted ? 'Unmute User' : 'Mute User';
+
     document.getElementById('user-edit-modal').style.display = 'flex';
     document.getElementById('edit-profile-color').oninput = function() { document.getElementById('edit-color-preview').style.background = this.value; };
+
+    // Fetch full user details in background
+    try {
+      const details = await apiFetch(`/api/admin/users/${userId}/details`);
+      currentEditUserDetails = details;
+
+      // Populate Stats tab
+      document.getElementById('ud-total-msgs').textContent = (details.totalMessages || 0).toLocaleString();
+      document.getElementById('ud-month-msgs').textContent = (details.messagesThisMonth || 0).toLocaleString();
+      document.getElementById('ud-friends').textContent = details.friendsCount || 0;
+      document.getElementById('ud-status').textContent = details.status || 'offline';
+      document.getElementById('ud-created').textContent = fmtDate(details.created_at);
+      document.getElementById('ud-last-seen').textContent = details.last_seen ? fmtTime(details.last_seen) : 'Never';
+
+      // Servers
+      const serversEl = document.getElementById('ud-servers');
+      if (details.servers && details.servers.length > 0) {
+        serversEl.innerHTML = details.servers.map(s => `<span class="server-tag">${esc(s.name)}</span>`).join('');
+      } else {
+        serversEl.innerHTML = '<span style="color:var(--text-muted)">No servers</span>';
+      }
+
+      // Fun tab: populate current badges, title, notes, color
+      document.getElementById('fun-current-badges').textContent = details.badges || 'None';
+      document.getElementById('fun-title').value = details.title || '';
+      document.getElementById('fun-admin-notes').value = details.admin_notes || '';
+      document.getElementById('fun-profile-color').value = details.profile_color || '#3B82F6';
+      document.getElementById('fun-dm-message').value = '';
+
+      // History tab: recent messages
+      const msgBody = document.getElementById('ud-recent-messages');
+      if (details.recentMessages && details.recentMessages.length > 0) {
+        msgBody.innerHTML = details.recentMessages.map(m => `<tr>
+          <td style="white-space:nowrap">${fmtTime(m.created_at)}</td>
+          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.content)}</td>
+          <td>${esc(m.channel_name || 'DM')} / ${esc(m.server_name || '--')}</td>
+        </tr>`).join('');
+      } else {
+        msgBody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-muted)">No messages found</td></tr>';
+      }
+
+      // History tab: login history
+      const loginBody = document.getElementById('ud-login-history');
+      if (details.loginHistory && details.loginHistory.length > 0) {
+        loginBody.innerHTML = details.loginHistory.map(l => `<tr>
+          <td style="white-space:nowrap">${fmtTime(l.created_at)}</td>
+          <td>${esc(l.ip_address || l.details || '--')}</td>
+          <td>${esc(l.action_type || l.details || '--')}</td>
+        </tr>`).join('');
+      } else {
+        loginBody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:16px;color:var(--text-muted)">No login history available</td></tr>';
+      }
+    } catch (e) {
+      console.error('Failed to fetch user details:', e);
+      // Still show the modal, just with placeholder data
+    }
   }
-  function closeEditUser() { document.getElementById('user-edit-modal').style.display = 'none'; }
+
+  function closeEditUser() {
+    document.getElementById('user-edit-modal').style.display = 'none';
+    currentEditUserDetails = null;
+  }
+
   function saveEditUser() {
     const userId = document.getElementById('edit-user-id').value;
     const data = { username: document.getElementById('edit-username').value, email: document.getElementById('edit-email').value, bio: document.getElementById('edit-bio').value, status: document.getElementById('edit-status').value, profile_color: document.getElementById('edit-profile-color').value, avatar_url: document.getElementById('edit-avatar-url').value };
@@ -753,6 +1061,169 @@
       statusEl.textContent = 'User updated successfully!'; statusEl.style.color = 'var(--green)'; statusEl.style.display = 'block';
       addLogLine('info', `Updated user: ${data.username}`); fetchUsers(); setTimeout(closeEditUser, 1500);
     }).catch(e => { statusEl.textContent = e.message || 'Failed to update user'; statusEl.style.color = 'var(--red)'; statusEl.style.display = 'block'; });
+  }
+
+  // ── Action Helpers ──
+  function showActionFeedback(elId, msg, isError) {
+    const el = document.getElementById(elId);
+    el.textContent = msg;
+    el.className = 'action-status ' + (isError ? 'error' : 'success');
+    setTimeout(() => { el.className = 'action-status'; el.textContent = ''; }, 4000);
+  }
+
+  function getEditUserId() { return document.getElementById('edit-user-id').value; }
+
+  // ── Actions Tab Functions ──
+  async function actionResetPassword() {
+    const userId = getEditUserId();
+    const newPass = prompt('Enter new password (leave blank for TempPass123!):', '');
+    if (newPass === null) return;
+    try {
+      const r = await apiPost(`/api/admin/users/${userId}/reset-password`, { newPassword: newPass || 'TempPass123!' });
+      showActionFeedback('action-feedback', r.message || 'Password reset successfully', false);
+      addLogLine('info', `Password reset for user ${userId}`);
+    } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionForceLogout() {
+    const userId = getEditUserId();
+    if (!confirm('Force logout all sessions for this user?')) return;
+    try {
+      await apiPost(`/api/admin/users/${userId}/force-logout`, {});
+      showActionFeedback('action-feedback', 'All sessions cleared successfully', false);
+      addLogLine('info', `Force logout: user ${userId}`);
+    } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionBanToggle() {
+    const userId = getEditUserId();
+    const u = usersCache.find(x => x.id === userId);
+    const isBanned = u && (u.custom_status || '').startsWith('BANNED:');
+    if (isBanned) {
+      if (!confirm('Unban this user?')) return;
+      try {
+        await apiPost(`/api/admin/users/${userId}/unban`, {});
+        showActionFeedback('action-feedback', 'User unbanned', false);
+        document.getElementById('action-ban-label').textContent = 'Ban User';
+        addLogLine('info', `Unbanned user ${userId}`); fetchUsers();
+      } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
+    } else {
+      const reason = prompt('Ban reason:');
+      if (reason === null) return;
+      try {
+        await apiPost(`/api/admin/users/${userId}/ban`, { reason });
+        showActionFeedback('action-feedback', 'User banned', false);
+        document.getElementById('action-ban-label').textContent = 'Unban User';
+        addLogLine('warn', `Banned user ${userId}: ${reason}`); fetchUsers();
+      } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
+    }
+  }
+
+  async function actionMuteToggle() {
+    const userId = getEditUserId();
+    const u = usersCache.find(x => x.id === userId);
+    const isMuted = u && (u.custom_status || '').startsWith('MUTED:');
+    try {
+      await apiPost(`/api/admin/users/${userId}/mute`, { muted: !isMuted });
+      showActionFeedback('action-feedback', isMuted ? 'User unmuted' : 'User muted', false);
+      document.getElementById('action-mute-label').textContent = isMuted ? 'Mute User' : 'Unmute User';
+      addLogLine('info', `${isMuted ? 'Unmuted' : 'Muted'} user ${userId}`); fetchUsers();
+    } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionSuspend() {
+    const userId = getEditUserId();
+    const duration = prompt('Suspension duration (e.g. "24 hours", "7 days", "indefinite"):');
+    if (!duration) return;
+    const reason = prompt('Reason for suspension:');
+    if (reason === null) return;
+    try {
+      await apiPost(`/api/admin/users/${userId}/suspend`, { duration, reason });
+      showActionFeedback('action-feedback', `Account suspended (${duration})`, false);
+      addLogLine('warn', `Suspended user ${userId}: ${reason} (${duration})`); fetchUsers();
+    } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionDeleteAccount() {
+    const userId = getEditUserId();
+    if (!confirm('DELETE this user account and ALL their data? This is IRREVERSIBLE!')) return;
+    if (!confirm('Are you ABSOLUTELY sure? This will delete all messages, DMs, reactions, friendships, and the account itself.')) return;
+    try {
+      const r = await apiDelete(`/api/admin/users/${userId}/purge`);
+      showActionFeedback('action-feedback', `User purged. ${r.messagesDeleted || 0} messages deleted.`, false);
+      addLogLine('warn', `Purged user ${userId}`); fetchUsers(); fetchStats();
+      setTimeout(closeEditUser, 2000);
+    } catch (e) { showActionFeedback('action-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  // ── Fun Tab Functions ──
+  async function actionGiveBadge() {
+    const userId = getEditUserId();
+    const badge = document.getElementById('fun-badge-select').value;
+    if (!badge) { showActionFeedback('fun-feedback', 'Please select a badge', true); return; }
+    try {
+      const r = await apiPost(`/api/admin/users/${userId}/badge`, { badge });
+      document.getElementById('fun-current-badges').textContent = r.badges || badge;
+      showActionFeedback('fun-feedback', `Badge "${badge}" given!`, false);
+      addLogLine('info', `Gave badge "${badge}" to user ${userId}`);
+    } catch (e) { showActionFeedback('fun-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionSetTitle() {
+    const userId = getEditUserId();
+    const title = document.getElementById('fun-title').value;
+    try {
+      await apiPost(`/api/admin/users/${userId}/title`, { title });
+      showActionFeedback('fun-feedback', title ? `Title set to "${title}"` : 'Title cleared', false);
+      addLogLine('info', `Set title for user ${userId}: ${title || '(cleared)'}`);
+    } catch (e) { showActionFeedback('fun-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionAddNote() {
+    const userId = getEditUserId();
+    const note = document.getElementById('fun-admin-notes').value.trim();
+    if (!note) { showActionFeedback('fun-feedback', 'Please enter a note', true); return; }
+    try {
+      const r = await apiPost(`/api/admin/users/${userId}/admin-note`, { note });
+      document.getElementById('fun-admin-notes').value = r.admin_notes || '';
+      showActionFeedback('fun-feedback', 'Note added', false);
+      addLogLine('info', `Added admin note for user ${userId}`);
+    } catch (e) { showActionFeedback('fun-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionSendDM() {
+    const userId = getEditUserId();
+    const message = document.getElementById('fun-dm-message').value.trim();
+    if (!message) { showActionFeedback('fun-feedback', 'Please enter a message', true); return; }
+    try {
+      await apiPost(`/api/admin/users/${userId}/send-dm`, { message });
+      document.getElementById('fun-dm-message').value = '';
+      showActionFeedback('fun-feedback', 'DM sent as admin', false);
+      addLogLine('info', `Sent admin DM to user ${userId}`);
+    } catch (e) { showActionFeedback('fun-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionSetColor() {
+    const userId = getEditUserId();
+    const color = document.getElementById('fun-profile-color').value;
+    try {
+      await fetch(`http://localhost:${serverPort}/api/admin/users/${userId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
+        body: JSON.stringify({ profile_color: color })
+      });
+      showActionFeedback('fun-feedback', `Profile color set to ${color}`, false);
+      addLogLine('info', `Changed profile color for user ${userId} to ${color}`);
+    } catch (e) { showActionFeedback('fun-feedback', 'Failed: ' + e.message, true); }
+  }
+
+  async function actionPurgeMessages() {
+    const userId = getEditUserId();
+    if (!confirm('DELETE all messages from this user? This cannot be undone!')) return;
+    try {
+      const r = await apiDelete(`/api/admin/messages/purge/${userId}`);
+      showActionFeedback('fun-feedback', `Purged ${r.deletedCount || 0} messages`, false);
+      addLogLine('warn', `Purged all messages from user ${userId}`); fetchStats();
+    } catch (e) { showActionFeedback('fun-feedback', 'Failed: ' + e.message, true); }
   }
 
   // ── Servers ──
@@ -871,6 +1342,49 @@
     line.innerHTML = `<span class="time">[${now}]</span> <span class="${level}">[${level.toUpperCase()}]</span> <span class="msg">${esc(message)}</span>`;
     const c = document.getElementById('log-container'); c.appendChild(line);
     while (c.children.length > 500) c.removeChild(c.firstChild); c.scrollTop = c.scrollHeight;
+  }
+
+  function clearLiveLog() {
+    document.getElementById('log-container').innerHTML = '';
+    addLogLine('info', 'Log cleared');
+  }
+
+  function fetchErrorLogs() {
+    const section = document.getElementById('error-logs-section');
+    section.style.display = 'block';
+    apiFetch('/api/admin/error-logs').then(logs => {
+      const body = document.getElementById('error-logs-body');
+      if (!logs || logs.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">No error logs found</td></tr>';
+        return;
+      }
+      body.innerHTML = logs.map(l => `<tr>
+        <td style="white-space:nowrap">${fmtTime(l.created_at)}</td>
+        <td><span class="badge" style="background:rgba(239,68,68,0.15);color:var(--red)">${esc(l.error_type || 'error')}</span></td>
+        <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis">${esc(l.error_message)}</td>
+        <td style="font-size:11px;color:var(--text-muted)">${esc(l.context || '')}</td>
+      </tr>`).join('');
+      addLogLine('info', `Loaded ${logs.length} error logs from database`);
+    }).catch(e => addLogLine('error', 'Failed to load error logs: ' + e.message));
+  }
+
+  function fetchSecurityLogs() {
+    const section = document.getElementById('security-logs-section');
+    section.style.display = 'block';
+    apiFetch('/api/admin/security-logs').then(logs => {
+      const body = document.getElementById('security-logs-body');
+      if (!logs || logs.length === 0) {
+        body.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">No security logs found</td></tr>';
+        return;
+      }
+      body.innerHTML = logs.map(l => `<tr>
+        <td style="white-space:nowrap">${fmtTime(l.created_at)}</td>
+        <td><span class="badge" style="background:rgba(234,179,8,0.15);color:var(--yellow)">${esc(l.event_type || 'event')}</span></td>
+        <td>${esc(l.user_id || '—')}</td>
+        <td style="font-size:12px;color:var(--text-secondary)">${esc(l.details || '')}</td>
+      </tr>`).join('');
+      addLogLine('info', `Loaded ${logs.length} security logs from database`);
+    }).catch(e => addLogLine('error', 'Failed to load security logs: ' + e.message));
   }
 
   // ── Helpers ──
