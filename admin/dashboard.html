@@ -5,11 +5,12 @@
   <title>BillyCord Admin Dashboard</title>
   <style>
     :root {
-      --bg-primary: #0d1117;
-      --bg-secondary: #161b22;
-      --bg-tertiary: #1c2333;
-      --bg-card: #1a2030;
-      --border: #30363d;
+      --sidebar-bg: #1a1e2e;
+      --header-bg: #1e2235;
+      --content-bg: #161928;
+      --card-bg: #1e2235;
+      --card-hover: #252a3a;
+      --border: #2a2f42;
       --text-primary: #e6edf3;
       --text-secondary: #8b949e;
       --text-muted: #6e7681;
@@ -19,703 +20,529 @@
       --red: #ef4444;
       --yellow: #eab308;
       --orange: #f97316;
+      --purple: #a855f7;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-primary); color: var(--text-primary);
-      height: 100vh; display: flex; flex-direction: column; overflow: hidden;
-    }
+    body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--content-bg); color: var(--text-primary); height: 100vh; overflow: hidden; }
 
-    /* Login */
-    #login-screen {
-      display: flex; align-items: center; justify-content: center; height: 100vh;
-    }
-    .login-box {
-      background: var(--bg-secondary); border: 1px solid var(--border);
-      border-radius: 12px; padding: 40px; width: 380px; text-align: center;
-    }
-    .login-box .logo {
-      width: 64px; height: 64px; background: #000; border-radius: 16px;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 24px; font-weight: 700; color: var(--accent);
-      border: 2px solid var(--accent); margin-bottom: 16px;
-    }
+    /* Login Screen */
+    #login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #0f1219 0%, #161928 50%, #1a1e2e 100%); }
+    .login-box { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 380px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+    .login-box .logo { width: 64px; height: 64px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 16px; }
     .login-box h1 { font-size: 20px; margin-bottom: 4px; }
     .login-box p { color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; }
-    .login-box label { display: block; text-align: left; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
-    .login-box input {
-      width: 100%; padding: 10px 12px; border-radius: 6px;
-      border: 1px solid var(--border); background: var(--bg-primary);
-      color: var(--text-primary); font-size: 14px; outline: none; margin-bottom: 16px;
-    }
+    .login-box input { width: 100%; padding: 10px 14px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; margin-bottom: 12px; outline: none; }
     .login-box input:focus { border-color: var(--accent); }
-    .login-box button {
-      width: 100%; padding: 10px; border-radius: 6px; border: none;
-      background: var(--accent); color: #fff; font-size: 14px; font-weight: 600;
-      cursor: pointer;
-    }
-    .login-box button:hover { background: var(--accent-hover); }
-    .login-error { color: var(--red); font-size: 13px; margin-top: 12px; display: none; }
+    .login-box .btn-login { width: 100%; padding: 10px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .login-box .btn-login:hover { background: var(--accent-hover); }
+    #login-error { color: var(--red); font-size: 13px; margin-top: 8px; display: none; }
 
-    /* Dashboard */
-    #dashboard { display: none; height: 100vh; flex-direction: column; }
+    /* Dashboard Layout */
+    #dashboard { display: none; height: 100vh; }
     #dashboard.active { display: flex; }
 
-    .header {
-      background: var(--bg-secondary); border-bottom: 1px solid var(--border);
-      padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-    }
-    .header-left { display: flex; align-items: center; gap: 12px; }
-    .header-logo {
-      width: 32px; height: 32px; background: #000; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent);
-    }
-    .header h1 { font-size: 16px; font-weight: 600; }
-    .header h1 span { color: var(--text-secondary); font-weight: 400; }
-    .header-right { display: flex; align-items: center; gap: 16px; }
-    .status-badge { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+    /* Sidebar */
+    .sidebar { width: 250px; background: var(--sidebar-bg); display: flex; flex-direction: column; border-right: 1px solid var(--border); flex-shrink: 0; }
+    .sidebar-logo { padding: 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+    .sidebar-logo .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--accent), var(--purple)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; color: #fff; }
+    .sidebar-logo .logo-text { font-size: 16px; font-weight: 700; }
+    .sidebar-logo .logo-badge { font-size: 10px; background: var(--accent); color: #fff; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .nav-section { padding: 0 12px; margin-bottom: 8px; }
+    .nav-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); padding: 8px 12px; letter-spacing: 0.5px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 16px; margin: 2px 8px; border-radius: 8px; cursor: pointer; color: var(--text-secondary); font-size: 14px; font-weight: 500; transition: all 0.15s; position: relative; }
+    .nav-item:hover { background: rgba(59,130,246,0.08); color: var(--text-primary); }
+    .nav-item.active { background: rgba(59,130,246,0.12); color: var(--accent); }
+    .nav-item.active::before { content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%); width: 3px; height: 20px; background: var(--accent); border-radius: 0 3px 3px 0; }
+    .nav-item .nav-icon { width: 20px; text-align: center; font-size: 16px; }
+
+    /* Sidebar server controls */
+    .sidebar-controls { padding: 12px; border-top: 1px solid var(--border); }
+    .sidebar-controls .control-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; letter-spacing: 0.5px; }
+    .control-btns { display: flex; gap: 6px; }
+    .ctrl-btn { flex: 1; padding: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; text-transform: uppercase; letter-spacing: 0.3px; transition: all 0.15s; }
+    .ctrl-btn:hover { background: var(--card-hover); }
+    .ctrl-btn.start { border-color: var(--green); color: var(--green); }
+    .ctrl-btn.start:hover { background: rgba(34,197,94,0.1); }
+    .ctrl-btn.stop { border-color: var(--red); color: var(--red); }
+    .ctrl-btn.stop:hover { background: rgba(239,68,68,0.1); }
+    .ctrl-btn.restart { border-color: var(--orange); color: var(--orange); }
+    .ctrl-btn.restart:hover { background: rgba(249,115,22,0.1); }
+
+    /* Main area */
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    .header { height: 60px; background: var(--header-bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; flex-shrink: 0; }
+    .header-search { flex: 1; max-width: 500px; }
+    .header-search input { width: 100%; padding: 8px 16px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 20px; color: var(--text-primary); font-size: 13px; outline: none; }
+    .header-search input:focus { border-color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 16px; margin-left: auto; }
+    .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; }
-    .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .status-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
-    .btn-sm {
-      padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
-      background: var(--bg-tertiary); color: var(--text-secondary); font-size: 12px; cursor: pointer;
-    }
-    .btn-sm:hover { border-color: var(--accent); color: var(--text-primary); }
+    .status-dot.online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .status-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .header-btn { padding: 6px 14px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .header-btn:hover { background: var(--card-hover); color: var(--text-primary); }
+    .header-btn.logout { border-color: var(--red); color: var(--red); }
+    .header-btn.logout:hover { background: rgba(239,68,68,0.1); }
+    #uptime-display { font-size: 12px; color: var(--text-muted); }
 
-    .tab-bar {
-      background: var(--bg-secondary); border-bottom: 1px solid var(--border);
-      display: flex; padding: 0 24px; flex-shrink: 0;
-    }
-    .tab {
-      padding: 10px 20px; font-size: 13px; font-weight: 500;
-      color: var(--text-secondary); cursor: pointer;
-      border-bottom: 2px solid transparent;
-    }
-    .tab:hover { color: var(--text-primary); }
-    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-
+    /* Content */
     .content { flex: 1; overflow-y: auto; padding: 24px; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-    .stat-card .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-    .stat-card .value { font-size: 28px; font-weight: 700; }
-    .stat-card .sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    /* Welcome Banner */
+    .welcome-banner { background: linear-gradient(135deg, #1e3a5f 0%, #2d1b69 50%, #1a3650 100%); border-radius: 16px; padding: 24px 32px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
+    .welcome-banner h2 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .welcome-banner p { color: rgba(255,255,255,0.7); font-size: 14px; }
 
-    .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .control-btn {
-      padding: 24px; border-radius: 10px; border: 2px solid var(--border);
-      background: var(--bg-card); color: var(--text-primary);
-      font-size: 15px; font-weight: 600; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center; gap: 10px; transition: all 0.2s;
-    }
-    .control-btn .icon { font-size: 28px; }
-    .control-btn.start { border-color: #16a34a33; }
-    .control-btn.start:hover { border-color: var(--green); background: #16a34a15; }
-    .control-btn.stop { border-color: #dc262633; }
-    .control-btn.stop:hover { border-color: var(--red); background: #dc262615; }
-    .control-btn.restart { border-color: #ea580c33; }
-    .control-btn.restart:hover { border-color: var(--orange); background: #ea580c15; }
+    /* Stat Cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: all 0.2s; position: relative; overflow: hidden; }
+    .stat-card:hover { background: var(--card-hover); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+    .stat-card .stat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .stat-card .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+    .stat-card .stat-label { font-size: 13px; color: var(--text-secondary); }
+    .stat-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; border-radius: 0 0 12px 12px; }
+    .stat-card.green .stat-icon { background: rgba(34,197,94,0.15); color: var(--green); }
+    .stat-card.green::after { background: var(--green); }
+    .stat-card.blue .stat-icon { background: rgba(59,130,246,0.15); color: var(--accent); }
+    .stat-card.blue::after { background: var(--accent); }
+    .stat-card.purple .stat-icon { background: rgba(168,85,247,0.15); color: var(--purple); }
+    .stat-card.purple::after { background: var(--purple); }
+    .stat-card.orange .stat-icon { background: rgba(249,115,22,0.15); color: var(--orange); }
+    .stat-card.orange::after { background: var(--orange); }
+    .stat-card.yellow .stat-icon { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .stat-card.yellow::after { background: var(--yellow); }
+    .stat-card.red .stat-icon { background: rgba(239,68,68,0.15); color: var(--red); }
+    .stat-card.red::after { background: var(--red); }
 
-    .info-banner {
-      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
-      padding: 20px 24px; margin-bottom: 24px;
-    }
-    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-    .info-grid .ip-item {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 14px; background: var(--bg-primary); border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-    .ip-item-left { display: flex; flex-direction: column; gap: 2px; }
-    .info-banner .ip-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .info-banner .ip-value { font-size: 14px; font-weight: 600; color: var(--accent); font-family: 'Cascadia Code', 'Consolas', monospace; }
-    .copy-btn {
-      padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);
-      background: var(--bg-tertiary); color: var(--text-muted); font-size: 11px; cursor: pointer;
-      transition: all 0.15s; font-weight: 600;
-    }
-    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-    .copy-btn.copied { border-color: var(--green); color: var(--green); }
-    .info-share-box {
-      background: linear-gradient(135deg, #3b82f610, #3b82f605); border: 1px solid #3b82f630;
-      border-radius: 8px; padding: 14px 18px; display: flex; align-items: center;
-      justify-content: space-between; margin-bottom: 12px;
-    }
-    .info-share-box .share-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 2px; }
-    .info-share-box .share-value { font-size: 18px; font-weight: 700; color: var(--accent); font-family: 'Cascadia Code', 'Consolas', monospace; }
-    .info-tips { display: flex; gap: 16px; }
-    .info-tip {
-      flex: 1; padding: 10px 14px; background: var(--bg-primary); border-radius: 8px;
-      border: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); line-height: 1.5;
-    }
-    .info-tip strong { color: var(--text-primary); display: block; margin-bottom: 2px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
-    .info-banner .sep { display: none; }
+    /* Announce bar */
+    .announce-bar { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; gap: 12px; align-items: center; margin-bottom: 24px; }
+    .announce-bar input { flex: 1; padding: 8px 14px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 13px; outline: none; }
+    .announce-bar input:focus { border-color: var(--accent); }
+    .announce-bar button { padding: 8px 20px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .announce-bar button:hover { background: var(--accent-hover); }
 
-    .table-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    /* Tables */
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+    .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: space-between; }
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); background: var(--bg-tertiary); border-bottom: 1px solid var(--border); }
-    td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #ffffff05; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-    .badge.online { background: #16a34a22; color: var(--green); }
-    .badge.offline { background: #dc262622; color: var(--red); }
+    th { text-align: left; padding: 10px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.15); }
+    td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+    tr:hover td { background: rgba(59,130,246,0.04); }
+    .badge { padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge.online { background: rgba(34,197,94,0.15); color: var(--green); }
+    .badge.offline { background: rgba(239,68,68,0.1); color: var(--red); }
+    .badge.idle { background: rgba(234,179,8,0.15); color: var(--yellow); }
+    .badge.dnd { background: rgba(239,68,68,0.15); color: var(--red); }
 
-    .log-container {
-      background: #000; border: 1px solid var(--border); border-radius: 10px;
-      padding: 16px; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-      font-size: 12px; height: calc(100vh - 200px); overflow-y: auto; line-height: 1.6;
-    }
-    .log-line { white-space: pre-wrap; word-break: break-all; }
+    /* Buttons */
+    .btn-sm { padding: 4px 12px; border: 1px solid var(--border); background: transparent; color: var(--text-secondary); border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .btn-sm:hover { background: var(--card-hover); color: var(--text-primary); }
+    .btn-danger { padding: 4px 12px; border: 1px solid var(--red); background: transparent; color: var(--red); border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .btn-danger:hover { background: rgba(239,68,68,0.1); }
+    .btn-primary { padding: 8px 20px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-cancel { padding: 8px 20px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; cursor: pointer; }
+    .btn-cancel:hover { background: var(--card-hover); }
+
+    /* Logs */
+    #log-container { background: var(--content-bg); border: 1px solid var(--border); border-radius: 8px; height: 500px; overflow-y: auto; padding: 12px; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; line-height: 1.8; }
     .log-line .time { color: var(--text-muted); }
     .log-line .info { color: var(--accent); }
     .log-line .warn { color: var(--yellow); }
     .log-line .error { color: var(--red); }
     .log-line .msg { color: var(--text-secondary); }
 
-    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .setting-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-    .setting-card h3 { font-size: 14px; margin-bottom: 4px; }
-    .setting-card .desc { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
-    .setting-card .val { font-size: 16px; font-weight: 600; color: var(--accent); background: var(--bg-primary); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); }
+    /* Network Info */
+    .network-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .ip-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .ip-card .ip-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .ip-card .ip-value { font-size: 18px; font-weight: 600; font-family: monospace; color: var(--accent); margin-bottom: 8px; }
+    .copy-btn { padding: 4px 12px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); border-radius: 6px; font-size: 11px; cursor: pointer; }
+    .copy-btn:hover { background: var(--card-hover); color: var(--text-primary); }
+    .copy-btn.copied { border-color: var(--green); color: var(--green); }
+    .info-share-box { background: var(--card-bg); border: 1px solid var(--accent); border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center; }
+    .info-share-box .share-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-bottom: 8px; }
+    .info-share-box .share-value { font-size: 22px; font-weight: 700; font-family: monospace; color: var(--accent); margin-bottom: 8px; }
+    .ip-item { display: flex; align-items: center; gap: 8px; }
 
-    .settings-tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
-    .settings-tab {
-      padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
-      background: var(--bg-card); color: var(--text-secondary); font-size: 13px;
-      cursor: pointer; font-weight: 500; transition: all 0.15s;
-    }
-    .settings-tab:hover { border-color: var(--accent); color: var(--text-primary); }
-    .settings-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    /* Settings */
+    .settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 20px; padding: 4px; background: var(--content-bg); border-radius: 10px; border: 1px solid var(--border); }
+    .settings-tab { padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; }
+    .settings-tab:hover { color: var(--text-primary); background: var(--card-hover); }
+    .settings-tab.active { background: var(--accent); color: #fff; }
     .settings-section { display: none; }
     .settings-section.active { display: block; }
-    .settings-actions { display: flex; gap: 12px; margin-bottom: 20px; }
-    .btn-save {
-      padding: 10px 24px; border-radius: 8px; border: none;
-      background: var(--green); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer;
-    }
-    .btn-save:hover { background: #16a34a; }
-    .btn-reset {
-      padding: 10px 24px; border-radius: 8px; border: 1px solid var(--border);
-      background: var(--bg-card); color: var(--text-secondary); font-weight: 600; font-size: 14px; cursor: pointer;
-    }
-    .btn-reset:hover { border-color: var(--red); color: var(--red); }
-    .setting-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 20px; background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: 10px; margin-bottom: 10px;
-    }
-    .setting-row .setting-info { flex: 1; margin-right: 20px; }
-    .setting-row .setting-label { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-    .setting-row .setting-desc { font-size: 12px; color: var(--text-muted); }
-    .setting-row input[type="number"], .setting-row input[type="text"] {
-      width: 120px; padding: 8px 12px; border-radius: 6px;
-      border: 1px solid var(--border); background: var(--bg-primary);
-      color: var(--text-primary); font-size: 14px; text-align: right; outline: none;
-    }
-    .setting-row input:focus { border-color: var(--accent); }
-    .setting-row select {
-      padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);
-      background: var(--bg-primary); color: var(--text-primary); font-size: 14px; outline: none;
-    }
-    .setting-row select:focus { border-color: var(--accent); }
-    .setting-row textarea {
-      width: 300px; min-height: 80px; padding: 8px 12px; border-radius: 6px;
-      border: 1px solid var(--border); background: var(--bg-primary);
-      color: var(--text-primary); font-size: 13px; font-family: inherit; resize: vertical; outline: none;
-    }
-    .setting-row textarea:focus { border-color: var(--accent); }
-    .toggle-switch {
-      position: relative; width: 44px; height: 24px; cursor: pointer;
-    }
-    .toggle-switch input { display: none; }
-    .toggle-slider {
-      position: absolute; inset: 0; background: var(--border); border-radius: 12px; transition: 0.2s;
-    }
-    .toggle-slider::before {
-      content: ''; position: absolute; width: 18px; height: 18px;
-      left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: 0.2s;
-    }
-    .toggle-switch input:checked + .toggle-slider { background: var(--green); }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); gap: 16px; }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-info { flex: 1; }
+    .setting-label { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+    .setting-desc { font-size: 12px; color: var(--text-muted); }
+    .setting-row input[type="number"], .setting-row input[type="text"], .setting-row select { padding: 6px 12px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 13px; width: 100px; outline: none; }
+    .setting-row input:focus, .setting-row select:focus { border-color: var(--accent); }
+    .setting-row textarea { padding: 8px 12px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 13px; width: 240px; height: 80px; outline: none; resize: vertical; }
+    .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 24px; transition: 0.2s; }
+    .toggle-slider::before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+    .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
     .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
-    .save-status { font-size: 13px; padding: 8px 16px; border-radius: 6px; display: none; }
-    .save-status.success { display: inline-block; background: #16a34a22; color: var(--green); }
-    .save-status.error { display: inline-block; background: #dc262622; color: var(--red); }
+    .save-bar { display: flex; align-items: center; gap: 12px; padding: 16px 0; margin-top: 20px; border-top: 1px solid var(--border); }
+    .save-status { font-size: 13px; margin-left: 8px; }
+    .save-status.success { color: var(--green); }
+    .save-status.error { color: var(--red); }
 
-    .announce-bar { display: flex; gap: 8px; margin-bottom: 24px; }
-    .announce-bar input { flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); font-size: 14px; outline: none; }
-    .announce-bar input:focus { border-color: var(--accent); }
-    .announce-bar button { padding: 10px 20px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; white-space: nowrap; }
-    .announce-bar button:hover { background: var(--accent-hover); }
-
-    .section-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .btn-danger { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--red); background: transparent; color: var(--red); font-size: 11px; cursor: pointer; }
-    .btn-danger:hover { background: var(--red); color: #fff; }
-    .uptime { font-size: 13px; color: var(--text-secondary); }
-
-    /* User Edit Modal */
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-      display: flex; align-items: center; justify-content: center; z-index: 1000;
-    }
-    .modal {
-      background: var(--bg-secondary); border: 1px solid var(--border);
-      border-radius: 12px; padding: 28px; width: 480px; max-height: 80vh; overflow-y: auto;
-    }
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+    .modal { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 480px; max-height: 80vh; overflow-y: auto; }
     .modal h2 { font-size: 18px; margin-bottom: 20px; }
-    .modal .form-group { margin-bottom: 14px; }
-    .modal label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .modal input, .modal textarea, .modal select {
-      width: 100%; padding: 8px 12px; border-radius: 6px;
-      border: 1px solid var(--border); background: var(--bg-primary);
-      color: var(--text-primary); font-size: 14px; outline: none; font-family: inherit;
-    }
+    .modal label { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 6px; }
+    .modal input, .modal textarea, .modal select { width: 100%; padding: 8px 12px; background: var(--content-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 13px; margin-bottom: 14px; outline: none; }
     .modal input:focus, .modal textarea:focus, .modal select:focus { border-color: var(--accent); }
-    .modal textarea { min-height: 60px; resize: vertical; }
-    .modal .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
-    .modal .btn-primary {
-      padding: 8px 20px; border-radius: 6px; border: none;
-      background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; font-size: 13px;
-    }
-    .modal .btn-primary:hover { background: var(--accent-hover); }
-    .modal .btn-cancel {
-      padding: 8px 20px; border-radius: 6px; border: 1px solid var(--border);
-      background: transparent; color: var(--text-secondary); font-weight: 600; cursor: pointer; font-size: 13px;
-    }
-    .modal .btn-cancel:hover { color: var(--text-primary); }
-    .modal .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .modal .color-preview {
-      width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
-      display: inline-block; vertical-align: middle; margin-left: 8px;
-    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .form-group { margin-bottom: 0; }
+    .color-preview { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
 
+    /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
   </style>
 </head>
 <body>
 
-<!-- Login -->
+<!-- Login Screen -->
 <div id="login-screen">
   <div class="login-box">
     <div class="logo">BC</div>
-    <h1>Admin Dashboard</h1>
-    <p>BillyCord Server Control Panel</p>
-    <label>Username</label>
-    <input type="text" id="login-user" placeholder="Enter admin username" autofocus>
-    <label>Password</label>
-    <input type="password" id="login-pass" placeholder="Enter admin password">
-    <button onclick="doLogin()">Login</button>
-    <div class="login-error" id="login-error"></div>
+    <h1>BillyCord Admin</h1>
+    <p>Sign in to manage your server</p>
+    <input type="text" id="login-user" placeholder="Username" autocomplete="off">
+    <input type="password" id="login-pass" placeholder="Password">
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+    <div id="login-error"></div>
   </div>
 </div>
 
 <!-- Dashboard -->
 <div id="dashboard">
-  <div class="header">
-    <div class="header-left">
-      <div class="header-logo">BC</div>
-      <h1>Admin Dashboard <span>/ BillyCord</span></h1>
-    </div>
-    <div class="header-right">
-      <div class="status-badge">
-        <div class="status-dot offline" id="server-status-dot"></div>
-        <span id="server-status-text">Server Offline</span>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">BC</div>
+      <div>
+        <div class="logo-text">BillyCord</div>
       </div>
-      <div class="uptime" id="uptime-display"></div>
-      <button class="btn-sm" onclick="refreshAll()">Refresh</button>
-      <button class="btn-sm" onclick="doLogout()">Logout</button>
+      <span class="logo-badge">Admin</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Main</div>
+        <div class="nav-item active" data-tab="stats" onclick="switchTab('stats')">
+          <span class="nav-icon">📊</span> Dashboard
+        </div>
+        <div class="nav-item" data-tab="users" onclick="switchTab('users')">
+          <span class="nav-icon">👥</span> Users
+        </div>
+        <div class="nav-item" data-tab="servers" onclick="switchTab('servers')">
+          <span class="nav-icon">🖥️</span> Servers
+        </div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-section-title">System</div>
+        <div class="nav-item" data-tab="logs" onclick="switchTab('logs')">
+          <span class="nav-icon">📋</span> Logs
+        </div>
+        <div class="nav-item" data-tab="network" onclick="switchTab('network')">
+          <span class="nav-icon">🌐</span> Network
+        </div>
+        <div class="nav-item" data-tab="settings" onclick="switchTab('settings')">
+          <span class="nav-icon">⚙️</span> Settings
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-controls">
+      <div class="control-title">Server Controls</div>
+      <div class="control-btns">
+        <button class="ctrl-btn start" onclick="serverControl('start')">Start</button>
+        <button class="ctrl-btn stop" onclick="serverControl('stop')">Stop</button>
+        <button class="ctrl-btn restart" onclick="serverControl('restart')">Restart</button>
+      </div>
     </div>
   </div>
 
-  <div class="tab-bar">
-    <div class="tab active" data-tab="stats" onclick="switchTab('stats')">Stats</div>
-    <div class="tab" data-tab="users" onclick="switchTab('users')">Users</div>
-    <div class="tab" data-tab="servers" onclick="switchTab('servers')">Servers</div>
-    <div class="tab" data-tab="logs" onclick="switchTab('logs')">Logs</div>
-    <div class="tab" data-tab="settings" onclick="switchTab('settings')">Settings</div>
-  </div>
-
-  <div class="content">
-
-    <!-- STATS -->
-    <div class="tab-content active" id="tab-stats">
-      <div class="section-title">Server Controls</div>
-      <div class="controls-grid">
-        <button class="control-btn start" onclick="serverControl('start')">
-          <span class="icon">&#9654;</span> START SERVER
-        </button>
-        <button class="control-btn stop" onclick="serverControl('stop')">
-          <span class="icon">&#9632;</span> STOP SERVER
-        </button>
-        <button class="control-btn restart" onclick="serverControl('restart')">
-          <span class="icon">&#8635;</span> RESTART SERVER
-        </button>
+  <!-- Main -->
+  <div class="main">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-search">
+        <input type="text" placeholder="Search...">
       </div>
+      <div class="header-right">
+        <div class="status-indicator">
+          <div class="status-dot offline" id="server-status-dot"></div>
+          <span id="server-status-text">Server Offline</span>
+        </div>
+        <span id="uptime-display"></span>
+        <button class="header-btn" onclick="refreshAll()">Refresh</button>
+        <button class="header-btn logout" onclick="doLogout()">Logout</button>
+      </div>
+    </div>
 
-      <div class="section-title">Network Info</div>
-      <div class="info-banner">
-        <div class="info-share-box">
+    <!-- Content -->
+    <div class="content">
+
+      <!-- Stats Tab -->
+      <div class="tab-content active" id="tab-stats">
+        <div class="welcome-banner">
           <div>
-            <div class="share-label">&#127760; Friends Connect To (Far Away)</div>
-            <div class="share-value" id="ip-share">--</div>
-          </div>
-          <button class="copy-btn" onclick="copyText('ip-share')">Copy</button>
-        </div>
-        <div class="info-grid">
-          <div class="ip-item">
-            <div class="ip-item-left"><span class="ip-label">LAN Address</span><span class="ip-value" id="ip-lan">--</span></div>
-            <button class="copy-btn" onclick="copyText('ip-lan')">Copy</button>
-          </div>
-          <div class="ip-item">
-            <div class="ip-item-left"><span class="ip-label">Public IP</span><span class="ip-value" id="ip-public">--</span></div>
-            <button class="copy-btn" onclick="copyText('ip-public')">Copy</button>
-          </div>
-          <div class="ip-item">
-            <div class="ip-item-left"><span class="ip-label">Port</span><span class="ip-value" id="ip-port">3001</span></div>
-          </div>
-          <div class="ip-item">
-            <div class="ip-item-left"><span class="ip-label">LAN Connect (Same WiFi)</span><span class="ip-value" id="ip-lan-full">--</span></div>
-            <button class="copy-btn" onclick="copyText('ip-lan-full')">Copy</button>
+            <h2>Welcome back, Admin 👋</h2>
+            <p>Here's what's happening with your BillyCord server today.</p>
           </div>
         </div>
-        <div class="info-tips">
-          <div class="info-tip"><strong>&#128279; Friends on your WiFi</strong>Share the <b>LAN Address</b> — works when on the same local network.</div>
-          <div class="info-tip"><strong>&#127760; Friends far away</strong>Share the <b>Public IP</b> address — requires port forwarding on your router (port <span id="ip-port-tip">3001</span>).</div>
-        </div>
-      </div>
 
-      <div class="section-title">Overview</div>
-      <div class="stat-grid">
-        <div class="stat-card"><div class="label">Online Users</div><div class="value" id="stat-online" style="color:var(--green)">0</div><div class="sub">currently connected</div></div>
-        <div class="stat-card"><div class="label">Total Users</div><div class="value" id="stat-users">0</div><div class="sub">registered accounts</div></div>
-        <div class="stat-card"><div class="label">Total Messages</div><div class="value" id="stat-messages" style="color:var(--accent)">0</div><div class="sub">all-time messages</div></div>
-        <div class="stat-card"><div class="label">Servers</div><div class="value" id="stat-servers">0</div><div class="sub">community servers</div></div>
-        <div class="stat-card"><div class="label">Channels</div><div class="value" id="stat-channels">0</div><div class="sub">active channels</div></div>
-        <div class="stat-card"><div class="label">Memory Usage</div><div class="value" id="stat-memory" style="color:var(--orange)">0</div><div class="sub">MB used (heap)</div></div>
-      </div>
-
-      <div class="section-title">Broadcast Announcement</div>
-      <div class="announce-bar">
-        <input type="text" id="announce-input" placeholder="Type an announcement to send to all connected users...">
-        <button onclick="sendAnnouncement()">Send to All</button>
-      </div>
-
-      <div class="section-title">Recent Activity</div>
-      <div class="table-container">
-        <table><thead><tr><th>Time</th><th>User</th><th>Server</th><th>Channel</th><th>Message</th></tr></thead>
-        <tbody id="activity-body"></tbody></table>
-      </div>
-    </div>
-
-    <!-- USERS -->
-    <div class="tab-content" id="tab-users">
-      <div class="section-title">All Registered Users</div>
-      <div class="table-container">
-        <table><thead><tr><th>Username</th><th>Email</th><th>Status</th><th>Custom Status</th><th>Joined</th><th>Last Seen</th><th>Actions</th></tr></thead>
-        <tbody id="users-body"></tbody></table>
-      </div>
-    </div>
-
-    <!-- SERVERS -->
-    <div class="tab-content" id="tab-servers">
-      <div class="section-title">All Servers</div>
-      <div class="table-container">
-        <table><thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Channels</th><th>Created</th></tr></thead>
-        <tbody id="servers-body"></tbody></table>
-      </div>
-    </div>
-
-    <!-- LOGS -->
-    <div class="tab-content" id="tab-logs">
-      <div class="section-title">Live Server Logs</div>
-      <div class="log-container" id="log-container"></div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div class="tab-content" id="tab-settings">
-      <div class="section-title">Server Configuration</div>
-
-      <div class="settings-actions">
-        <button class="btn-save" onclick="saveAllSettings()">Apply Changes</button>
-        <button class="btn-reset" onclick="resetDefaults()">Reset to Defaults</button>
-        <span class="save-status" id="save-status"></span>
-      </div>
-
-      <div class="settings-tabs">
-        <div class="settings-tab active" onclick="switchSettingsTab('users')">User Limits</div>
-        <div class="settings-tab" onclick="switchSettingsTab('messages')">Messages</div>
-        <div class="settings-tab" onclick="switchSettingsTab('files')">File Upload</div>
-        <div class="settings-tab" onclick="switchSettingsTab('voice')">Voice &amp; Video</div>
-        <div class="settings-tab" onclick="switchSettingsTab('security')">Security</div>
-        <div class="settings-tab" onclick="switchSettingsTab('moderation')">Moderation</div>
-        <div class="settings-tab" onclick="switchSettingsTab('system')">System</div>
-        <div class="settings-tab" onclick="switchSettingsTab('database')">Database</div>
-        <div class="settings-tab" onclick="switchSettingsTab('notifications')">Notifications</div>
-        <div class="settings-tab" onclick="switchSettingsTab('advanced')">Advanced</div>
-      </div>
-
-      <!-- User Limits -->
-      <div class="settings-section active" id="settings-users">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Users Allowed</div><div class="setting-desc">Maximum total registered users on the server</div></div>
-          <input type="number" data-key="max_users" min="1" value="10000">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Servers Per User</div><div class="setting-desc">Maximum servers a single user can create</div></div>
-          <input type="number" data-key="max_servers_per_user" min="1" value="100">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Friends Per User</div><div class="setting-desc">Maximum friends list size per user</div></div>
-          <input type="number" data-key="max_friends_per_user" min="1" value="5000">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Simultaneous Logins</div><div class="setting-desc">Maximum concurrent sessions per user account</div></div>
-          <input type="number" data-key="max_simultaneous_logins" min="1" value="5">
-        </div>
-      </div>
-
-      <!-- Messages -->
-      <div class="settings-section" id="settings-messages">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Message Length</div><div class="setting-desc">Maximum characters per message</div></div>
-          <input type="number" data-key="max_message_length" min="1" max="10000" value="2000">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Message Retention Days</div><div class="setting-desc">Auto-delete messages after N days (0 = keep forever)</div></div>
-          <input type="number" data-key="message_retention_days" min="0" value="365">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Rate Limit (Messages/Min)</div><div class="setting-desc">Maximum messages a user can send per minute</div></div>
-          <input type="number" data-key="rate_limit_messages" min="1" value="20">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Pin Limit Per Channel</div><div class="setting-desc">Maximum pinned messages per channel</div></div>
-          <input type="number" data-key="max_pin_per_channel" min="1" value="50">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Emoji Reactions Per Message</div><div class="setting-desc">Maximum unique emoji reactions per message</div></div>
-          <input type="number" data-key="max_reactions_per_message" min="1" value="10">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Default Slow Mode (Seconds)</div><div class="setting-desc">Default slow mode delay for new channels (0 = off)</div></div>
-          <input type="number" data-key="slow_mode_default" min="0" value="0">
-        </div>
-      </div>
-
-      <!-- File Upload -->
-      <div class="settings-section" id="settings-files">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max File Upload Size (MB)</div><div class="setting-desc">Maximum file size for uploads</div></div>
-          <input type="number" data-key="max_file_upload_mb" min="1" value="25">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Allow Images</div><div class="setting-desc">Allow users to upload image files (PNG, JPG, GIF, etc.)</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_image_uploads" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Allow Documents</div><div class="setting-desc">Allow document uploads (PDF, DOC, TXT, etc.)</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_document_uploads" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Allow Audio</div><div class="setting-desc">Allow audio file uploads (MP3, WAV, OGG, etc.)</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_audio_uploads" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Allow Video</div><div class="setting-desc">Allow video file uploads (MP4, MOV, WEBM, etc.)</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_video_uploads" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <!-- Voice & Video -->
-      <div class="settings-section" id="settings-voice">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Simultaneous Voice Calls</div><div class="setting-desc">Maximum concurrent voice calls server-wide (0 = unlimited)</div></div>
-          <input type="number" data-key="max_simultaneous_calls" min="0" value="0">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Participants Per Channel</div><div class="setting-desc">Maximum users in a single voice channel (0 = unlimited)</div></div>
-          <input type="number" data-key="max_voice_participants" min="0" value="0">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Audio Bitrate (kbps)</div><div class="setting-desc">Audio quality bitrate for voice channels</div></div>
-          <input type="number" data-key="audio_bitrate_kbps" min="32" max="512" value="128">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Video Bitrate (Mbps)</div><div class="setting-desc">Video quality bitrate for video calls</div></div>
-          <input type="text" data-key="video_bitrate_mbps" value="2.5" style="width:80px">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Screen Sharing Allowed</div><div class="setting-desc">Allow users to share their screen in voice channels</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="screen_sharing_allowed" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Recording Allowed</div><div class="setting-desc">Allow users to record voice/video calls</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="recording_allowed"><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <!-- Security -->
-      <div class="settings-section" id="settings-security">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Two-Factor Authentication</div><div class="setting-desc">Require, make optional, or disable 2FA for all users</div></div>
-          <select data-key="require_2fa"><option value="optional">Optional</option><option value="required">Required</option><option value="disabled">Disabled</option></select>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Password Min Length</div><div class="setting-desc">Minimum password length for new accounts</div></div>
-          <input type="number" data-key="password_min_length" min="4" max="64" value="8">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Login Attempt Limit</div><div class="setting-desc">Failed login attempts before account lockout</div></div>
-          <input type="number" data-key="max_login_attempts" min="1" value="5">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Lockout Duration (Minutes)</div><div class="setting-desc">How long accounts are locked after exceeding attempt limit</div></div>
-          <input type="number" data-key="lockout_duration_minutes" min="1" value="15">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">IP Rate Limiting (Req/Min)</div><div class="setting-desc">Maximum requests per minute per IP address (0 = unlimited)</div></div>
-          <input type="number" data-key="ip_rate_limiting" min="0" value="0">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Session Timeout (Hours)</div><div class="setting-desc">Auto-logout inactive sessions after this many hours</div></div>
-          <input type="number" data-key="session_timeout_hours" min="1" value="168">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Require Email Verification</div><div class="setting-desc">Users must verify email before accessing the platform</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="require_email_verification"><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <!-- Moderation -->
-      <div class="settings-section" id="settings-moderation">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Spam Detection Sensitivity</div><div class="setting-desc">How aggressively to detect and flag spam messages</div></div>
-          <select data-key="spam_detection"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Auto-Kick Spammers</div><div class="setting-desc">Automatically kick users detected as spammers</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="auto_kick_spammers"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Auto-Mute Profanity</div><div class="setting-desc">Automatically mute messages containing profanity</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="auto_mute_profanity"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row" style="align-items:flex-start">
-          <div class="setting-info"><div class="setting-label">Keyword Filter List</div><div class="setting-desc">Blocked keywords, one per line. Messages containing these will be filtered.</div></div>
-          <textarea data-key="keyword_filter" placeholder="Enter blocked keywords, one per line..."></textarea>
-        </div>
-      </div>
-
-      <!-- System -->
-      <div class="settings-section" id="settings-system">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Maintenance Mode</div><div class="setting-desc">Put the server in maintenance mode (blocks normal users)</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="maintenance_mode"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Maintenance Message</div><div class="setting-desc">Custom message shown to users during maintenance</div></div>
-          <input type="text" data-key="maintenance_message" value="Server is under maintenance. Please try again later." style="width:300px">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Registration Enabled</div><div class="setting-desc">Allow new user registrations</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="registration_enabled" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Enable Debug Mode</div><div class="setting-desc">Enable verbose debug logging for troubleshooting</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="debug_mode"><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Enable Message Editing</div><div class="setting-desc">Allow users to edit their sent messages</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_message_editing" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Enable Message Reactions</div><div class="setting-desc">Allow users to react with emoji on messages</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_message_reactions" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Enable Server Invites</div><div class="setting-desc">Allow users to create and share server invite links</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_server_invites" checked><span class="toggle-slider"></span></label>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Enable Group DMs</div><div class="setting-desc">Allow users to create group direct message conversations</div></div>
-          <label class="toggle-switch"><input type="checkbox" data-key="allow_group_dms" checked><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <!-- Database & Storage -->
-      <div class="settings-section" id="settings-database">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Database Location</div><div class="setting-desc">Path to the SQLite database file (read-only)</div></div>
-          <span style="font-family:monospace;font-size:12px;color:var(--text-secondary);max-width:350px;word-break:break-all" id="db-path">Loading...</span>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Backup Database</div><div class="setting-desc">Create a backup copy of the database right now</div></div>
-          <button class="btn-sm" onclick="backupDatabase()" id="backup-btn">Backup Now</button>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Auto-Backup Frequency</div><div class="setting-desc">How often to automatically create database backups</div></div>
-          <select data-key="auto_backup_frequency"><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="off">Off</option></select>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Backup Retention</div><div class="setting-desc">Number of backup copies to keep before rotating</div></div>
-          <input type="number" data-key="backup_retention_count" min="1" max="100" value="10">
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Export All Data</div><div class="setting-desc">Trigger a manual log export (CSV + JSON) to the database folder</div></div>
-          <button class="btn-sm" onclick="exportLogs()" id="export-btn">Export Now</button>
-        </div>
-      </div>
-
-      <!-- Notifications -->
-      <div class="settings-section" id="settings-notifications">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Send System Announcement</div><div class="setting-desc">Send a message to ALL users via BillyBot DM</div></div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="text" id="announce-input-settings" placeholder="Type announcement message..." style="width:250px">
-            <button class="btn-sm" onclick="sendAnnouncementFromSettings()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Send</button>
+        <div class="stats-grid">
+          <div class="stat-card green">
+            <div class="stat-header">
+              <div class="stat-icon">👤</div>
+            </div>
+            <div class="stat-value" id="stat-online">0</div>
+            <div class="stat-label">Online Users</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-header">
+              <div class="stat-icon">👥</div>
+            </div>
+            <div class="stat-value" id="stat-users">0</div>
+            <div class="stat-label">Total Users</div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-header">
+              <div class="stat-icon">💬</div>
+            </div>
+            <div class="stat-value" id="stat-messages">0</div>
+            <div class="stat-label">Total Messages</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-header">
+              <div class="stat-icon">🖥️</div>
+            </div>
+            <div class="stat-value" id="stat-servers">0</div>
+            <div class="stat-label">Servers</div>
+          </div>
+          <div class="stat-card yellow">
+            <div class="stat-header">
+              <div class="stat-icon">#</div>
+            </div>
+            <div class="stat-value" id="stat-channels">0</div>
+            <div class="stat-label">Channels</div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-header">
+              <div class="stat-icon">🧠</div>
+            </div>
+            <div class="stat-value"><span id="stat-memory">0</span> MB</div>
+            <div class="stat-label">Memory Usage</div>
           </div>
         </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Password Expiry (Days)</div><div class="setting-desc">Force password reset after N days (0 = never)</div></div>
-          <input type="number" data-key="password_expiry_days" min="0" value="0">
+
+        <div class="announce-bar">
+          <span style="font-size:16px">📢</span>
+          <input type="text" id="announce-input" placeholder="Broadcast an announcement to all users...">
+          <button onclick="sendAnnouncement()">Send</button>
         </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Max Message History (Days)</div><div class="setting-desc">Maximum days of message history to display (0 = unlimited)</div></div>
-          <input type="number" data-key="max_message_history_days" min="0" value="0">
+
+        <div class="card">
+          <div class="card-header">Recent Activity</div>
+          <table>
+            <thead><tr><th>Time</th><th>User</th><th>Server</th><th>Channel</th><th>Message</th></tr></thead>
+            <tbody id="activity-body"></tbody>
+          </table>
         </div>
       </div>
 
-      <!-- Advanced -->
-      <div class="settings-section" id="settings-advanced">
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Server Port</div><div class="setting-desc">Current server port (read-only, change via PORT env variable)</div></div>
-          <span style="font-family:monospace;font-size:16px;font-weight:600;color:var(--accent)" id="server-port-display">3001</span>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Environment</div><div class="setting-desc">Current server environment mode</div></div>
-          <span style="font-size:14px;font-weight:600;color:var(--accent)" id="server-env-display">development</span>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Server Uptime</div><div class="setting-desc">How long the server has been running</div></div>
-          <span style="font-size:14px;font-weight:600;color:var(--green)" id="server-uptime-display">--</span>
-        </div>
-        <div class="setting-row">
-          <div class="setting-info"><div class="setting-label">Server Version</div><div class="setting-desc">Current BillyCord server version</div></div>
-          <span style="font-size:14px;font-weight:600;color:var(--text-secondary)">1.0.0</span>
-        </div>
-        <div class="setting-row" style="border-color:var(--red)30;background:#dc262608">
-          <div class="setting-info"><div class="setting-label" style="color:var(--red)">Reset All Settings</div><div class="setting-desc">Reset all server settings to their default values</div></div>
-          <button class="btn-sm" onclick="confirmResetDefaults()" style="border-color:var(--red);color:var(--red)">Reset to Defaults</button>
+      <!-- Users Tab -->
+      <div class="tab-content" id="tab-users">
+        <h2 style="margin-bottom:20px">User Management</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Username</th><th>Email</th><th>Status</th><th>Custom Status</th><th>Joined</th><th>Last Seen</th><th>Actions</th></tr></thead>
+            <tbody id="users-body"></tbody>
+          </table>
         </div>
       </div>
+
+      <!-- Servers Tab -->
+      <div class="tab-content" id="tab-servers">
+        <h2 style="margin-bottom:20px">Server Management</h2>
+        <div class="card">
+          <table>
+            <thead><tr><th>Name</th><th>Owner</th><th>Members</th><th>Channels</th><th>Created</th></tr></thead>
+            <tbody id="servers-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Logs Tab -->
+      <div class="tab-content" id="tab-logs">
+        <h2 style="margin-bottom:20px">Live Logs</h2>
+        <div id="log-container"></div>
+      </div>
+
+      <!-- Network Tab -->
+      <div class="tab-content" id="tab-network">
+        <h2 style="margin-bottom:20px">Network Information</h2>
+        <div class="info-share-box">
+          <div class="share-label">Share this address with friends to connect</div>
+          <div class="ip-item" style="justify-content:center">
+            <span class="share-value" id="ip-share">--</span>
+            <button class="copy-btn" onclick="copyText('ip-share')">Copy</button>
+          </div>
+        </div>
+        <div class="network-grid">
+          <div class="ip-card">
+            <div class="ip-label">Public IP</div>
+            <div class="ip-item"><span class="ip-value" id="ip-public">Fetching...</span><button class="copy-btn" onclick="copyText('ip-public')">Copy</button></div>
+          </div>
+          <div class="ip-card">
+            <div class="ip-label">LAN Address</div>
+            <div class="ip-item"><span class="ip-value" id="ip-lan">--</span><button class="copy-btn" onclick="copyText('ip-lan-full')">Copy</button></div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Full: <span id="ip-lan-full">--</span></div>
+          </div>
+          <div class="ip-card">
+            <div class="ip-label">Port</div>
+            <div class="ip-value" id="ip-port">--</div>
+            <div style="font-size:12px;color:var(--text-muted)">Ensure port <span id="ip-port-tip">--</span> is forwarded</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Tab -->
+      <div class="tab-content" id="tab-settings">
+        <h2 style="margin-bottom:20px">Server Settings</h2>
+
+        <div class="settings-tabs">
+          <div class="settings-tab active" onclick="switchSettingsTab('users')">User Limits</div>
+          <div class="settings-tab" onclick="switchSettingsTab('messages')">Messages</div>
+          <div class="settings-tab" onclick="switchSettingsTab('files')">File Upload</div>
+          <div class="settings-tab" onclick="switchSettingsTab('voice')">Voice & Video</div>
+          <div class="settings-tab" onclick="switchSettingsTab('security')">Security</div>
+          <div class="settings-tab" onclick="switchSettingsTab('moderation')">Moderation</div>
+          <div class="settings-tab" onclick="switchSettingsTab('system')">System</div>
+          <div class="settings-tab" onclick="switchSettingsTab('database')">Database</div>
+          <div class="settings-tab" onclick="switchSettingsTab('notifications')">Notifications</div>
+          <div class="settings-tab" onclick="switchSettingsTab('advanced')">Advanced</div>
+        </div>
+
+        <div class="card" style="padding:20px">
+          <!-- User Limits -->
+          <div class="settings-section active" id="settings-users">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Users Allowed</div><div class="setting-desc">Maximum total registered users on the server</div></div><input type="number" data-key="max_users" min="1" value="10000"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Servers Per User</div><div class="setting-desc">Maximum servers a single user can create</div></div><input type="number" data-key="max_servers_per_user" min="1" value="100"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Friends Per User</div><div class="setting-desc">Maximum friends list size per user</div></div><input type="number" data-key="max_friends_per_user" min="1" value="5000"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Simultaneous Logins</div><div class="setting-desc">Maximum concurrent sessions per user account</div></div><input type="number" data-key="max_simultaneous_logins" min="1" value="5"></div>
+          </div>
+
+          <!-- Messages -->
+          <div class="settings-section" id="settings-messages">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Message Length</div><div class="setting-desc">Maximum characters per message</div></div><input type="number" data-key="max_message_length" min="1" max="10000" value="2000"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Message Retention Days</div><div class="setting-desc">Auto-delete messages after N days (0 = keep forever)</div></div><input type="number" data-key="message_retention_days" min="0" value="365"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Rate Limit (Messages/Min)</div><div class="setting-desc">Maximum messages a user can send per minute</div></div><input type="number" data-key="rate_limit_messages" min="1" value="20"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Pin Limit Per Channel</div><div class="setting-desc">Maximum pinned messages per channel</div></div><input type="number" data-key="max_pin_per_channel" min="1" value="50"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Emoji Reactions Per Message</div><div class="setting-desc">Maximum unique emoji reactions per message</div></div><input type="number" data-key="max_reactions_per_message" min="1" value="10"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Default Slow Mode (Seconds)</div><div class="setting-desc">Default slow mode delay for new channels (0 = off)</div></div><input type="number" data-key="slow_mode_default" min="0" value="0"></div>
+          </div>
+
+          <!-- File Upload -->
+          <div class="settings-section" id="settings-files">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max File Upload Size (MB)</div><div class="setting-desc">Maximum file size for uploads</div></div><input type="number" data-key="max_file_upload_mb" min="1" value="25"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Allow Images</div><div class="setting-desc">Allow users to upload image files</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_image_uploads" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Allow Documents</div><div class="setting-desc">Allow document uploads</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_document_uploads" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Allow Audio</div><div class="setting-desc">Allow audio file uploads</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_audio_uploads" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Allow Video</div><div class="setting-desc">Allow video file uploads</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_video_uploads" checked><span class="toggle-slider"></span></label></div>
+          </div>
+
+          <!-- Voice & Video -->
+          <div class="settings-section" id="settings-voice">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Simultaneous Voice Calls</div><div class="setting-desc">Maximum concurrent voice calls (0 = unlimited)</div></div><input type="number" data-key="max_simultaneous_calls" min="0" value="0"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Max Participants Per Channel</div><div class="setting-desc">Maximum users in a single voice channel (0 = unlimited)</div></div><input type="number" data-key="max_voice_participants" min="0" value="0"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Audio Bitrate (kbps)</div><div class="setting-desc">Audio quality bitrate for voice channels</div></div><input type="number" data-key="audio_bitrate_kbps" min="32" max="512" value="128"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Video Bitrate (Mbps)</div><div class="setting-desc">Video quality bitrate for video calls</div></div><input type="text" data-key="video_bitrate_mbps" value="2.5" style="width:80px"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Screen Sharing Allowed</div><div class="setting-desc">Allow users to share their screen</div></div><label class="toggle-switch"><input type="checkbox" data-key="screen_sharing_allowed" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Recording Allowed</div><div class="setting-desc">Allow users to record voice/video calls</div></div><label class="toggle-switch"><input type="checkbox" data-key="recording_allowed"><span class="toggle-slider"></span></label></div>
+          </div>
+
+          <!-- Security -->
+          <div class="settings-section" id="settings-security">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Two-Factor Authentication</div><div class="setting-desc">Require, make optional, or disable 2FA</div></div><select data-key="require_2fa"><option value="optional">Optional</option><option value="required">Required</option><option value="disabled">Disabled</option></select></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Password Min Length</div><div class="setting-desc">Minimum password length</div></div><input type="number" data-key="password_min_length" min="4" max="64" value="8"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Login Attempt Limit</div><div class="setting-desc">Failed attempts before lockout</div></div><input type="number" data-key="max_login_attempts" min="1" value="5"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Lockout Duration (Minutes)</div><div class="setting-desc">How long accounts are locked</div></div><input type="number" data-key="lockout_duration_minutes" min="1" value="15"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">IP Rate Limiting (Req/Min)</div><div class="setting-desc">Max requests per minute per IP (0 = unlimited)</div></div><input type="number" data-key="ip_rate_limiting" min="0" value="0"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Session Timeout (Hours)</div><div class="setting-desc">Auto-logout inactive sessions</div></div><input type="number" data-key="session_timeout_hours" min="1" value="168"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Require Email Verification</div><div class="setting-desc">Users must verify email before access</div></div><label class="toggle-switch"><input type="checkbox" data-key="require_email_verification"><span class="toggle-slider"></span></label></div>
+          </div>
+
+          <!-- Moderation -->
+          <div class="settings-section" id="settings-moderation">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Spam Detection Sensitivity</div><div class="setting-desc">How aggressively to detect spam</div></div><select data-key="spam_detection"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Auto-Kick Spammers</div><div class="setting-desc">Automatically kick detected spammers</div></div><label class="toggle-switch"><input type="checkbox" data-key="auto_kick_spammers"><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Auto-Mute Profanity</div><div class="setting-desc">Auto-mute profanity messages</div></div><label class="toggle-switch"><input type="checkbox" data-key="auto_mute_profanity"><span class="toggle-slider"></span></label></div>
+            <div class="setting-row" style="align-items:flex-start"><div class="setting-info"><div class="setting-label">Keyword Filter List</div><div class="setting-desc">Blocked keywords, one per line</div></div><textarea data-key="keyword_filter" placeholder="Enter blocked keywords..."></textarea></div>
+          </div>
+
+          <!-- System -->
+          <div class="settings-section" id="settings-system">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Maintenance Mode</div><div class="setting-desc">Block normal users during maintenance</div></div><label class="toggle-switch"><input type="checkbox" data-key="maintenance_mode"><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Maintenance Message</div><div class="setting-desc">Custom maintenance message</div></div><input type="text" data-key="maintenance_message" value="Server is under maintenance. Please try again later." style="width:300px"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Registration Enabled</div><div class="setting-desc">Allow new user registrations</div></div><label class="toggle-switch"><input type="checkbox" data-key="registration_enabled" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Enable Debug Mode</div><div class="setting-desc">Verbose debug logging</div></div><label class="toggle-switch"><input type="checkbox" data-key="debug_mode"><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Enable Message Editing</div><div class="setting-desc">Allow users to edit messages</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_message_editing" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Enable Message Reactions</div><div class="setting-desc">Allow emoji reactions</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_message_reactions" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Enable Server Invites</div><div class="setting-desc">Allow invite link creation</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_server_invites" checked><span class="toggle-slider"></span></label></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Enable Group DMs</div><div class="setting-desc">Allow group direct messages</div></div><label class="toggle-switch"><input type="checkbox" data-key="allow_group_dms" checked><span class="toggle-slider"></span></label></div>
+          </div>
+
+          <!-- Database -->
+          <div class="settings-section" id="settings-database">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Database Path</div><div class="setting-desc">Current database file location</div></div><span style="font-family:monospace;font-size:12px;color:var(--text-muted)" id="db-path">--</span></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Backup Database</div><div class="setting-desc">Create a backup of the current database</div></div><button class="btn-sm" id="backup-btn" onclick="backupDatabase()">Backup Now</button></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Auto-Backup Frequency</div><div class="setting-desc">How often to auto-backup</div></div><select data-key="auto_backup_frequency"><option value="hourly">Hourly</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="disabled">Disabled</option></select></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Backup Retention Count</div><div class="setting-desc">Number of backups to keep</div></div><input type="number" data-key="backup_retention_count" min="1" value="10"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Export Logs</div><div class="setting-desc">Export server logs to file</div></div><button class="btn-sm" id="export-btn" onclick="exportLogs()">Export Now</button></div>
+          </div>
+
+          <!-- Notifications -->
+          <div class="settings-section" id="settings-notifications">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Broadcast Announcement</div><div class="setting-desc">Send a message to all connected users</div></div><div style="display:flex;gap:8px"><input type="text" id="announce-input-settings" placeholder="Enter announcement..." style="width:240px"><button class="btn-sm" onclick="sendAnnouncementFromSettings()">Send</button></div></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Password Expiry (Days)</div><div class="setting-desc">Force password change after N days (0 = never)</div></div><input type="number" data-key="password_expiry_days" min="0" value="0"></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Message History Retention (Days)</div><div class="setting-desc">Keep message history for N days (0 = forever)</div></div><input type="number" data-key="max_message_history_days" min="0" value="0"></div>
+          </div>
+
+          <!-- Advanced -->
+          <div class="settings-section" id="settings-advanced">
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Server Port</div><div class="setting-desc">Port the server is listening on</div></div><span style="font-family:monospace;font-size:16px;font-weight:600;color:var(--accent)" id="server-port-display">3001</span></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Environment</div><div class="setting-desc">Current server environment mode</div></div><span style="font-size:14px;font-weight:600;color:var(--accent)" id="server-env-display">development</span></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Server Uptime</div><div class="setting-desc">How long the server has been running</div></div><span style="font-size:14px;font-weight:600;color:var(--green)" id="server-uptime-display">--</span></div>
+            <div class="setting-row"><div class="setting-info"><div class="setting-label">Server Version</div><div class="setting-desc">Current BillyCord server version</div></div><span style="font-size:14px;font-weight:600;color:var(--text-secondary)">Alpha 0.0.9</span></div>
+            <div class="setting-row" style="border-color:rgba(239,68,68,0.2);background:rgba(239,68,68,0.03);border-radius:8px;padding:14px"><div class="setting-info"><div class="setting-label" style="color:var(--red)">Reset All Settings</div><div class="setting-desc">Reset all server settings to their default values</div></div><button class="btn-danger" onclick="confirmResetDefaults()">Reset to Defaults</button></div>
+          </div>
+        </div>
+
+        <div class="save-bar">
+          <button class="btn-primary" onclick="saveAllSettings()">Save All Settings</button>
+          <button class="btn-cancel" onclick="resetDefaults()">Reset to Defaults</button>
+          <span class="save-status" id="save-status"></span>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -726,41 +553,15 @@
     <h2 id="edit-user-title">Edit User</h2>
     <input type="hidden" id="edit-user-id">
     <div class="form-row">
-      <div class="form-group">
-        <label>Username</label>
-        <input type="text" id="edit-username" placeholder="Username">
-      </div>
-      <div class="form-group">
-        <label>Email</label>
-        <input type="text" id="edit-email" placeholder="Email">
-      </div>
+      <div class="form-group"><label>Username</label><input type="text" id="edit-username" placeholder="Username"></div>
+      <div class="form-group"><label>Email</label><input type="text" id="edit-email" placeholder="Email"></div>
     </div>
-    <div class="form-group">
-      <label>Bio</label>
-      <textarea id="edit-bio" placeholder="User bio..."></textarea>
-    </div>
+    <div class="form-group"><label>Bio</label><textarea id="edit-bio" placeholder="User bio..."></textarea></div>
     <div class="form-row">
-      <div class="form-group">
-        <label>Status</label>
-        <select id="edit-status">
-          <option value="online">Online</option>
-          <option value="idle">Idle</option>
-          <option value="dnd">Do Not Disturb</option>
-          <option value="offline">Offline</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Profile Color</label>
-        <div style="display:flex;align-items:center;gap:8px">
-          <input type="text" id="edit-profile-color" placeholder="#3B82F6" style="flex:1">
-          <div class="color-preview" id="edit-color-preview"></div>
-        </div>
-      </div>
+      <div class="form-group"><label>Status</label><select id="edit-status"><option value="online">Online</option><option value="idle">Idle</option><option value="dnd">Do Not Disturb</option><option value="offline">Offline</option></select></div>
+      <div class="form-group"><label>Profile Color</label><div style="display:flex;align-items:center;gap:8px"><input type="text" id="edit-profile-color" placeholder="#3B82F6" style="flex:1"><div class="color-preview" id="edit-color-preview"></div></div></div>
     </div>
-    <div class="form-group">
-      <label>Avatar URL</label>
-      <input type="text" id="edit-avatar-url" placeholder="https://... or /uploads/...">
-    </div>
+    <div class="form-group"><label>Avatar URL</label><input type="text" id="edit-avatar-url" placeholder="https://... or /uploads/..."></div>
     <div id="edit-user-status" style="font-size:13px;margin-top:8px;display:none"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeEditUser()">Cancel</button>
@@ -782,27 +583,14 @@
     const username = document.getElementById('login-user').value.trim();
     const password = document.getElementById('login-pass').value;
     const errEl = document.getElementById('login-error');
-
-    if (!username || !password) {
-      errEl.textContent = 'Enter username and password';
-      errEl.style.display = 'block';
-      return;
-    }
-
+    if (!username || !password) { errEl.textContent = 'Enter username and password'; errEl.style.display = 'block'; return; }
     const ok = await ipcRenderer.invoke('admin:login', { username, password });
-    if (!ok) {
-      errEl.textContent = 'Invalid credentials';
-      errEl.style.display = 'block';
-      return;
-    }
-
+    if (!ok) { errEl.textContent = 'Invalid credentials'; errEl.style.display = 'block'; return; }
     errEl.style.display = 'none';
     adminSecret = await ipcRenderer.invoke('admin:getSecret');
     serverPort = await ipcRenderer.invoke('admin:getPort');
-
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('dashboard').classList.add('active');
-
     serverOnline = await ipcRenderer.invoke('server:getStatus');
     updateServerStatus(serverOnline);
     loadNetworkInfo();
@@ -821,97 +609,61 @@
     document.getElementById('login-pass').value = '';
   }
 
-  // ── IPC from main process ──
+  // ── IPC ──
   ipcRenderer.on('server:status', (_event, online) => {
-    serverOnline = online;
-    updateServerStatus(online);
+    serverOnline = online; updateServerStatus(online);
     if (online) { loadNetworkInfo(); setTimeout(refreshAll, 1000); }
   });
-
-  ipcRenderer.on('server:log', (_event, { level, message }) => {
-    addLogLine(level, message);
-  });
+  ipcRenderer.on('server:log', (_event, { level, message }) => { addLogLine(level, message); });
 
   // ── Server Controls ──
   async function serverControl(action) {
     addLogLine('info', `${action.toUpperCase()} requested...`);
     const result = await ipcRenderer.invoke(`server:${action}`);
-    if (!result.success) {
-      addLogLine('error', result.error);
-    } else {
-      addLogLine('info', `Server ${action} successful`);
-      if (action === 'start' || action === 'restart') setTimeout(refreshAll, 3000);
-    }
+    if (!result.success) { addLogLine('error', result.error); }
+    else { addLogLine('info', `Server ${action} successful`); if (action === 'start' || action === 'restart') setTimeout(refreshAll, 3000); }
   }
 
   // ── API ──
   async function apiFetch(endpoint) {
-    const res = await fetch(`http://localhost:${serverPort}${endpoint}`, {
-      headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    const res = await fetch(`http://localhost:${serverPort}${endpoint}`, { headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json();
   }
   async function apiPost(endpoint, body) {
-    const res = await fetch(`http://localhost:${serverPort}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    const res = await fetch(`http://localhost:${serverPort}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json();
   }
   async function apiDelete(endpoint) {
-    const res = await fetch(`http://localhost:${serverPort}${endpoint}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return res.json();
+    const res = await fetch(`http://localhost:${serverPort}${endpoint}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json();
   }
 
-  // ── Tabs ──
+  // ── Tabs (sidebar nav) ──
   function switchTab(name) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+    document.querySelectorAll('.nav-item').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === `tab-${name}`));
+    if (name === 'users') fetchUsers();
+    if (name === 'servers') fetchServers();
+    if (name === 'network') loadNetworkInfo();
   }
 
   // ── Refresh ──
   function refreshAll() { if (!serverOnline) return; fetchStats(); fetchUsers(); fetchServers(); fetchActivity(); fetchSettings(); }
   function autoRefresh() {
-    // Always try to ping the server - don't gate on serverOnline
-    // so we can recover from temporary disconnects
     checkHealth();
     if (serverOnline) {
       fetchStats();
-      const a = document.querySelector('.tab.active')?.dataset.tab;
+      const a = document.querySelector('.nav-item.active')?.dataset.tab;
       if (a === 'users') fetchUsers();
       if (a === 'servers') fetchServers();
     }
   }
 
   function checkHealth() {
-    fetch(`http://localhost:${serverPort}/api/health`, {
-      signal: AbortSignal.timeout(5000),
-    }).then(r => {
-      if (r.ok) {
-        if (!serverOnline) {
-          serverOnline = true;
-          updateServerStatus(true);
-          addLogLine('info', 'Server connection restored');
-          refreshAll();
-        }
-      } else {
-        serverOnline = false;
-        updateServerStatus(false);
-      }
-    }).catch(() => {
-      if (serverOnline) {
-        serverOnline = false;
-        updateServerStatus(false);
-        addLogLine('warn', 'Lost connection to server');
-      }
-    });
+    fetch(`http://localhost:${serverPort}/api/health`, { signal: AbortSignal.timeout(5000) }).then(r => {
+      if (r.ok) { if (!serverOnline) { serverOnline = true; updateServerStatus(true); addLogLine('info', 'Server connection restored'); refreshAll(); } }
+      else { serverOnline = false; updateServerStatus(false); }
+    }).catch(() => { if (serverOnline) { serverOnline = false; updateServerStatus(false); addLogLine('warn', 'Lost connection to server'); } });
   }
 
   // ── Network Info ──
@@ -925,18 +677,11 @@
     document.getElementById('ip-port-tip').textContent = ips.port;
   }
 
-  // ── Copy to clipboard ──
   function copyText(elementId) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    const text = el.textContent;
-    navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById(elementId); if (!el) return;
+    navigator.clipboard.writeText(el.textContent).then(() => {
       const btn = el.closest('.ip-item, .info-share-box')?.querySelector('.copy-btn');
-      if (btn) {
-        btn.textContent = 'Copied!';
-        btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
-      }
+      if (btn) { btn.textContent = 'Copied!'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000); }
     });
   }
 
@@ -968,7 +713,7 @@
       document.getElementById('users-body').innerHTML = users.map(u => `<tr>
         <td><strong>${esc(u.username)}</strong></td><td>${esc(u.email)}</td>
         <td><span class="badge ${u.status||'offline'}">${u.status||'offline'}</span></td>
-        <td>${esc(u.custom_status||'—')}</td><td>${fmtDate(u.created_at)}</td>
+        <td>${esc(u.custom_status||'\u2014')}</td><td>${fmtDate(u.created_at)}</td>
         <td>${fmtDate(u.last_seen)}</td>
         <td style="display:flex;gap:4px">
           <button class="btn-sm" onclick="openEditUser('${u.id}')">Edit</button>
@@ -983,8 +728,7 @@
   }
 
   function openEditUser(userId) {
-    const u = usersCache.find(x => x.id === userId);
-    if (!u) return;
+    const u = usersCache.find(x => x.id === userId); if (!u) return;
     document.getElementById('edit-user-id').value = u.id;
     document.getElementById('edit-user-title').textContent = `Edit User: ${u.username}`;
     document.getElementById('edit-username').value = u.username || '';
@@ -996,46 +740,19 @@
     document.getElementById('edit-color-preview').style.background = u.profile_color || '#3B82F6';
     document.getElementById('edit-user-status').style.display = 'none';
     document.getElementById('user-edit-modal').style.display = 'flex';
-    // Live color preview
-    document.getElementById('edit-profile-color').oninput = function() {
-      document.getElementById('edit-color-preview').style.background = this.value;
-    };
+    document.getElementById('edit-profile-color').oninput = function() { document.getElementById('edit-color-preview').style.background = this.value; };
   }
-
-  function closeEditUser() {
-    document.getElementById('user-edit-modal').style.display = 'none';
-  }
-
+  function closeEditUser() { document.getElementById('user-edit-modal').style.display = 'none'; }
   function saveEditUser() {
     const userId = document.getElementById('edit-user-id').value;
-    const data = {
-      username: document.getElementById('edit-username').value,
-      email: document.getElementById('edit-email').value,
-      bio: document.getElementById('edit-bio').value,
-      status: document.getElementById('edit-status').value,
-      profile_color: document.getElementById('edit-profile-color').value,
-      avatar_url: document.getElementById('edit-avatar-url').value,
-    };
+    const data = { username: document.getElementById('edit-username').value, email: document.getElementById('edit-email').value, bio: document.getElementById('edit-bio').value, status: document.getElementById('edit-status').value, profile_color: document.getElementById('edit-profile-color').value, avatar_url: document.getElementById('edit-avatar-url').value };
     const statusEl = document.getElementById('edit-user-status');
-    fetch(`http://localhost:${serverPort}/api/admin/users/${userId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret },
-      body: JSON.stringify(data),
-    }).then(r => {
-      if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Failed'); });
-      return r.json();
+    fetch(`http://localhost:${serverPort}/api/admin/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'x-admin-secret': adminSecret }, body: JSON.stringify(data) }).then(r => {
+      if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Failed'); }); return r.json();
     }).then(() => {
-      statusEl.textContent = 'User updated successfully!';
-      statusEl.style.color = 'var(--green)';
-      statusEl.style.display = 'block';
-      addLogLine('info', `Updated user: ${data.username}`);
-      fetchUsers();
-      setTimeout(closeEditUser, 1500);
-    }).catch(e => {
-      statusEl.textContent = e.message || 'Failed to update user';
-      statusEl.style.color = 'var(--red)';
-      statusEl.style.display = 'block';
-    });
+      statusEl.textContent = 'User updated successfully!'; statusEl.style.color = 'var(--green)'; statusEl.style.display = 'block';
+      addLogLine('info', `Updated user: ${data.username}`); fetchUsers(); setTimeout(closeEditUser, 1500);
+    }).catch(e => { statusEl.textContent = e.message || 'Failed to update user'; statusEl.style.color = 'var(--red)'; statusEl.style.display = 'block'; });
   }
 
   // ── Servers ──
@@ -1060,43 +777,25 @@
 
   // ── Settings ──
   let settingsDefaults = {};
-
   function fetchSettings() {
     apiFetch('/api/admin/settings').then(data => {
       const settings = data.settings || [];
       settings.forEach(s => {
         settingsDefaults[s.setting_key] = s.setting_value;
-        const el = document.querySelector(`[data-key="${s.setting_key}"]`);
-        if (!el) return;
-        if (el.type === 'checkbox') {
-          el.checked = s.setting_value === 'true';
-        } else if (el.tagName === 'SELECT') {
-          el.value = s.setting_value;
-        } else if (el.tagName === 'TEXTAREA') {
-          el.value = s.setting_value || '';
-        } else {
-          el.value = s.setting_value;
-        }
+        const el = document.querySelector(`[data-key="${s.setting_key}"]`); if (!el) return;
+        if (el.type === 'checkbox') el.checked = s.setting_value === 'true';
+        else if (el.tagName === 'SELECT') el.value = s.setting_value;
+        else if (el.tagName === 'TEXTAREA') el.value = s.setting_value || '';
+        else el.value = s.setting_value;
       });
-      // Populate runtime info on Advanced tab
       if (data.runtime) {
-        const envEl = document.getElementById('server-env-display');
-        if (envEl) envEl.textContent = data.runtime.environment || 'development';
-        const portEl = document.getElementById('server-port-display');
-        if (portEl) portEl.textContent = data.runtime.port || serverPort;
+        const envEl = document.getElementById('server-env-display'); if (envEl) envEl.textContent = data.runtime.environment || 'development';
+        const portEl = document.getElementById('server-port-display'); if (portEl) portEl.textContent = data.runtime.port || serverPort;
       }
-      if (data.dbPath) {
-        const dbEl = document.getElementById('db-path');
-        if (dbEl) dbEl.textContent = data.dbPath;
-      }
+      if (data.dbPath) { const dbEl = document.getElementById('db-path'); if (dbEl) dbEl.textContent = data.dbPath; }
     }).catch(e => { console.error('Failed to load settings:', e); });
-    // Update uptime from stats
     apiFetch('/api/admin/stats').then(d => {
-      if (d.uptime) {
-        const s = Math.floor(d.uptime), h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
-        const el = document.getElementById('server-uptime-display');
-        if (el) el.textContent = `${h}h ${m}m ${s%60}s`;
-      }
+      if (d.uptime) { const s = Math.floor(d.uptime), h = Math.floor(s/3600), m = Math.floor((s%3600)/60); const el = document.getElementById('server-uptime-display'); if (el) el.textContent = `${h}h ${m}m ${s%60}s`; }
     }).catch(()=>{});
   }
 
@@ -1104,129 +803,65 @@
     document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
     event.target.classList.add('active');
-    const section = document.getElementById('settings-' + name);
-    if (section) section.classList.add('active');
+    const section = document.getElementById('settings-' + name); if (section) section.classList.add('active');
   }
 
   function gatherSettings() {
     const result = {};
     document.querySelectorAll('[data-key]').forEach(el => {
       const key = el.getAttribute('data-key');
-      if (el.type === 'checkbox') {
-        result[key] = el.checked ? 'true' : 'false';
-      } else {
-        result[key] = el.value;
-      }
+      result[key] = el.type === 'checkbox' ? (el.checked ? 'true' : 'false') : el.value;
     });
     return result;
   }
 
   function saveAllSettings() {
     const settings = gatherSettings();
-    const statusEl = document.getElementById('save-status');
-    statusEl.className = 'save-status';
-    statusEl.style.display = 'none';
-
+    const statusEl = document.getElementById('save-status'); statusEl.className = 'save-status'; statusEl.style.display = 'none';
     apiPost('/api/admin/settings', { settings }).then(r => {
-      statusEl.textContent = '\u2705 Settings saved successfully!';
-      statusEl.className = 'save-status success';
+      statusEl.textContent = '\u2705 Settings saved successfully!'; statusEl.className = 'save-status success';
       setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 4000);
       addLogLine('info', `Settings saved (${r.updated} values updated)`);
-    }).catch(e => {
-      statusEl.textContent = '\u274C Failed to save: ' + e.message;
-      statusEl.className = 'save-status error';
-      addLogLine('error', 'Failed to save settings: ' + e.message);
-    });
+    }).catch(e => { statusEl.textContent = '\u274C Failed to save: ' + e.message; statusEl.className = 'save-status error'; addLogLine('error', 'Failed to save settings: ' + e.message); });
   }
 
   function resetDefaults() {
     if (!confirm('Reset ALL settings to defaults? This cannot be undone.')) return;
-    const defaults = {
-      max_users: '10000', max_servers_per_user: '100', max_friends_per_user: '5000',
-      max_simultaneous_logins: '5', max_message_length: '2000', message_retention_days: '365',
-      rate_limit_messages: '20', max_pin_per_channel: '50', max_reactions_per_message: '10',
-      slow_mode_default: '0', max_file_upload_mb: '25', allow_image_uploads: 'true',
-      allow_document_uploads: 'true', allow_audio_uploads: 'true', allow_video_uploads: 'true',
-      max_simultaneous_calls: '0', max_voice_participants: '0', audio_bitrate_kbps: '128',
-      video_bitrate_mbps: '2.5', screen_sharing_allowed: 'true', recording_allowed: 'false',
-      require_2fa: 'optional', password_min_length: '8', max_login_attempts: '5',
-      lockout_duration_minutes: '15', ip_rate_limiting: '0', session_timeout_hours: '168',
-      require_email_verification: 'false', maintenance_mode: 'false', registration_enabled: 'true',
-      spam_detection: 'medium', auto_kick_spammers: 'false', auto_mute_profanity: 'false',
-      keyword_filter: '',
-      maintenance_message: 'Server is under maintenance. Please try again later.',
-      debug_mode: 'false', allow_message_editing: 'true', allow_message_reactions: 'true',
-      allow_server_invites: 'true', allow_group_dms: 'true',
-      auto_backup_frequency: 'daily', backup_retention_count: '10',
-      password_expiry_days: '0', max_message_history_days: '0',
-    };
-    Object.entries(defaults).forEach(([key, val]) => {
-      const el = document.querySelector(`[data-key="${key}"]`);
-      if (!el) return;
-      if (el.type === 'checkbox') el.checked = val === 'true';
-      else el.value = val;
-    });
+    const defaults = { max_users:'10000',max_servers_per_user:'100',max_friends_per_user:'5000',max_simultaneous_logins:'5',max_message_length:'2000',message_retention_days:'365',rate_limit_messages:'20',max_pin_per_channel:'50',max_reactions_per_message:'10',slow_mode_default:'0',max_file_upload_mb:'25',allow_image_uploads:'true',allow_document_uploads:'true',allow_audio_uploads:'true',allow_video_uploads:'true',max_simultaneous_calls:'0',max_voice_participants:'0',audio_bitrate_kbps:'128',video_bitrate_mbps:'2.5',screen_sharing_allowed:'true',recording_allowed:'false',require_2fa:'optional',password_min_length:'8',max_login_attempts:'5',lockout_duration_minutes:'15',ip_rate_limiting:'0',session_timeout_hours:'168',require_email_verification:'false',maintenance_mode:'false',registration_enabled:'true',spam_detection:'medium',auto_kick_spammers:'false',auto_mute_profanity:'false',keyword_filter:'',maintenance_message:'Server is under maintenance. Please try again later.',debug_mode:'false',allow_message_editing:'true',allow_message_reactions:'true',allow_server_invites:'true',allow_group_dms:'true',auto_backup_frequency:'daily',backup_retention_count:'10',password_expiry_days:'0',max_message_history_days:'0' };
+    Object.entries(defaults).forEach(([key, val]) => { const el = document.querySelector(`[data-key="${key}"]`); if (!el) return; if (el.type === 'checkbox') el.checked = val === 'true'; else el.value = val; });
     apiPost('/api/admin/settings', { settings: defaults }).then(() => {
-      const statusEl = document.getElementById('save-status');
-      statusEl.textContent = 'All settings reset to defaults!';
-      statusEl.className = 'save-status success';
-      setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 3000);
-      addLogLine('info', 'All settings reset to defaults');
+      const statusEl = document.getElementById('save-status'); statusEl.textContent = 'All settings reset to defaults!'; statusEl.className = 'save-status success';
+      setTimeout(() => { statusEl.className = 'save-status'; statusEl.style.display = 'none'; }, 3000); addLogLine('info', 'All settings reset to defaults');
     }).catch(e => addLogLine('error', 'Failed to reset: ' + e.message));
   }
+  function confirmResetDefaults() { if (confirm('Are you sure you want to reset ALL settings? This cannot be undone.')) resetDefaults(); }
 
-  function confirmResetDefaults() {
-    if (confirm('Are you sure you want to reset ALL settings to their default values? This cannot be undone.')) {
-      resetDefaults();
-    }
-  }
-
-  // ── Database actions ──
+  // ── Database ──
   function backupDatabase() {
-    const btn = document.getElementById('backup-btn');
-    btn.textContent = 'Backing up...'; btn.disabled = true;
-    apiPost('/api/admin/export-logs', {}).then(() => {
-      btn.textContent = 'Done!'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)';
-      addLogLine('info', 'Database backup/export completed');
+    const btn = document.getElementById('backup-btn'); btn.textContent = 'Backing up...'; btn.disabled = true;
+    apiPost('/api/admin/export-logs', {}).then(() => { btn.textContent = 'Done!'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; addLogLine('info', 'Database backup completed');
       setTimeout(() => { btn.textContent = 'Backup Now'; btn.disabled = false; btn.style.borderColor = ''; btn.style.color = ''; }, 3000);
-    }).catch(e => {
-      btn.textContent = 'Failed'; btn.style.color = 'var(--red)';
-      addLogLine('error', 'Backup failed: ' + e.message);
-      setTimeout(() => { btn.textContent = 'Backup Now'; btn.disabled = false; btn.style.color = ''; }, 3000);
-    });
+    }).catch(e => { btn.textContent = 'Failed'; btn.style.color = 'var(--red)'; addLogLine('error', 'Backup failed: ' + e.message);
+      setTimeout(() => { btn.textContent = 'Backup Now'; btn.disabled = false; btn.style.color = ''; }, 3000); });
   }
-
   function exportLogs() {
-    const btn = document.getElementById('export-btn');
-    btn.textContent = 'Exporting...'; btn.disabled = true;
-    apiPost('/api/admin/export-logs', {}).then(() => {
-      btn.textContent = 'Exported!'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)';
-      addLogLine('info', 'Logs exported successfully');
+    const btn = document.getElementById('export-btn'); btn.textContent = 'Exporting...'; btn.disabled = true;
+    apiPost('/api/admin/export-logs', {}).then(() => { btn.textContent = 'Exported!'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; addLogLine('info', 'Logs exported');
       setTimeout(() => { btn.textContent = 'Export Now'; btn.disabled = false; btn.style.borderColor = ''; btn.style.color = ''; }, 3000);
-    }).catch(e => {
-      btn.textContent = 'Failed'; btn.style.color = 'var(--red)';
-      addLogLine('error', 'Export failed: ' + e.message);
-      setTimeout(() => { btn.textContent = 'Export Now'; btn.disabled = false; btn.style.color = ''; }, 3000);
-    });
-  }
-
-  // ── Announce (from settings tab) ──
-  function sendAnnouncementFromSettings() {
-    const input = document.getElementById('announce-input-settings');
-    const msg = input.value.trim(); if (!msg) return;
-    apiPost('/api/admin/announce',{message:msg}).then(()=>{
-      addLogLine('info',`Announcement sent: "${msg}"`); input.value='';
-      input.style.borderColor='var(--green)';
-      setTimeout(()=>{ input.style.borderColor=''; },2000);
-    }).catch(e=>addLogLine('error',`Failed: ${e.message}`));
+    }).catch(e => { btn.textContent = 'Failed'; btn.style.color = 'var(--red)'; addLogLine('error', 'Export failed: ' + e.message);
+      setTimeout(() => { btn.textContent = 'Export Now'; btn.disabled = false; btn.style.color = ''; }, 3000); });
   }
 
   // ── Announce ──
+  function sendAnnouncementFromSettings() {
+    const input = document.getElementById('announce-input-settings');
+    const msg = input.value.trim(); if (!msg) return;
+    apiPost('/api/admin/announce',{message:msg}).then(()=>{ addLogLine('info',`Announcement sent: "${msg}"`); input.value=''; input.style.borderColor='var(--green)'; setTimeout(()=>{ input.style.borderColor=''; },2000); }).catch(e=>addLogLine('error',`Failed: ${e.message}`));
+  }
   function sendAnnouncement() {
     const input = document.getElementById('announce-input');
     const msg = input.value.trim(); if (!msg) return;
-    apiPost('/api/admin/announce',{message:msg}).then(()=>{addLogLine('info',`Announcement sent: "${msg}"`);input.value='';})
-      .catch(e=>addLogLine('error',`Failed: ${e.message}`));
+    apiPost('/api/admin/announce',{message:msg}).then(()=>{addLogLine('info',`Announcement sent: "${msg}"`);input.value='';}).catch(e=>addLogLine('error',`Failed: ${e.message}`));
   }
 
   // ── Logs ──
@@ -1234,16 +869,14 @@
     const now = new Date().toLocaleTimeString();
     const line = document.createElement('div'); line.className = 'log-line';
     line.innerHTML = `<span class="time">[${now}]</span> <span class="${level}">[${level.toUpperCase()}]</span> <span class="msg">${esc(message)}</span>`;
-    const c = document.getElementById('log-container');
-    c.appendChild(line);
-    while (c.children.length > 500) c.removeChild(c.firstChild);
-    c.scrollTop = c.scrollHeight;
+    const c = document.getElementById('log-container'); c.appendChild(line);
+    while (c.children.length > 500) c.removeChild(c.firstChild); c.scrollTop = c.scrollHeight;
   }
 
   // ── Helpers ──
   function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-  function fmtDate(iso){if(!iso)return'—';return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
-  function fmtTime(iso){if(!iso)return'—';return new Date(iso).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+  function fmtDate(iso){if(!iso)return'\u2014';return new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+  function fmtTime(iso){if(!iso)return'\u2014';return new Date(iso).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
 </script>
 </body>
 </html>
