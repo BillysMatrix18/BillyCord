@@ -14,13 +14,68 @@ function logError(...args: unknown[]) { console.error(LOG_PREFIX, ...args); }
 // Simple toast notification system
 function showCallError(message: string) {
   logError('Call Error:', message);
-  // Dispatch a custom event that UI can listen to
   window.dispatchEvent(new CustomEvent('voice:error', { detail: { message } }));
 }
 
 function showCallInfo(message: string) {
   log('Call Info:', message);
   window.dispatchEvent(new CustomEvent('voice:info', { detail: { message } }));
+}
+
+// ─── Microphone Permission System ───
+type MicPermissionStatus = 'unknown' | 'granted' | 'denied' | 'prompt';
+let micPermissionStatus: MicPermissionStatus = 'unknown';
+
+export function getMicPermissionStatus(): MicPermissionStatus {
+  return micPermissionStatus;
+}
+
+export async function checkMicPermission(): Promise<MicPermissionStatus> {
+  try {
+    // Use Permissions API if available
+    if (navigator.permissions && navigator.permissions.query) {
+      const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      micPermissionStatus = result.state as MicPermissionStatus;
+      log('Mic permission status (Permissions API):', micPermissionStatus);
+
+      // Listen for permission changes
+      result.onchange = () => {
+        micPermissionStatus = result.state as MicPermissionStatus;
+        log('Mic permission changed to:', micPermissionStatus);
+        window.dispatchEvent(new CustomEvent('voice:mic-permission-changed', { detail: { status: micPermissionStatus } }));
+      };
+
+      return micPermissionStatus;
+    }
+  } catch {
+    // Permissions API not supported or 'microphone' not queryable
+    log('Permissions API not available for microphone, status unknown');
+  }
+  return micPermissionStatus;
+}
+
+export async function requestMicPermission(): Promise<boolean> {
+  log('Requesting microphone permission...');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Got permission - stop the test stream immediately
+    stream.getTracks().forEach(t => t.stop());
+    micPermissionStatus = 'granted';
+    log('Microphone permission granted');
+    window.dispatchEvent(new CustomEvent('voice:mic-permission-changed', { detail: { status: 'granted' } }));
+    return true;
+  } catch (err) {
+    logError('Microphone permission denied:', err);
+    micPermissionStatus = 'denied';
+    window.dispatchEvent(new CustomEvent('voice:mic-permission-changed', { detail: { status: 'denied' } }));
+    return false;
+  }
+}
+
+// Show the permission dialog via event
+function showMicPermissionDialog() {
+  log('Showing mic permission dialog');
+  window.dispatchEvent(new CustomEvent('voice:show-mic-dialog'));
 }
 
 const ICE_SERVERS: RTCConfiguration = {
@@ -481,6 +536,27 @@ export async function initiateCall(conversationId: string, callType: 'dm' | 'gro
     return;
   }
 
+  // Check microphone permission before requesting
+  if (micPermissionStatus === 'denied') {
+    log('Mic permission previously denied, showing dialog');
+    showMicPermissionDialog();
+    return;
+  }
+
+  if (micPermissionStatus === 'unknown' || micPermissionStatus === 'prompt') {
+    // Check current status first
+    const status = await checkMicPermission();
+    if (status === 'denied') {
+      showMicPermissionDialog();
+      return;
+    }
+    if (status === 'prompt' || status === 'unknown') {
+      // Show our custom dialog first
+      showMicPermissionDialog();
+      return;
+    }
+  }
+
   // Get microphone access
   try {
     log('Requesting microphone access...');
@@ -490,7 +566,8 @@ export async function initiateCall(conversationId: string, callType: 'dm' | 'gro
     startVAD();
   } catch (err) {
     logError('Microphone access denied:', err);
-    showCallError('Microphone access denied. Please allow microphone access and try again.');
+    micPermissionStatus = 'denied';
+    showMicPermissionDialog();
     return;
   }
 
@@ -591,6 +668,12 @@ export async function acceptCall() {
   stopRingtone();
   if (missedCallTimer) { clearTimeout(missedCallTimer); missedCallTimer = null; }
 
+  // Check mic permission
+  if (micPermissionStatus === 'denied') {
+    showMicPermissionDialog();
+    return;
+  }
+
   try {
     log('Requesting microphone access for accepting call...');
     localStream = await getMicrophoneStream(getState().selectedMicId);
@@ -599,8 +682,8 @@ export async function acceptCall() {
     startVAD();
   } catch (err) {
     logError('Mic access denied on accept:', err);
-    showCallError('Microphone access denied. Cannot join call.');
-    dispatch(setIncomingCall(null));
+    micPermissionStatus = 'denied';
+    showMicPermissionDialog();
     return;
   }
 
@@ -903,13 +986,27 @@ export async function joinVoiceChannelCall(channelId: string, serverId: string) 
     return;
   }
 
+  // Check mic permission
+  if (micPermissionStatus === 'denied') {
+    showMicPermissionDialog();
+    return;
+  }
+  if (micPermissionStatus === 'unknown' || micPermissionStatus === 'prompt') {
+    const status = await checkMicPermission();
+    if (status !== 'granted') {
+      showMicPermissionDialog();
+      return;
+    }
+  }
+
   try {
     localStream = await getMicrophoneStream(getState().selectedMicId);
     await enumerateDevices();
     startVAD();
   } catch {
     logError('Mic access denied for voice channel');
-    showCallError('Microphone access denied.');
+    micPermissionStatus = 'denied';
+    showMicPermissionDialog();
     return;
   }
 

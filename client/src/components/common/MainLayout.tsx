@@ -16,6 +16,8 @@ import JoinServerModal from '../server/JoinServerModal';
 import DevModeOverlay from './DevModeOverlay';
 import VoiceCallPanel from '../voice/VoiceCallPanel';
 import IncomingCallOverlay from '../voice/IncomingCallOverlay';
+import MicrophonePermissionDialog from '../voice/MicrophonePermissionDialog';
+import { checkMicPermission, requestMicPermission, getMicPermissionStatus } from '../../services/voiceService';
 import { IconX } from './Icons';
 
 export default function MainLayout() {
@@ -33,6 +35,41 @@ export default function MainLayout() {
     const interval = setInterval(handleStorage, 1000);
     return () => { window.removeEventListener('storage', handleStorage); clearInterval(interval); };
   }, []);
+
+  // Microphone permission dialog
+  const [showMicDialog, setShowMicDialog] = useState(false);
+
+  // Check mic permission on app start
+  useEffect(() => {
+    checkMicPermission();
+  }, []);
+
+  // Listen for mic dialog show events from voiceService
+  useEffect(() => {
+    const handleShowDialog = () => setShowMicDialog(true);
+    const handlePermissionChanged = (e: Event) => {
+      const status = (e as CustomEvent).detail?.status;
+      if (status === 'granted') setShowMicDialog(false);
+    };
+    window.addEventListener('voice:show-mic-dialog', handleShowDialog);
+    window.addEventListener('voice:mic-permission-changed', handlePermissionChanged);
+    return () => {
+      window.removeEventListener('voice:show-mic-dialog', handleShowDialog);
+      window.removeEventListener('voice:mic-permission-changed', handlePermissionChanged);
+    };
+  }, []);
+
+  const handleMicAllow = async () => {
+    const granted = await requestMicPermission();
+    if (granted) {
+      setShowMicDialog(false);
+    }
+    // If denied, the dialog will show the denied info internally
+  };
+
+  const handleMicDeny = () => {
+    setShowMicDialog(false);
+  };
 
   // Global voice toast notifications
   const [voiceToast, setVoiceToast] = useState<string | null>(null);
@@ -99,6 +136,9 @@ export default function MainLayout() {
       {devMode && <DevModeOverlay />}
       <VoiceCallPanel />
       <IncomingCallOverlay />
+      {showMicDialog && (
+        <MicrophonePermissionDialog onAllow={handleMicAllow} onDeny={handleMicDeny} />
+      )}
       {showSettings && <SettingsOverlay />}
       {showCreateServer && <CreateServerModal />}
       {showJoinServer && <JoinServerModal />}
