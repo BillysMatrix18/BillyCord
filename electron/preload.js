@@ -18,4 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // App version
   getVersion: () => ipcRenderer.invoke('app:version'),
+
+  // Microphone permission
+  requestMicPermission: () => ipcRenderer.invoke('mic:request-permission'),
+  checkMicPermission: () => ipcRenderer.invoke('mic:check-permission'),
 });

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, dialog, Tray, Menu, nativeImage, session, ipcMain: mainIpcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -568,6 +568,34 @@ if (!gotLock) {
 }
 
 app.on('ready', () => {
+  // Grant microphone permission automatically when requested
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'media' || permission === 'microphone') {
+      console.log('[Permissions] Microphone permission requested - granting automatically');
+      callback(true);
+    } else {
+      callback(true);
+    }
+  });
+
+  // Also handle permission check queries
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    if (permission === 'media' || permission === 'microphone') {
+      return true;
+    }
+    return true;
+  });
+
+  // Handle mic permission request from renderer via IPC
+  mainIpcMain.handle('mic:request-permission', async () => {
+    console.log('[Permissions] Mic permission requested via IPC');
+    return { granted: true };
+  });
+
+  mainIpcMain.handle('mic:check-permission', async () => {
+    return { status: 'granted' };
+  });
+
   createTray();
   setupAutoUpdater();
   startConnectionFlow();

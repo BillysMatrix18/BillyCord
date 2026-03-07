@@ -17,7 +17,7 @@ import DevModeOverlay from './DevModeOverlay';
 import VoiceCallPanel from '../voice/VoiceCallPanel';
 import IncomingCallOverlay from '../voice/IncomingCallOverlay';
 import MicrophonePermissionDialog from '../voice/MicrophonePermissionDialog';
-import { checkMicPermission, requestMicPermission, getMicPermissionStatus } from '../../services/voiceService';
+import { checkMicPermission } from '../../services/voiceService';
 import { IconX } from './Icons';
 
 export default function MainLayout() {
@@ -59,15 +59,13 @@ export default function MainLayout() {
     };
   }, []);
 
-  const handleMicAllow = async () => {
-    const granted = await requestMicPermission();
-    if (granted) {
-      setShowMicDialog(false);
-    }
-    // If denied, the dialog will show the denied info internally
+  const handleMicAllow = () => {
+    // Dialog already handled getUserMedia and saved to localStorage
+    setShowMicDialog(false);
   };
 
   const handleMicDeny = () => {
+    // Just close - will show again on next call attempt
     setShowMicDialog(false);
   };
 

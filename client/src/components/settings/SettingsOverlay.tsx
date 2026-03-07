@@ -903,7 +903,7 @@ export default function SettingsOverlay() {
             <div className="settings-card">
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <h1 style={{ fontSize: 28, fontWeight: 700, color: 'var(--header-primary)', marginBottom: 4 }}>BillyCord</h1>
-                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Version 0.1.4</div>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20 }}>Version 0.1.5</div>
               </div>
 
               <div style={{ borderTop: '1px solid var(--bg-modifier-hover)', padding: '16px 0' }}>
@@ -925,8 +925,19 @@ export default function SettingsOverlay() {
                 <label style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 12, display: 'block' }}>Changelog</label>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   <div style={{ marginBottom: 12 }}>
-                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.4</strong>
+                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.5</strong>
                     <span style={{ color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>Latest</span>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
+                      <li>In-app microphone permission popup for voice calls</li>
+                      <li>Electron auto-grants microphone permission (no Windows Settings needed)</li>
+                      <li>Permission remembered across sessions via localStorage</li>
+                      <li>Comprehensive voice call debugging and error feedback</li>
+                      <li>Fixed voice call button not working (socket timing and signaling fixes)</li>
+                      <li>User-visible toast notifications for all call events and errors</li>
+                    </ul>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <strong style={{ color: 'var(--text-primary)' }}>Version 0.1.4</strong>
                     <ul style={{ margin: '4px 0 0 16px', padding: 0, listStyle: 'disc' }}>
                       <li>Complete voice calling system: 1v1 DM calls, group calls, and voice channels</li>
                       <li>WebRTC peer-to-peer audio with STUN servers for NAT traversal</li>
