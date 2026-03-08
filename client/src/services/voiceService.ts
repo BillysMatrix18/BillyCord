@@ -53,6 +53,22 @@ export async function checkMicPermission(): Promise<'granted' | 'unknown'> {
 
 export async function requestMicPermission(): Promise<boolean> {
   log('Requesting microphone permission...');
+
+  // Try Electron IPC first (auto-grants on Windows)
+  try {
+    const electronAPI = (window as unknown as { electronAPI?: { requestMicPermission?: () => Promise<{ granted: boolean }> } }).electronAPI;
+    if (electronAPI?.requestMicPermission) {
+      log('Using Electron IPC for mic permission');
+      const result = await electronAPI.requestMicPermission();
+      if (result.granted) {
+        log('Electron IPC: mic permission granted');
+      }
+    }
+  } catch {
+    log('Electron IPC not available, using web API');
+  }
+
+  // Now actually request the stream to confirm it works
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach(t => t.stop());

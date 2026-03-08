@@ -568,31 +568,43 @@ if (!gotLock) {
 }
 
 app.on('ready', () => {
-  // Grant microphone permission automatically when requested
+  // Auto-grant ALL media/microphone permissions without prompting
+  // This prevents the need for users to configure Windows Settings
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    if (permission === 'media' || permission === 'microphone') {
-      console.log('[Permissions] Microphone permission requested - granting automatically');
-      callback(true);
-    } else {
-      callback(true);
-    }
+    console.log('[Permissions] Permission requested:', permission, '- granting automatically');
+    // Grant everything - mic, camera, media, notifications, etc.
+    callback(true);
   });
 
-  // Also handle permission check queries
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
-    if (permission === 'media' || permission === 'microphone') {
-      return true;
-    }
+    // Always return true for permission checks
     return true;
   });
 
-  // Handle mic permission request from renderer via IPC
+  // IPC: Check if OS-level mic access is available
   mainIpcMain.handle('mic:request-permission', async () => {
     console.log('[Permissions] Mic permission requested via IPC');
+    // On macOS, check system-level access
+    if (process.platform === 'darwin') {
+      const { systemPreferences } = require('electron');
+      const status = systemPreferences.getMediaAccessStatus('microphone');
+      if (status !== 'granted') {
+        const granted = await systemPreferences.askForMediaAccess('microphone');
+        return { granted };
+      }
+      return { granted: true };
+    }
+    // On Windows/Linux, Electron handles it automatically with setPermissionRequestHandler
     return { granted: true };
   });
 
   mainIpcMain.handle('mic:check-permission', async () => {
+    if (process.platform === 'darwin') {
+      const { systemPreferences } = require('electron');
+      const status = systemPreferences.getMediaAccessStatus('microphone');
+      return { status };
+    }
+    // Windows/Linux - always granted via setPermissionRequestHandler
     return { status: 'granted' };
   });
 
